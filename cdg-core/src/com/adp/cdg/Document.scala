@@ -1,12 +1,14 @@
 package com.adp.cdg
 
 import java.util.Date
+import scala.language.dynamics
+import scala.language.implicitConversions
 import com.adp.cdg.store.DataSet
 
 /**
  * A document can be regarded as a JSON object with a key.
  */
-class Document(id: String) {
+class Document(id: String) extends Dynamic {
   val RootAttributeFamily = "cdg.attributes"
   val RelationshipFamily = "cdg.relationships"
   
@@ -15,8 +17,7 @@ class Document(id: String) {
   
   private lazy val attributes = collection.mutable.Map[String, JsonValue]()
   private lazy val neighbors = collection.mutable.LinkedList[Relationship]()
-  private lazy val updates = collection.mutable.Map[(String, String), Array[Byte]]()
-  private lazy val deletes = collection.mutable.Set[(String, String)]()
+  private lazy val updates = collection.mutable.Map[(String, String), Option[Array[Byte]]]()
   
   /**
    * Returns the JSON object.
@@ -36,6 +37,10 @@ class Document(id: String) {
       Some(attributes(key))
     else
       None
+  }
+  
+  def selectDynamic(key: String)() {
+    apply(key)
   }
   
   /**
@@ -60,7 +65,7 @@ class Document(id: String) {
    * Recursively removes the key-value pairs.
    */
   private def remove(columnFamily: String, key: String, value: JsonValue): Unit = {
-    deletes.add((columnFamily, key))
+    updates((columnFamily, key)) = None
     
     value match {
       case JsonObjectValue(obj) =>
@@ -74,7 +79,7 @@ class Document(id: String) {
       case _ => ()
     }    
   }
-  
+
   /**
    * Update a field.
    */
@@ -88,7 +93,7 @@ class Document(id: String) {
    * Recursively records the mutations.
    */
   private def update(columnFamily: String, key: String, value: JsonValue): Unit = {
-    updates((columnFamily, key)) = value.bytes
+    updates((columnFamily, key)) = Some(value.bytes)
     
     value match {
       case JsonObjectValue(obj) =>
@@ -207,6 +212,66 @@ class Document(id: String) {
     update(key, JsonArrayValue(array))
   }
    
+  def updateDynamic(key: String)(value: JsonValue) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String)(value: Boolean) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String)(value: Date) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String)(value: Int) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String)(value: Double) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String)(value: String) {
+    update(key, value)
+  }
+  
+  def updateDynamic(key: String)(value: Document) {
+    update(key, value)
+  }
+
+  def updateDynamic(key: String, value: collection.mutable.Map[String, JsonValue]) {
+    update(key, value)
+  }
+  
+  def updateDynamic(key: String, value: Array[JsonValue]) {
+    update(key, value)
+  }
+  
+  def updateDynamic(key: String, value: Array[Boolean]) {
+    update(key, value)
+  }
+   
+  def updateDynamic(key: String, value: Array[Date]) {
+    update(key, value)
+  }
+   
+  def updateDynamic(key: String, value: Array[Int]) {
+    update(key, value)
+  }
+   
+  def updateDynamic(key: String, value: Array[Double]) {
+    update(key, value)
+  }
+   
+  def updateDynamic(key: String, value: Array[String]) {
+    update(key, value)
+  }
+   
+  def updateDynamic(key: String, value: Array[Document]) {
+    update(key, value)
+  }
+  
   /**
    * Loads this document from the given dataset.
    */
@@ -297,9 +362,15 @@ class Document(id: String) {
   def into(context: DataSet) {
     dataset = Some(context)
     
-    deletes.foreach { familyCol => context.delete(id, familyCol._1, familyCol._2) }
-    updates.foreach { case(familyCol, value) => context.write(id, familyCol._1, familyCol._2, value) }
+    updates.foreach { case(familyCol, value) =>
+      value match {
+        case None => context.delete(id, familyCol._1, familyCol._2)
+        case Some(value) => context.write(id, familyCol._1, familyCol._2, value)
+      }
+    }
 
+    updates.clear
+    
     context.commit
   }
   
@@ -311,7 +382,7 @@ class Document(id: String) {
 object Document {
   def apply(id: String): Document = new Document(id)
 }
-  
+
 object DocumentImplicits {
   implicit def String2Document (id: String) = new Document(id)
 }
