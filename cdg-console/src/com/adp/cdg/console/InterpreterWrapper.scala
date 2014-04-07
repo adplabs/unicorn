@@ -22,7 +22,7 @@ trait InterpreterWrapper {
    * Binds a given value into the interpreter when it starts with its most specific class
    */
   protected def bind[A <: AnyRef](name : String, value : A)(implicit m : Manifest[A]): Unit =
-    bindings +=  (( name,  (m.erasure, value)))
+    bindings +=  (( name,  (m.runtimeClass, value)))
   /**
    * Binds a given value into the interpreter with a given interface/higher-level class.
    */
