@@ -3,8 +3,8 @@
 	<name>cdg-console</name>
 	<comment></comment>
 	<projects>
-		<project>cdg</project>
 		<project>cdg-accumulo</project>
+		<project>cdg-core</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

@@ -3,7 +3,7 @@
 	<name>cdg-accumulo</name>
 	<comment></comment>
 	<projects>
-		<project>cdg</project>
+		<project>cdg-core</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
