@@ -232,7 +232,7 @@ class Document(id: String) extends Dynamic {
       case value: Array[Date] => update(key, value)
       case value: Array[JsonValue] => update(key, value)
       case value: Array[Document] => update(key, value)
-      case None => remove(key) 
+      case null | None => remove(key) 
       case _ => throw new IllegalArgumentException("Unsupport JSON value type")
     }
   }
@@ -320,8 +320,8 @@ class Document(id: String) extends Dynamic {
       case Some(context) => {
         updates.foreach { case(familyCol, value) =>
           value match {
-            case None => context.delete(id, familyCol._1, familyCol._2)
-            case Some(value) => context.write(id, familyCol._1, familyCol._2, value.bytes)
+            case None => context.remove(id, familyCol._1, familyCol._2)
+            case Some(value) => context.put(id, familyCol._1, familyCol._2, value.bytes)
           }
         }
         context.commit

@@ -78,8 +78,11 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
     mutation.putDelete(columnFamily, column, new ColumnVisibility(visibility))
     writer.addMutation(mutation)
   }
-  
-  override def deleteRows(start: String, end: String): Unit = {
+
+  /**
+   * Delete rows between (start, end].
+   */
+  def deleteRows(start: String, end: String): Unit = {
     conn.tableOperations.deleteRows(table, new Text(start), new Text(end))
   }
   
