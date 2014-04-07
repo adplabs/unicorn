@@ -1,5 +1,8 @@
 package com.adp.cdg.store
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Success
 import com.adp.cdg.Document
 
 trait DataSet {
@@ -7,10 +10,12 @@ trait DataSet {
     
   }
   
+  type Cache = collection.mutable.Map[(String, String), CacheEntry]
+  
   /**
    * Cache a whole column family.
    */
-  val cache = collection.mutable.Map[(String, String), CacheEntry]()
+  var cache = collection.mutable.Map[(String, String), CacheEntry]()
   /**
    * Flag to turn cache on/off.
    */
@@ -47,8 +52,12 @@ trait DataSet {
       cache((row, columnFamily)) = new CacheEntry(keyValuePairs, System.currentTimeMillis)
       
       if (cache.size > cacheSize) {
-        val now = System.currentTimeMillis
-        cache.filter { case (key, entry) => now - entry.timestamp > cacheEntryTimeout }
+        val future: Future[collection.mutable.Map[(String, String), CacheEntry]] = Future {
+          val now = System.currentTimeMillis
+          cache.filter { case (key, entry) => now - entry.timestamp < cacheEntryTimeout }
+        }
+        
+        future.onSuccess {case result => cache = result}
       }
       
       keyValuePairs
