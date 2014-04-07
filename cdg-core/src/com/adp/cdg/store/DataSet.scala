@@ -7,11 +7,16 @@ trait DataSet {
    * Cache a whole column family.
    */
   val cache = collection.mutable.Map[(String, String), collection.mutable.Map[String, Array[Byte]]]()
+  val cacheOn = false
   
   /**
    * Cached read. Get all columns in a column family.
    */
   def get(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {
+    if (cacheOn == false) {
+      return read(row, columnFamily)
+    }
+      
     if (cache.contains((row, columnFamily))) {
       cache((row, columnFamily))
     } else {
@@ -25,6 +30,10 @@ trait DataSet {
    * Cached read. Get a value.
    */
   def get(row: String, columnFamily: String, columns: String*): collection.mutable.Map[String, Array[Byte]] = {
+    if (cacheOn == false) {
+      return read(row, columnFamily, columns: _*)
+    }
+    
     if (cache.contains((row, columnFamily))) {
       val map = collection.mutable.Map[String, Array[Byte]]()
       val family = cache((row, columnFamily))

@@ -17,7 +17,7 @@ class Document(id: String) extends Dynamic {
   
   private lazy val attributes = collection.mutable.Map[String, JsonValue]()
   private lazy val neighbors = collection.mutable.LinkedList[Relationship]()
-  private lazy val updates = collection.mutable.Map[(String, String), Option[Array[Byte]]]()
+  private lazy val updates = collection.mutable.Map[(String, String), Option[JsonValue]]()
   
   /**
    * Returns the JSON object.
@@ -32,14 +32,14 @@ class Document(id: String) extends Dynamic {
   /**
    * Returns the value of a field if it exists or None.
    */
-  def apply(key: String) {
+  def apply(key: String): Option[JsonValue] = {
     if (attributes.contains(key))
       Some(attributes(key))
     else
       None
   }
   
-  def selectDynamic(key: String)() {
+  def selectDynamic(key: String): Option[JsonValue] = {
     apply(key)
   }
   
@@ -93,7 +93,7 @@ class Document(id: String) extends Dynamic {
    * Recursively records the mutations.
    */
   private def update(columnFamily: String, key: String, value: JsonValue): Unit = {
-    updates((columnFamily, key)) = Some(value.bytes)
+    updates((columnFamily, key)) = Some(value)
     
     value match {
       case JsonObjectValue(obj) =>
@@ -211,65 +211,27 @@ class Document(id: String) extends Dynamic {
     val array: Array[JsonValue] = values.map {e => JsonObjectValue(e.json) }
     update(key, JsonArrayValue(array))
   }
-   
-  def updateDynamic(key: String)(value: JsonValue) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String)(value: Boolean) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String)(value: Date) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String)(value: Int) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String)(value: Double) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String)(value: String) {
-    update(key, value)
-  }
-  
-  def updateDynamic(key: String)(value: Document) {
-    update(key, value)
-  }
-
-  def updateDynamic(key: String, value: collection.mutable.Map[String, JsonValue]) {
-    update(key, value)
-  }
-  
-  def updateDynamic(key: String, value: Array[JsonValue]) {
-    update(key, value)
-  }
-  
-  def updateDynamic(key: String, value: Array[Boolean]) {
-    update(key, value)
-  }
-   
-  def updateDynamic(key: String, value: Array[Date]) {
-    update(key, value)
-  }
-   
-  def updateDynamic(key: String, value: Array[Int]) {
-    update(key, value)
-  }
-   
-  def updateDynamic(key: String, value: Array[Double]) {
-    update(key, value)
-  }
-   
-  def updateDynamic(key: String, value: Array[String]) {
-    update(key, value)
-  }
-   
-  def updateDynamic(key: String, value: Array[Document]) {
-    update(key, value)
+    
+  def updateDynamic(key: String)(value: Any) {
+    value match {
+      case value: String => update(key, value)
+      case value: Int => update(key, value)
+      case value: Double => update(key, value)
+      case value: Boolean => update(key, value)
+      case value: Date => update(key, value)
+      case value: JsonValue => update(key, value)
+      case Some(value: JsonValue) => update(key, value)
+      case value: Document => update(key, value)
+      case value: Array[String] => update(key, value)
+      case value: Array[Int] => update(key, value)
+      case value: Array[Double] => update(key, value)
+      case value: Array[Boolean] => update(key, value)
+      case value: Array[Date] => update(key, value)
+      case value: Array[JsonValue] => update(key, value)
+      case value: Array[Document] => update(key, value)
+      case None => remove(key) 
+      case _ => throw new IllegalArgumentException("Unsupport JSON value type")
+    }
   }
   
   /**
@@ -365,7 +327,7 @@ class Document(id: String) extends Dynamic {
     updates.foreach { case(familyCol, value) =>
       value match {
         case None => context.delete(id, familyCol._1, familyCol._2)
-        case Some(value) => context.write(id, familyCol._1, familyCol._2, value)
+        case Some(value) => context.write(id, familyCol._1, familyCol._2, value.bytes)
       }
     }
 

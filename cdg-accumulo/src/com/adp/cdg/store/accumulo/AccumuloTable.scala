@@ -15,7 +15,7 @@ import org.apache.accumulo.core.security.ColumnVisibility
 
 class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSet {
   
-  lazy val scan = {
+  lazy val scanner = {
     val auths = new Authorizations(auth)
     conn.createScanner(table, auths)
   }
@@ -30,13 +30,13 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
   
   override def read(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {
     val range = new Range(row)
-    scan.setRange(range)
-    scan.clearColumns
-    scan.fetchColumnFamily(new Text(columnFamily))
+    scanner.setRange(range)
+    scanner.clearColumns
+    scanner.fetchColumnFamily(new Text(columnFamily))
     
     val attributes = collection.mutable.Map[String, Array[Byte]]()
     
-    val it:scala.collection.Iterator[java.util.Map.Entry[Key,Value]] = scan.iterator
+    val it:scala.collection.Iterator[java.util.Map.Entry[Key,Value]] = scanner.iterator
     while (it.hasNext) {
       val entry = it.next
       val col = entry.getKey.getColumnQualifier.toString
@@ -49,14 +49,14 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
   
   override def read(row: String, columnFamily: String, columns: String*): collection.mutable.Map[String, Array[Byte]] = {
     val range = new Range(row)
-    scan.setRange(range)
-    scan.clearColumns
+    scanner.setRange(range)
+    scanner.clearColumns
     val family = new Text(columnFamily)
-    columns.foreach { column => scan.fetchColumn(family, new Text(column)) }
+    columns.foreach { column => scanner.fetchColumn(family, new Text(column)) }
     
     val attributes = collection.mutable.Map[String, Array[Byte]]()
     
-    val it:scala.collection.Iterator[java.util.Map.Entry[Key,Value]] = scan.iterator
+    val it:scala.collection.Iterator[java.util.Map.Entry[Key,Value]] = scanner.iterator
     while (it.hasNext) {
       val entry = it.next
       val col = entry.getKey.getColumnQualifier.toString

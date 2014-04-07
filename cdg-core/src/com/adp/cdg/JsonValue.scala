@@ -58,7 +58,7 @@ object JsonDoubleValue {
 }
 
 case class JsonStringValue(value: String) extends JsonValue {
-  override def toString = value.toString
+  override def toString = "\"" + value.replace("\"", "\\\"") + "\""
   override def bytes = (JsonStringValue.prefix + value).getBytes("UTF-8")
 }
 
