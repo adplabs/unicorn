@@ -4,7 +4,7 @@
 	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/accumulo-1.5.1/lib/accumulo-core.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/cdg"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/cdg-core"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/common/lib/avro-1.7.4.jar"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/common/hadoop-common-2.3.0.jar" sourcepath="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/common/sources/hadoop-common-2.3.0-sources.jar"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/hdfs/hadoop-hdfs-2.3.0.jar"/>
