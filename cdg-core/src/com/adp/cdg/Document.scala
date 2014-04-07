@@ -32,14 +32,14 @@ class Document(id: String) extends Dynamic {
   /**
    * Returns the value of a field if it exists or None.
    */
-  def apply(key: String): Option[JsonValue] = {
+  def apply(key: String): JsonValue = {
     if (attributes.contains(key))
-      Some(attributes(key))
+      attributes(key)
     else
-      None
+      JsonUndefinedValue()
   }
   
-  def selectDynamic(key: String): Option[JsonValue] = {
+  def selectDynamic(key: String): JsonValue = {
     apply(key)
   }
   
@@ -93,7 +93,10 @@ class Document(id: String) extends Dynamic {
    * Recursively records the mutations.
    */
   private def update(columnFamily: String, key: String, value: JsonValue): Unit = {
-    updates((columnFamily, key)) = Some(value)
+    value match {
+      case JsonUndefinedValue() => remove(key)
+      case _ => updates((columnFamily, key)) = Some(value)
+    }
     
     value match {
       case JsonObjectValue(obj) =>
@@ -247,25 +250,25 @@ class Document(id: String) extends Dynamic {
    * Parses the byte array to a JSON value.
    */
   private def parse(context: DataSet, columnFamily: String, key: String, value: Array[Byte]): JsonValue = {
-      val s = new String(value, "UTF-8")
-      s.substring(0, 2) match {
-        case JsonBoolValue.prefix => JsonBoolValue(s)
-        case JsonDateValue.prefix => JsonDateValue(s)
-        case JsonIntValue.prefix  => JsonIntValue(s)
-        case JsonDoubleValue.prefix => JsonDoubleValue(s)
-        case JsonStringValue.prefix => JsonStringValue.valueOf(s)
-        case JsonObjectValue.prefix =>
-          val family = columnFamily + "." + key
-          val fields = JsonObjectValue(s)
-          val doc = Document(id).from(context, family).select(fields: _*)
-          JsonObjectValue(doc.json)
-        case JsonArrayValue.prefix  =>
-          val family = columnFamily + "." + key
-          val size = JsonArrayValue(s)
-          val array = parseArray(context, family, size)
-          JsonArrayValue(array)
-        case _ => JsonStringValue(s)
-      }    
+    val s = new String(value, "UTF-8")
+    s.substring(0, 2) match {
+      case JsonBoolValue.prefix => JsonBoolValue(s)
+      case JsonDateValue.prefix => JsonDateValue(s)
+      case JsonIntValue.prefix  => JsonIntValue(s)
+      case JsonDoubleValue.prefix => JsonDoubleValue(s)
+      case JsonStringValue.prefix => JsonStringValue.valueOf(s)
+      case JsonObjectValue.prefix =>
+        val family = columnFamily + "." + key
+        val fields = JsonObjectValue(s)
+        val doc = Document(id).from(context, family).select(fields: _*)
+        JsonObjectValue(doc.json)
+      case JsonArrayValue.prefix  =>
+        val family = columnFamily + "." + key
+        val size = JsonArrayValue(s)
+        val array = parseArray(context, family, size)
+        JsonArrayValue(array)
+      case _ => JsonStringValue(s)
+    }    
   }
   
   /**
@@ -314,7 +317,16 @@ class Document(id: String) extends Dynamic {
   def commit {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
-      case Some(context) => into(context)
+      case Some(context) => {
+        updates.foreach { case(familyCol, value) =>
+          value match {
+            case None => context.delete(id, familyCol._1, familyCol._2)
+            case Some(value) => context.write(id, familyCol._1, familyCol._2, value.bytes)
+          }
+        }
+        context.commit
+        updates.clear
+      }
     }
   }
   
@@ -323,17 +335,7 @@ class Document(id: String) extends Dynamic {
    */
   def into(context: DataSet) {
     dataset = Some(context)
-    
-    updates.foreach { case(familyCol, value) =>
-      value match {
-        case None => context.delete(id, familyCol._1, familyCol._2)
-        case Some(value) => context.write(id, familyCol._1, familyCol._2, value.bytes)
-      }
-    }
-
-    updates.clear
-    
-    context.commit
+    commit
   }
   
   override def toString = {

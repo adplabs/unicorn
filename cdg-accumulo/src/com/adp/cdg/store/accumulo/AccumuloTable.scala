@@ -73,9 +73,9 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
     writer.addMutation(mutation)
   }
 
-  override def delete(row: String, columnFamily: String, column: String): Unit = {
+  override def delete(row: String, columnFamily: String, column: String, visibility: String): Unit = {
     val mutation = new Mutation(row)
-    mutation.putDelete(columnFamily, column)
+    mutation.putDelete(columnFamily, column, new ColumnVisibility(visibility))
     writer.addMutation(mutation)
   }
   

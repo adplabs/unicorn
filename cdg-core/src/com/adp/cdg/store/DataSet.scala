@@ -60,7 +60,7 @@ trait DataSet {
   /**
    * Delete a column. NOTE no immediate effects until commit.
    */
-  def delete(row: String, columnFamily: String, column: String): Unit
+  def delete(row: String, columnFamily: String, column: String, visibility: String = "public"): Unit
   /**
    * Commit all mutations including both put and delete.
    */

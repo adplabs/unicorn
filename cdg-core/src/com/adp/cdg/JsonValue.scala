@@ -13,6 +13,11 @@ abstract class JsonValue {
   def bytes: Array[Byte]
 }
 
+case class JsonUndefinedValue extends JsonValue {
+  override def toString = "undefined"
+  override def bytes = throw new UnsupportedOperationException()
+}
+
 case class JsonBoolValue(value: Boolean) extends JsonValue {
   override def toString = value.toString
   override def bytes = (JsonBoolValue.prefix + value.toString).getBytes("UTF-8")
