@@ -19,7 +19,7 @@ trait DataSet {
   /**
    * Flag to turn cache on/off.
    */
-  var cacheOn = false
+  var cacheEnabled = false
   /**
    * Cache size to trigger compact cache.
    * Default to cache 1M column families.
@@ -31,6 +31,16 @@ trait DataSet {
    */
   var cacheEntryTimeout = 10 * 60 * 1000
   
+  /**
+   * Turns cache mechanism on
+   */
+  def cacheOn = cacheEnabled = true
+  
+  /**
+   * Turns cache mechanism off
+   */
+  def cacheOff = cacheEnabled = false
+  
   private def getCacheEntry(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {
     val entry = cache((row, columnFamily))
     entry.timestamp = System.currentTimeMillis
@@ -39,9 +49,10 @@ trait DataSet {
   
   /**
    * Cached read. Get all columns in a column family.
+   * If refresh is true, force to read from database even if cache is on.
    */
   def get(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {
-    if (cacheOn == false) {
+    if (!cacheEnabled) {
       return read(row, columnFamily)
     }
       
@@ -68,7 +79,7 @@ trait DataSet {
    * Cached read. Get a value.
    */
   def get(row: String, columnFamily: String, columns: String*): collection.mutable.Map[String, Array[Byte]] = {
-    if (cacheOn == false) {
+    if (!cacheEnabled) {
       return read(row, columnFamily, columns: _*)
     }
     
@@ -85,7 +96,7 @@ trait DataSet {
    * Cached write.
    */
   def put(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String = "public"): Unit = {
-    if (cacheOn && cache.contains((row, columnFamily))) {
+    if (cacheEnabled && cache.contains((row, columnFamily))) {
       getCacheEntry(row, columnFamily)(column) = value
     }
     
@@ -96,7 +107,7 @@ trait DataSet {
    * Cached deletion.
    */
   def remove(row: String, columnFamily: String, column: String, visibility: String = "public"): Unit = {
-    if (cacheOn && cache.contains((row, columnFamily))) {
+    if (cacheEnabled && cache.contains((row, columnFamily))) {
       getCacheEntry(row, columnFamily).remove(column)
     }
     
