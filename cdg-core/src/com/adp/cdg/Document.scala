@@ -420,8 +420,13 @@ class Document(id: String) extends Dynamic {
    * Update a relationship.
    */
   def update(relationship: String, doc: String, value: JsonValue): Document = {
-    links((relationship, doc)) = value
-    logUpdate(attributeFamily, relationshipColumnKey(relationship, doc), value)
+    if (value == null) {
+      remove(relationship, doc)
+    } else {
+      links((relationship, doc)) = value
+      logUpdate(RelationshipFamily, relationshipColumnKey(relationship, doc), value)
+    }
+    
     this
   }
   
@@ -452,6 +457,15 @@ class Document(id: String) extends Dynamic {
   def update(relationship: String, doc: String, value: Document): Document = {
     update(relationship, doc, value.json)
   }
+    
+  /**
+   * Removes a relationship.
+   */
+  def remove(relationship: String, doc: String): Document = {
+    val value = links.remove((relationship, doc))
+    if (value.isDefined) remove(RelationshipFamily, relationshipColumnKey(relationship, doc), value.get)
+    this
+  }
    
   /**
    * Returns all relationships to a given neighbor.
@@ -468,80 +482,6 @@ class Document(id: String) extends Dynamic {
   
   private def relationshipColumnKey(relationship: String, doc: String) =
     relationship + RelationshipKeyInfix + doc
-    
-  /**
-   * Removes a relationship.
-   */
-  def removeRelationship(relationship: String, doc: String): Document = {
-    val value = links.remove((relationship, doc))
-    if (value.isDefined) remove(RelationshipFamily, relationshipColumnKey(relationship, doc), value.get)
-    this
-  }
-
-  /**
-   * Adds a relationship.
-   */
-  def addRelationship(relationship: String, doc: String, value: JsonValue = JsonBoolValue(true)): Document = {
-    links((relationship, doc)) = value
-    logUpdate(RelationshipFamily, relationshipColumnKey(relationship, doc), value)
-    this
-  }
-  
-  /**
-   * Adds a relationship with boolean value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Boolean): Document = {
-    addRelationship(relationship, doc, JsonBoolValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with date value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Date): Document = {
-    addRelationship(relationship, doc, JsonDateValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with int value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Int): Document = {
-    addRelationship(relationship, doc, JsonIntValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with double value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Double): Document = {
-    addRelationship(relationship, doc, JsonDoubleValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with string value.
-   */
-  def addRelationship(relationship: String, doc: String, value: String): Document = {
-    addRelationship(relationship, doc, JsonStringValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with array value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Array[JsonValue]): Document = {
-    addRelationship(relationship, doc, JsonArrayValue(value))
-    this
-  }
-  
-  /**
-   * Adds a relationship with object value.
-   */
-  def addRelationship(relationship: String, doc: String, value: Document): Document = {
-    addRelationship(relationship, doc, value.json)
-    this
-  }  
 }
 
 object Document {
