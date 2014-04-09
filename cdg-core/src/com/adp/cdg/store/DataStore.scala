@@ -8,6 +8,6 @@ import com.adp.cdg.Document
  */
 trait DataStore {
     def dataset(name: String, auth: String = "public"): DataSet
-    def createDataSet(name: String): DataSet
+    def createDataSet(name: String, columnFamilies: String*): DataSet
     def dropDataSet(name: String): Unit
 }

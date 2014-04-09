@@ -7,6 +7,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin
 import org.apache.hadoop.hbase.client.HTable
 import com.adp.cdg.store.DataStore
 import com.adp.cdg.store.DataSet
+import org.apache.hadoop.hbase.HColumnDescriptor
 
 class HBaseServer(config: Configuration) extends DataStore {
   lazy val admin = new HBaseAdmin(config)
@@ -18,11 +19,15 @@ class HBaseServer(config: Configuration) extends DataStore {
   }
   
   @throws(classOf[Exception])
-  override def createDataSet(name: String): DataSet = {
+  override def createDataSet(name: String, columnFamilies: String*): DataSet = {
     if (admin.tableExists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
     val tableDesc = new HTableDescriptor(name)
+    columnFamilies.foreach { columnFamily =>
+      val meta = new HColumnDescriptor(columnFamily.getBytes());
+      tableDesc.addFamily(meta)
+    }
     admin.createTable(tableDesc)
 
     dataset(name)
