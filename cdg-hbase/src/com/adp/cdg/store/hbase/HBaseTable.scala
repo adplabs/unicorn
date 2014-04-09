@@ -20,8 +20,12 @@ class HBaseTable(table: HTable) extends DataSet {
     val family = Bytes.toBytes(columnFamily)
     get.addFamily(family)
     
+    val map = collection.mutable.Map[String, Array[Byte]]()
     val result = table.get(get).getFamilyMap(family)
-    result.map { case (key, value) => (new String(key), value) }
+    if (result != null) {
+      result.foreach { case (key, value) => map(new String(key)) = value }
+    }
+    map
   }
   
   @throws(classOf[Exception])
@@ -30,8 +34,12 @@ class HBaseTable(table: HTable) extends DataSet {
     val family = Bytes.toBytes(columnFamily)
     columns.foreach { column => get.addColumn(family, Bytes.toBytes(column)) }
 
+    val map = collection.mutable.Map[String, Array[Byte]]()
     val result = table.get(get).getFamilyMap(family)
-    result.map { case (key, value) => (new String(key), value) }
+    if (result != null) {
+      result.foreach { case (key, value) => map(new String(key)) = value }
+    }
+    map
   }
   
   @throws(classOf[Exception])
@@ -43,9 +51,9 @@ class HBaseTable(table: HTable) extends DataSet {
 
   @throws(classOf[Exception])
   override def delete(row: String, columnFamily: String, column: String, visibility: String): Unit = {
-    val d = new Delete(Bytes.toBytes(row));
-    d.deleteColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
-    updates = d :: updates
+    val del = new Delete(Bytes.toBytes(row));
+    del.deleteColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
+    updates = del :: updates
   }
 
   @throws(classOf[Exception])
