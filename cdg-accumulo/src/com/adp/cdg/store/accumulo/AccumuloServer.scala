@@ -12,11 +12,17 @@ class AccumuloServer(conn: Connector) extends DataStore {
   }
   
   override def createDataSet(name: String): DataSet = {
+    if (conn.tableOperations.exists(name))
+      throw new IllegalStateException(s"Creates Table $name, which already exists")
+
     conn.tableOperations.create(name)
     dataset(name)
   }
   
   override def dropDataSet(name: String): Unit = {
+    if (!conn.tableOperations.exists(name))
+      throw new IllegalStateException(s"Drop Table $name, which does not exists")
+
     conn.tableOperations.delete(name)
   }
 }

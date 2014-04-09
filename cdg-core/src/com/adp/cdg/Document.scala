@@ -9,8 +9,8 @@ import com.adp.cdg.store.DataSet
  * A document can be regarded as a JSON object with a key.
  */
 class Document(id: String) extends Dynamic {
-  private val RootAttributeFamily = "cdg.attributes"
-  private val RelationshipFamily  = "cdg.relationships"
+  private val RootAttributeFamily = "cdg.doc"
+  private val RelationshipFamily  = "cdg.adj"
   private val RelationshipKeyInfix  = "-->"
 
   /**
@@ -43,7 +43,7 @@ class Document(id: String) extends Dynamic {
     if (links.isEmpty) s
     else
       s + "\nrelationships = " +
-      JsonObjectValue(links.map { case (key, value) => (relationshipColumnKey(key._1, key._2), value) }).toString("", ",\n")
+      JsonObjectValue(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).toString("", ",\n")
   }
   
   /**
@@ -386,6 +386,12 @@ class Document(id: String) extends Dynamic {
     dataset = Some(context)
     commit
   }
+
+  /**
+   * Creates the relationship column qualifier.
+   */
+  private def relationshipColumnQualifier(relationship: String, doc: String) =
+    relationship + RelationshipKeyInfix + doc
   
   /**
    * Returns all neighbors of given relationships.
@@ -393,17 +399,32 @@ class Document(id: String) extends Dynamic {
   def neighbors(relationship: String): Map[Document, JsonValue] = {
     var nodes = List[(Document, JsonValue)]()
     
-    links.foreach { case ((relation, id), value) if relation == relationship =>
-      val doc = Document(id)
-      dataset match {
-        case Some(context) => doc.from(context)
-        case _ => ()
+    links.foreach { case ((relation, id), value) =>
+      if (relation == relationship) {
+        val doc = Document(id)
+        dataset match {
+          case Some(context) => doc.from(context)
+          case _ => ()
+        }
+        nodes = (doc, value) :: nodes
       }
-      
-      nodes = (doc, value) :: nodes
     }
     
     nodes.toMap
+  }
+   
+  /**
+   * Returns all relationships to a given neighbor.
+   */
+  def relationships(doc: String): Map[String, JsonValue] = {
+    var edges = List[(String, JsonValue)]()
+
+    links.foreach { case ((relation, id), value) =>
+      if (id == doc) 
+        edges = (relation, value) :: edges
+    }
+
+    edges.toMap
   }
   
   /**
@@ -424,7 +445,7 @@ class Document(id: String) extends Dynamic {
       remove(relationship, doc)
     } else {
       links((relationship, doc)) = value
-      logUpdate(RelationshipFamily, relationshipColumnKey(relationship, doc), value)
+      logUpdate(RelationshipFamily, relationshipColumnQualifier(relationship, doc), value)
     }
     
     this
@@ -463,25 +484,9 @@ class Document(id: String) extends Dynamic {
    */
   def remove(relationship: String, doc: String): Document = {
     val value = links.remove((relationship, doc))
-    if (value.isDefined) remove(RelationshipFamily, relationshipColumnKey(relationship, doc), value.get)
+    if (value.isDefined) remove(RelationshipFamily, relationshipColumnQualifier(relationship, doc), value.get)
     this
   }
-   
-  /**
-   * Returns all relationships to a given neighbor.
-   */
-  def relationships(doc: String): Map[String, JsonValue] = {
-    var edges = List[(String, JsonValue)]()
-
-    links.foreach { case ((relation, id), value) if id == doc =>
-        edges = (relation, value) :: edges
-    }
-
-    edges.toMap
-  }
-  
-  private def relationshipColumnKey(relationship: String, doc: String) =
-    relationship + RelationshipKeyInfix + doc
 }
 
 object Document {

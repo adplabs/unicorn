@@ -5,6 +5,7 @@
 	<projects>
 		<project>cdg-accumulo</project>
 		<project>cdg-core</project>
+		<project>cdg-hbase</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
