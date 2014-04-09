@@ -8,7 +8,7 @@ import com.adp.cdg.store.DataSet
 /**
  * A document can be regarded as a JSON object with a key.
  */
-class Document(id: String) extends Dynamic {
+class Document(val id: String) extends Dynamic {
   private val RootAttributeFamily = "cdg.doc"
   private val RelationshipFamily  = "cdg.adj"
   private val RelationshipKeyInfix  = "-->"

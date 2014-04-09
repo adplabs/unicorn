@@ -1,9 +1,10 @@
 package com.adp.cdg
 
-class Relationship(label: String, value: JsonValue) {
+class Relationship(val source: Document, val target: Document, val label: String, val value: JsonValue) {
 
 }
 
 object Relationship {
-  def apply(label: String, value: JsonValue): Relationship = new Relationship(label, value)
+  def apply(source: Document, target: Document, label: String, value: JsonValue) =
+    new Relationship(source, target, label, value)
 }
