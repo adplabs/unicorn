@@ -260,13 +260,39 @@ class Document(val id: String) extends Dynamic {
   }
   
   /**
-   * Loads/Reloads this document.
+   * Loads/Reloads both attributes and relationships of this document.
    */
   def refresh: Document = {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
         parseObject(context, attributeFamily, attributes)
+        parseRelationships(context, RelationshipFamily, links)
+    }
+    
+    this
+  }
+  
+  /**
+   * Loads/Reloads only the attributes.
+   */
+  def refreshAttributes: Document = {
+    dataset match {
+      case None => throw new IllegalStateException("Document is not binding to a dataset")
+      case Some(context) =>
+        parseObject(context, attributeFamily, attributes)
+    }
+    
+    this
+  }
+  
+  /**
+   * Loads/Reloads only the relationships.
+   */
+  def refreshRelationships: Document = {
+    dataset match {
+      case None => throw new IllegalStateException("Document is not binding to a dataset")
+      case Some(context) =>
         parseRelationships(context, RelationshipFamily, links)
     }
     
