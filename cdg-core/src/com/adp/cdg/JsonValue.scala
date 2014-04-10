@@ -1,6 +1,9 @@
 package com.adp.cdg
 
-import java.util.Date
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.Charset
+
 
 /**
  * JSON value. Note that JavaScript doesn't distinguish
@@ -11,66 +14,126 @@ abstract class JsonValue {
    * Converts this value to a byte array.
    */
   def bytes: Array[Byte]
+  
+  /**
+   * Helper function convert ByteBuffer to Array[Byte]
+   */
+  protected def getBytes(buffer: ByteBuffer): Array[Byte] = {
+    val bytes = new Array[Byte](buffer.position)
+    buffer.position(0)
+    buffer.get(bytes, 0, bytes.length)
+    bytes  
+  }}
+
+object JsonValue {
+  val charset = Charset.forName("UTF-8")
+  val encoder = charset.newEncoder
+  val decoder = charset.newDecoder
+
 }
 
-case class JsonUndefinedValue extends JsonValue {
+case object JsonUndefinedValue extends JsonValue {
   override def toString = "undefined"
-  override def bytes = throw new UnsupportedOperationException()
+  override def bytes = throw new UnsupportedOperationException
 }
 
 case class JsonBoolValue(value: Boolean) extends JsonValue {
   override def toString = value.toString
-  override def bytes = (JsonBoolValue.prefix + value.toString).getBytes("UTF-8")
+  override def bytes: Array[Byte] = {
+    val buffer = ByteBuffer.allocate(10)
+    buffer.put(JsonBoolValue.prefix)
+    buffer.put(JsonBoolValue.byte(value))
+    getBytes(buffer)
+  }
 }
 
 object JsonBoolValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "B="
-  def apply(s: String): JsonBoolValue = JsonBoolValue(s.substring(prefix.length).toBoolean)
-}
-
-case class JsonDateValue(value: Date) extends JsonValue {
-  override def toString = value.toString
-  override def bytes = (JsonDateValue.prefix + value.getTime.toString).getBytes("UTF-8")
-}
-
-object JsonDateValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "T="
-  def apply(s: String): JsonDateValue = JsonDateValue(new Date(s.substring(prefix.length).toLong))
+  val one: Byte = 1
+  val zero: Byte = 0
+  def byte(b: Boolean): Byte = if (b) JsonBoolValue.one else JsonBoolValue.zero
+  
+  val prefix = "B=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): JsonBoolValue = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonBoolValue(buffer.get != 0)
+  }
 }
 
 case class JsonIntValue(value: Int) extends JsonValue {
   override def toString = value.toString
-  override def bytes = (JsonIntValue.prefix + value.toString).getBytes("UTF-8")
+  override def bytes: Array[Byte] = {
+    val buffer = ByteBuffer.allocate(10)
+    buffer.put(JsonIntValue.prefix)
+    buffer.putInt(value)
+    getBytes(buffer)
+  }
 }
 
 object JsonIntValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "I="
-  def apply(s: String): JsonIntValue = JsonIntValue(s.substring(prefix.length).toInt)
+  val prefix = "I=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): JsonIntValue = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonIntValue(buffer.getInt)
+  }
+}
+
+case class JsonLongValue(value: Long) extends JsonValue {
+  override def toString = value.toString
+  override def bytes: Array[Byte] = {
+    val buffer = ByteBuffer.allocate(10)
+    buffer.put(JsonLongValue.prefix)
+    buffer.putLong(value)
+    getBytes(buffer)
+  }
+}
+
+object JsonLongValue {
+  val prefix = "L=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): JsonLongValue = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonLongValue(buffer.getLong)
+  }
 }
 
 case class JsonDoubleValue(value: Double) extends JsonValue {
   override def toString = value.toString
-  override def bytes = (JsonDoubleValue.prefix + value.toString).getBytes("UTF-8")
+  override def bytes: Array[Byte] = {
+    val buffer = ByteBuffer.allocate(10)
+    buffer.put(JsonDoubleValue.prefix)
+    buffer.putDouble(value)
+    getBytes(buffer)
+  }
 }
 
 object JsonDoubleValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "D="
-  def apply(s: String): JsonDoubleValue = JsonDoubleValue(s.substring(prefix.length).toDouble)
+  val prefix = "D=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): JsonDoubleValue = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonDoubleValue(buffer.getDouble)
+  }
 }
 
 case class JsonStringValue(value: String) extends JsonValue {
   override def toString = "\"" + value.replace("\"", "\\\"") + "\""
-  override def bytes = (JsonStringValue.prefix + value).getBytes("UTF-8")
+  override def bytes = {
+    val buffer = ByteBuffer.allocate(2 + 2 * value.length)
+    buffer.put(JsonStringValue.prefix)
+    JsonValue.encoder.encode(CharBuffer.wrap(value), buffer, true)
+    getBytes(buffer)
+  }
 }
 
 object JsonStringValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "S="
-  def valueOf(s: String) = JsonStringValue(s.substring(prefix.length))
+  val prefix = "S=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): JsonStringValue = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonStringValue(JsonValue.decoder.decode(buffer).toString)
+  }
+}
+
+case class JsonBlobValue(value: Array[Byte]) extends JsonValue {
+  override def toString = "BLOB"
+  override def bytes = value
 }
 
 case class JsonObjectValue(value: collection.mutable.Map[String, JsonValue]) extends JsonValue{
@@ -81,7 +144,7 @@ case class JsonObjectValue(value: collection.mutable.Map[String, JsonValue]) ext
   def toString(indent: String, separator: String): String = {
     val moreIndent = indent + "  "
     "\n" + indent + "{\n" +
-    (value.map { case (key, value) => moreIndent + key + ": " + 
+    (value.map { case (key, value) => moreIndent + '"' + key + "\": " + 
       (value match {
         case obj: JsonObjectValue => obj.toString(moreIndent + DefaultIndent, separator)
         case _ => value.toString }
@@ -90,22 +153,37 @@ case class JsonObjectValue(value: collection.mutable.Map[String, JsonValue]) ext
     "\n" + indent + "}"
   }
 
-  override def bytes = (JsonObjectValue.prefix + value.keySet.mkString(",")).getBytes("UTF-8")
+  override def bytes = {
+    val keys = value.keySet.mkString(",")
+    val buffer = ByteBuffer.allocate(2 + 2 * keys.length)
+    buffer.put(JsonObjectValue.prefix)
+    JsonValue.encoder.encode(CharBuffer.wrap(keys), buffer, true)
+    getBytes(buffer)
+  }
 }
 
 object JsonObjectValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "O="
-  def apply(s: String): Array[String] = s.split(",")
+  val prefix = "O=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): Array[String] = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    JsonValue.decoder.decode(buffer).toString.split(",")
+  }
 }
 
 case class JsonArrayValue(value: Array[JsonValue]) extends JsonValue {
   override def toString = "[" + value.deep.mkString(", ") + "]"
-  override def bytes = (JsonArrayValue.prefix + value.length).getBytes("UTF-8")
+  override def bytes = {
+    val buffer = ByteBuffer.allocate(10)
+    buffer.put(JsonArrayValue.prefix)
+    buffer.putInt(value.length)
+    getBytes(buffer)
+  }
 }
 
 object JsonArrayValue {
-  /** Prefix of byte value. Must be size of 2 and be unique for different value types. */
-  val prefix = "A="
-  def apply(s: String): Int = s.substring(prefix.length).toInt
+  val prefix = "A=".getBytes(JsonValue.charset)
+  def apply(bytes: Array[Byte]): Int = {
+    val buffer = ByteBuffer.wrap(bytes, prefix.length, bytes.length - prefix.length)
+    buffer.getInt
+  }
 }

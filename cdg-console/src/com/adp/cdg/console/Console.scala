@@ -1,8 +1,5 @@
 package com.adp.cdg.console
 
-import org.apache.log4j.LogManager
-import org.apache.log4j.Level
-
 object Console extends App {
 
    override def main(args : Array[String]) : Unit = {

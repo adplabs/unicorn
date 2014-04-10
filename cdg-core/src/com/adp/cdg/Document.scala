@@ -1,6 +1,5 @@
 package com.adp.cdg
 
-import java.util.Date
 import scala.language.dynamics
 import scala.language.implicitConversions
 import com.adp.cdg.store.DataSet
@@ -58,7 +57,7 @@ class Document(val id: String) extends Dynamic {
     if (attributes.contains(key))
       attributes(key)
     else
-      JsonUndefinedValue()
+      JsonUndefinedValue
   }
   
   def selectDynamic(key: String): JsonValue = {
@@ -116,7 +115,7 @@ class Document(val id: String) extends Dynamic {
    */
   private def logUpdate(columnFamily: String, key: String, value: JsonValue): Unit = {
     value match {
-      case JsonUndefinedValue() => remove(key)
+      case JsonUndefinedValue => remove(key)
       case _ => updates((columnFamily, key)) = Some(value)
     }
     
@@ -149,21 +148,6 @@ class Document(val id: String) extends Dynamic {
   }
    
   /**
-   * Update a field with date value.
-   */
-  def update(key: String, value: Date) {
-    update(key, JsonDateValue(value))
-  }
-   
-  /**
-   * Update a field with date array.
-   */
-  def update(key: String, values: Array[Date]) {
-    val array: Array[JsonValue] = values.map {e => JsonDateValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
    * Update a field with int value.
    */
   def update(key: String, value: Int) {
@@ -175,6 +159,21 @@ class Document(val id: String) extends Dynamic {
    */
   def update(key: String, values: Array[Int]) {
     val array: Array[JsonValue] = values.map {e => JsonIntValue(e) }
+    update(key, JsonArrayValue(array))
+  }
+   
+  /**
+   * Update a field with long value.
+   */
+  def update(key: String, value: Long) {
+    update(key, JsonLongValue(value))
+  }
+   
+  /**
+   * Update a field with date array.
+   */
+  def update(key: String, values: Array[Long]) {
+    val array: Array[JsonValue] = values.map {e => JsonLongValue(e) }
     update(key, JsonArrayValue(array))
   }
    
@@ -243,17 +242,23 @@ class Document(val id: String) extends Dynamic {
       case value: Int => update(key, value)
       case value: Double => update(key, value)
       case value: Boolean => update(key, value)
-      case value: Date => update(key, value)
+      case value: Long => update(key, value)
       case value: JsonValue => update(key, value)
-      case Some(value: JsonValue) => update(key, value)
       case value: Document => update(key, value)
       case value: Array[String] => update(key, value)
       case value: Array[Int] => update(key, value)
       case value: Array[Double] => update(key, value)
       case value: Array[Boolean] => update(key, value)
-      case value: Array[Date] => update(key, value)
+      case value: Array[Long] => update(key, value)
       case value: Array[JsonValue] => update(key, value)
       case value: Array[Document] => update(key, value)
+      case Some(value: String) => update(key, value)
+      case Some(value: Int) => update(key, value)
+      case Some(value: Double) => update(key, value)
+      case Some(value: Boolean) => update(key, value)
+      case Some(value: Long) => update(key, value)
+      case Some(value: Document) => update(key, value)
+      case Some(value: JsonValue) => update(key, value)
       case null | None => remove(key) 
       case _ => throw new IllegalArgumentException("Unsupport JSON value type")
     }
@@ -311,25 +316,25 @@ class Document(val id: String) extends Dynamic {
    * Parses the byte array to a JSON value.
    */
   private def parse(context: DataSet, columnFamily: String, key: String, value: Array[Byte]): JsonValue = {
-    val s = new String(value, "UTF-8")
-    s.substring(0, 2) match {
-      case JsonBoolValue.prefix => JsonBoolValue(s)
-      case JsonDateValue.prefix => JsonDateValue(s)
-      case JsonIntValue.prefix  => JsonIntValue(s)
-      case JsonDoubleValue.prefix => JsonDoubleValue(s)
-      case JsonStringValue.prefix => JsonStringValue.valueOf(s)
-      case JsonObjectValue.prefix =>
+    if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
+    else if (value.startsWith(JsonIntValue.prefix)) JsonIntValue(value)
+    else if (value.startsWith(JsonDoubleValue.prefix)) JsonDoubleValue(value)
+    else if (value.startsWith(JsonBoolValue.prefix)) JsonBoolValue(value)
+    else if (value.startsWith(JsonLongValue.prefix)) JsonLongValue(value)
+    else if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
+    else if (value.startsWith(JsonObjectValue.prefix)) {
+      val family = columnFamily + "." + key
+      val fields = JsonObjectValue(value)
+      val doc = Document(id).from(context, family).select(fields: _*)
+      doc.json
+    }
+    else if (value.startsWith(JsonArrayValue.prefix)) {
         val family = columnFamily + "." + key
-        val fields = JsonObjectValue(s)
-        val doc = Document(id).from(context, family).select(fields: _*)
-        doc.json
-      case JsonArrayValue.prefix  =>
-        val family = columnFamily + "." + key
-        val size = JsonArrayValue(s)
+        val size = JsonArrayValue(value)
         val array = parseArray(context, family, size)
         JsonArrayValue(array)
-      case _ => JsonStringValue(s)
-    }    
+    }
+    else JsonBlobValue(value)      
   }
   
   /**
@@ -460,7 +465,7 @@ class Document(val id: String) extends Dynamic {
     if (links.contains((relationship, doc)))
       links((relationship, doc))
     else
-      JsonUndefinedValue()
+      JsonUndefinedValue
   }
   
   /**
@@ -481,12 +486,12 @@ class Document(val id: String) extends Dynamic {
     update(relationship, doc, JsonBoolValue(value))
   }
    
-  def update(relationship: String, doc: String, value: Date): Document = {
-    update(relationship, doc, JsonDateValue(value))
-  }
-   
   def update(relationship: String, doc: String, value: Int): Document = {
     update(relationship, doc, JsonIntValue(value))
+  }
+   
+  def update(relationship: String, doc: String, value: Long): Document = {
+    update(relationship, doc, JsonLongValue(value))
   }
    
   def update(relationship: String, doc: String, value: Double): Document = {
@@ -521,4 +526,6 @@ object Document {
 
 object DocumentImplicits {
   implicit def String2Document (id: String) = new Document(id)
+  implicit def Int2Document (id: Int) = new Document(id.toString)
+  implicit def Long2Document (id: Long) = new Document(id.toString)
 }

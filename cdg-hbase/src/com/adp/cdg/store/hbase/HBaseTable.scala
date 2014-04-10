@@ -14,7 +14,6 @@ import java.util.ArrayList
 class HBaseTable(table: HTable) extends DataSet {
   var updates = List[Row]()
 
-  @throws(classOf[Exception])
   override def read(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {
     val get = new Get(Bytes.toBytes(row))
     val family = Bytes.toBytes(columnFamily)
@@ -28,7 +27,6 @@ class HBaseTable(table: HTable) extends DataSet {
     map
   }
   
-  @throws(classOf[Exception])
   override def read(row: String, columnFamily: String, columns: String*): collection.mutable.Map[String, Array[Byte]] = {
     val get = new Get(Bytes.toBytes(row))
     val family = Bytes.toBytes(columnFamily)
@@ -42,21 +40,18 @@ class HBaseTable(table: HTable) extends DataSet {
     map
   }
   
-  @throws(classOf[Exception])
   override def write(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String): Unit = {
     val put = new Put(Bytes.toBytes(row));
     put.add(Bytes.toBytes(columnFamily), Bytes.toBytes(column), value)
     updates = put :: updates
   }
 
-  @throws(classOf[Exception])
   override def delete(row: String, columnFamily: String, column: String, visibility: String): Unit = {
     val del = new Delete(Bytes.toBytes(row));
     del.deleteColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
     updates = del :: updates
   }
 
-  @throws(classOf[Exception])
   override def commit: Unit = {
     table.batch(updates, new Array[Object](updates.length))
     updates = List[Row]()

@@ -12,13 +12,11 @@ import org.apache.hadoop.hbase.HColumnDescriptor
 class HBaseServer(config: Configuration) extends DataStore {
   lazy val admin = new HBaseAdmin(config)
   
-  @throws(classOf[Exception])
   override def dataset(name: String, auth: String): DataSet = {
     val table = new HTable(config, name)
     new HBaseTable(table)
   }
   
-  @throws(classOf[Exception])
   override def createDataSet(name: String, columnFamilies: String*): DataSet = {
     if (admin.tableExists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
@@ -33,7 +31,6 @@ class HBaseServer(config: Configuration) extends DataStore {
     dataset(name)
   }
   
-  @throws(classOf[Exception])
   override def dropDataSet(name: String): Unit = {
     if (!admin.tableExists(name))
       throw new IllegalStateException(s"Drop Table $name, which does not exists")
@@ -44,7 +41,6 @@ class HBaseServer(config: Configuration) extends DataStore {
 }
 
 object HBaseServer {
-  @throws(classOf[Exception])
   def apply(): HBaseServer = {
     // HBaseConfiguration reads in hbase-site.xml and in hbase-default.xml that
     // can be found on the CLASSPATH

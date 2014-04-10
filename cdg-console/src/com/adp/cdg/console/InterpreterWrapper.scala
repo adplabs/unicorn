@@ -49,7 +49,7 @@ trait InterpreterWrapper {
      override val prompt = InterpreterWrapper.this.prompt
 
      override def loop() {
-    	 if(isAsync) awaitInitialized()
+    	 if(isAsync) awaitInitialized
     	 bindSettings()
     	 // turn off debug output
     	 super.command("org.apache.log4j.LogManager.getRootLogger().setLevel(org.apache.log4j.Level.INFO)")
@@ -73,9 +73,9 @@ trait InterpreterWrapper {
        super.helpCommand(line)
      }
 
-     override def printWelcome(): Unit = {
+     override def printWelcome: Unit = {
        out.println(welcomeMsg)
-       out.flush()
+       out.flush
      }
   }
 
