@@ -67,15 +67,15 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
     attributes
   }
   
-  override def write(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String): Unit = {
+  override def write(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     val mutation = new Mutation(row)
-    mutation.put(columnFamily, column, new ColumnVisibility(visibility), new Value(value))
+    mutation.put(columnFamily, column, new ColumnVisibility(auth), new Value(value))
     writer.addMutation(mutation)
   }
 
-  override def delete(row: String, columnFamily: String, column: String, visibility: String): Unit = {
+  override def delete(row: String, columnFamily: String, column: String): Unit = {
     val mutation = new Mutation(row)
-    mutation.putDelete(columnFamily, column, new ColumnVisibility(visibility))
+    mutation.putDelete(columnFamily, column, new ColumnVisibility(auth))
     writer.addMutation(mutation)
   }
 

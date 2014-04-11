@@ -17,7 +17,10 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
         case EvElemEnd(_, "page") => {
           if (!doc.isEmpty) {
             val d = doc.pop
-            println(d)
+            assert(doc.isEmpty)
+            // make sure we record all children’s changes
+            d.json.value.foreach { case (key, value) => d(key) = value }
+            println(d.id)
             d into table
             id = id + 1
           }

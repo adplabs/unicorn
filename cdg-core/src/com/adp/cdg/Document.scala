@@ -46,7 +46,7 @@ class Document(var id: String) extends Dynamic {
   }
   
   /**
-   * Returns the JSON object.
+   * Returns all attributes as a JSON object.
    */
   def json = JsonObjectValue(attributes)
 

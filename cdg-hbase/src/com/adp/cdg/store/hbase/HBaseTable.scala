@@ -40,13 +40,13 @@ class HBaseTable(table: HTable) extends DataSet {
     map
   }
   
-  override def write(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String): Unit = {
+  override def write(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     val put = new Put(Bytes.toBytes(row));
     put.add(Bytes.toBytes(columnFamily), Bytes.toBytes(column), value)
     updates = put :: updates
   }
 
-  override def delete(row: String, columnFamily: String, column: String, visibility: String): Unit = {
+  override def delete(row: String, columnFamily: String, column: String): Unit = {
     val del = new Delete(Bytes.toBytes(row));
     del.deleteColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
     updates = del :: updates
