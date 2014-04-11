@@ -7,7 +7,7 @@ import com.adp.cdg.Document
  * which don't have to support JOIN operation.
  */
 trait DataStore {
-    def dataset(name: String, auth: String = "public"): DataSet
+    def dataset(name: String, auth: String = ""): DataSet
     def createDataSet(name: String, columnFamilies: String*): DataSet
     def dropDataSet(name: String): Unit
 }

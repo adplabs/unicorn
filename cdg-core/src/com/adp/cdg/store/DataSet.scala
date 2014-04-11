@@ -95,7 +95,7 @@ trait DataSet {
   /**
    * Cached write.
    */
-  def put(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String = "public"): Unit = {
+  def put(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String = ""): Unit = {
     if (cacheEnabled && cache.contains((row, columnFamily))) {
       getCacheEntry(row, columnFamily)(column) = value
     }
@@ -106,7 +106,7 @@ trait DataSet {
   /**
    * Cached deletion.
    */
-  def remove(row: String, columnFamily: String, column: String, visibility: String = "public"): Unit = {
+  def remove(row: String, columnFamily: String, column: String, visibility: String = ""): Unit = {
     if (cacheEnabled && cache.contains((row, columnFamily))) {
       getCacheEntry(row, columnFamily).remove(column)
     }
@@ -126,11 +126,11 @@ trait DataSet {
   /**
    * Update the value of a column. NOTE no immediate effects until commit.
    */
-  def write(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String = "public"): Unit
+  def write(row: String, columnFamily: String, column: String, value: Array[Byte], visibility: String = ""): Unit
   /**
    * Delete a column. NOTE no immediate effects until commit.
    */
-  def delete(row: String, columnFamily: String, column: String, visibility: String = "public"): Unit
+  def delete(row: String, columnFamily: String, column: String, visibility: String = ""): Unit
 
   /**
    * Commit all mutations including both put and delete.
