@@ -13,6 +13,8 @@ object Console extends App {
       autoImport("com.adp.cdg.store._")
       autoImport("com.adp.cdg.store.accumulo._")
       autoImport("com.adp.cdg.store.hbase._")
+      autoImport("com.adp.cdg.graph._")
+      autoImport("com.adp.cdg.graph.document._")
       org.apache.log4j.LogManager.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
     }
 

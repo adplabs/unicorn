@@ -11,7 +11,7 @@ class GraphOps[V, E] {
     /**
      * Depth-first search of graph.
      * @param node the current node to visit
-     * @param edge the tuple of incoming edge label and any other data
+     * @param edge optional data associated with the incoming edge
      * @param visitor a visitor object to process the current node and also to return
      * an iterator of edges of interest associated with the node. Note that the visitor
      * may not return all edges in the graph. For example, we may be only interested in
@@ -19,12 +19,12 @@ class GraphOps[V, E] {
      * @param mark a set of visited nodes.
      * @param hops the number of hops to reach this node from the starting node.
      */
-    private def dfs(node: V, edge: (String, E), visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
+    private def dfs(node: V, edge: Option[E], visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
       visitor.visit(node, edge, hops)
       mark add node
       visitor.edges(node, hops).foreach { edge =>
         if (!mark.contains(edge.target))
-          dfs(edge.target, (edge.label, edge.data), visitor, mark, hops + 1)
+          dfs(edge.target, edge.data, visitor, mark, hops + 1)
       }
     }
 
@@ -33,7 +33,7 @@ class GraphOps[V, E] {
      */
     def dfs(node: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
-      dfs(node, null, visitor, mark, 0)
+      dfs(node, None, visitor, mark, 0)
     }
 
     /**
@@ -50,7 +50,7 @@ class GraphOps[V, E] {
       queue += ((null, 0))
       while (queue.size > 0) {
         val (edge, hops) = queue.front
-        visitor.visit(edge.target, (edge.label, edge.data), hops)
+        visitor.visit(edge.target, edge.data, hops)
         mark add node
         visitor.edges(node, hops).foreach { edge =>
           if (!mark.contains(edge.target))
