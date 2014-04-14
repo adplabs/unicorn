@@ -8,5 +8,6 @@
 	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_COMPILER_CONTAINER"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/common/lib/log4j-1.2.17.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/cdg-hbase"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/cdg-graph"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

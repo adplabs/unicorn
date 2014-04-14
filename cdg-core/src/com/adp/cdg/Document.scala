@@ -425,19 +425,19 @@ class Document(var id: String) extends Dynamic {
     relationship + RelationshipKeyInfix + doc
   
   /**
-   * Returns all neighbors of given relationships.
+   * Returns all neighbors of given types of relationship.
    */
-  def neighbors(relationship: String): Map[Document, JsonValue] = {
-    var nodes = List[(Document, JsonValue)]()
+  def neighbors(relationships: String*): Map[Document, (String, JsonValue)] = {
+    var nodes = List[(Document, (String, JsonValue))]()
     
-    links.foreach { case ((relation, id), value) =>
-      if (relation == relationship) {
+    links.foreach { case ((relationship, id), value) =>
+      if (relationships.contains(relationship)) {
         val doc = Document(id)
         dataset match {
           case Some(context) => doc.from(context)
           case _ => ()
         }
-        nodes = (doc, value) :: nodes
+        nodes = (doc, (relationship, value)) :: nodes
       }
     }
     
