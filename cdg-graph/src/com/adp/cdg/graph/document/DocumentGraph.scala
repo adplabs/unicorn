@@ -31,7 +31,7 @@ object DocumentGraph {
     }
 
     def visit(node: Document, edge: Edge[Document, (String, JsonValue)], hops: Int) {
-      node.refreshRelationships
+      if (hops < maxHops) node.refreshRelationships
       if (!nodes.contains(node)) nodes(node) = nodes.size
       if (edge != null) {
         val weight = edge.data match {
@@ -52,7 +52,7 @@ object DocumentGraph {
     val nodes = new Array[Document](builder.nodes.size)
     builder.nodes.foreach { case (doc, index) => nodes(index) = doc }
     
-    val graph = new AdjacencyList(nodes.length)
+    val graph = new AdjacencyList(nodes.length, true)
     builder.edges.foreach { case (key, weight) => graph.addEdge(key._1, key._2, weight)}
     
     new DocumentGraph(nodes, graph)
