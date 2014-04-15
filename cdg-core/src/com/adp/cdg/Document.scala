@@ -325,9 +325,8 @@ class Document(var id: String) extends Dynamic {
     else if (value.startsWith(JsonLongValue.prefix)) JsonLongValue(value)
     else if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
     else if (value.startsWith(JsonObjectValue.prefix)) {
-      val family = columnFamily + "." + key
       val fields = JsonObjectValue(value)
-      val doc = Document(id).from(context, family).select(fields: _*)
+      val doc = Document(id).from(context, key).select(fields: _*)
       doc.json
     }
     else if (value.startsWith(JsonArrayValue.prefix)) {
@@ -372,9 +371,17 @@ class Document(var id: String) extends Dynamic {
   /**
    * Sets the context of this document (i.e. data set and column family).
    */
-  def from(context: DataSet, columnFamily: String = RootAttributeFamily): Document = {
+  def from(context: DataSet): Document = {
     dataset = Some(context)
-    attributeFamily = columnFamily
+    this
+  }
+  
+  /**
+   * Sets the context of this document (i.e. data set and column family).
+   */
+  def from(context: DataSet, columnFamily: String): Document = {
+    dataset = Some(context)
+    attributeFamily = RootAttributeFamily + "." + columnFamily
     this
   }
   
