@@ -37,6 +37,8 @@ class Document(var id: String) extends Dynamic {
    */
   private lazy val updates = collection.mutable.Map[(String, String), Option[JsonValue]]()
 
+  override def hashCode = id.hashCode
+  
   override def toString = {
     val s = id + " = " + JsonObjectValue(attributes).toString("", ",\n")
     if (links.isEmpty) s
@@ -525,7 +527,7 @@ object Document {
 }
 
 object DocumentImplicits {
-  implicit def String2Document (id: String) = new Document(id)
-  implicit def Int2Document (id: Int) = new Document(id.toString)
-  implicit def Long2Document (id: Long) = new Document(id.toString)
+  implicit def String2Document(id: String) = new Document(id)
+  implicit def Int2Document(id: Int) = new Document(id.toString)
+  implicit def Long2Document(id: Long) = new Document(id.toString)
 }

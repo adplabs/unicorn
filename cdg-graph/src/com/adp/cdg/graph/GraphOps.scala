@@ -11,7 +11,7 @@ class GraphOps[V, E] {
     /**
      * Depth-first search of graph.
      * @param node the current node to visit
-     * @param edge optional data associated with the incoming edge
+     * @param edge optional incoming edge
      * @param visitor a visitor object to process the current node and also to return
      * an iterator of edges of interest associated with the node. Note that the visitor
      * may not return all edges in the graph. For example, we may be only interested in
@@ -19,12 +19,12 @@ class GraphOps[V, E] {
      * @param mark a set of visited nodes.
      * @param hops the number of hops to reach this node from the starting node.
      */
-    private def dfs(node: V, edge: Option[E], visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
+    private def dfs(node: V, edge: Edge[V, E], visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
       visitor.visit(node, edge, hops)
       mark add node
-      visitor.edges(node, hops).foreach { edge =>
-        if (!mark.contains(edge.target))
-          dfs(edge.target, edge.data, visitor, mark, hops + 1)
+      visitor.edges(node, hops).foreach { e =>
+        if (!mark.contains(e.target))
+          dfs(e.target, e, visitor, mark, hops + 1)
       }
     }
 
@@ -33,7 +33,7 @@ class GraphOps[V, E] {
      */
     def dfs(node: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
-      dfs(node, None, visitor, mark, 0)
+      dfs(node, null, visitor, mark, 0)
     }
 
     /**
@@ -46,11 +46,18 @@ class GraphOps[V, E] {
      */
     def bfs(node: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
-      val queue = collection.mutable.Queue[(Relationship[V, E], Int)]()
-      queue += ((null, 0))
+      val queue = collection.mutable.Queue[(Edge[V, E], Int)]()
+      
+      visitor.visit(node, null, 0)
+      mark add node
+      visitor.edges(node, 0).foreach { edge =>
+        if (!mark.contains(edge.target))
+          queue += ((edge, 1))
+      }
+      
       while (queue.size > 0) {
         val (edge, hops) = queue.front
-        visitor.visit(edge.target, edge.data, hops)
+        visitor.visit(edge.target, edge, hops)
         mark add node
         visitor.edges(node, hops).foreach { edge =>
           if (!mark.contains(edge.target))
