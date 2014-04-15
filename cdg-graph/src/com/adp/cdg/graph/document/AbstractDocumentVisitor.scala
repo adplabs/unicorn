@@ -13,7 +13,7 @@ abstract class AbstractDocumentVisitor(maxHops: Int, relationships: Seq[String])
       
     if (hops < maxHops) {
       node.neighbors(relationships: _*).foreach { case (doc, edge) =>
-        val link = new Edge[Document, (String, JsonValue)](node, doc, Some(edge._1, edge._2))
+        val link = new Edge[Document, (String, JsonValue)](node, doc, Some((edge._1, edge._2)))
         links = link :: links
       }
     }

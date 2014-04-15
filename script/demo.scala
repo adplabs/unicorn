@@ -17,7 +17,6 @@ val server = AccumuloServer("local-poc", "127.0.0.1:2181", "tester", "adpadp")
 // Use table "small" 
 val table = server.dataset("small", "public")
 
-//val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
 //val server = HBaseServer()
 //val table = server.dataset("small")
 
@@ -49,6 +48,7 @@ person("report to", "Jerome") = true
 
 person.relationships("Jim")
 person.neighbors("work with")
+person.neighbors("work with", "report to")
 person("report to", "Jim")
 person("report to", "Jerome")
 
@@ -84,3 +84,45 @@ haifeng.gender = null
 haifeng commit
 
 val twice = time { "293050" of table }
+
+// wiki
+val cluster = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
+val wiki = cluster.dataset("wiki", "public")
+1 of wiki
+
+// Google+
+val gplus = cluster.dataset("gplus", "public")
+val dan = "111065108889012087599" of gplus
+
+//val graph = DocumentGraph(dan, 2, "follows")
+
+class SimpleDocumentVisitor(maxHops: Int, relationships: String*) extends AbstractDocumentVisitor(maxHops, relationships) {
+  val graph = new GraphOps[Document, (String, JsonValue)]()
+  var doc: Document = null
+
+  def bfs(doc: Document) {
+    this.doc = doc
+    graph.bfs(doc, this)
+  }
+
+  def dfs(doc: Document) {
+    this.doc = doc
+    graph.dfs(doc, this)
+  }
+
+  def visit(node: Document, edge: Edge[Document, (String, JsonValue)], hops: Int) {
+    node.refreshRelationships
+    if (hops > 0) println(doc.id + "--" + hops + "-->" + node.id)
+  }
+}
+
+val visitor = new SimpleDocumentVisitor(1, "follows")
+visitor.dfs(dan)
+visitor.bfs(dan)
+
+val astroph = cluster.dataset("astroph", "public")
+val author = 63225 of astroph
+val visitor = new SimpleDocumentVisitor(1, "works with")
+visitor.dfs(author)
+visitor.bfs(author)
+val graph = DocumentGraph(author, 2, "works with")

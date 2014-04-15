@@ -4,9 +4,6 @@ package com.adp.cdg.graph
  * Graph operations on graphs of vertex type V and edge type E.
  */
 class GraphOps[V, E] {
-
-  /** Mask if vertex has been visited */
-  lazy val mark = collection.mutable.Map[V, Boolean]()
   
     /**
      * Depth-first search of graph.
@@ -30,6 +27,11 @@ class GraphOps[V, E] {
 
     /**
      * Depth-first search of graph.
+     * @param node the starting node
+     * @param visitor a visitor object to process the current node and also to return
+     * an iterator of edges of interest associated with the node. Note that the visitor
+     * may not return all edges in the graph. For example, we may be only interested in
+     * "work with" relationships and would like to filter out "reports to" relationships.
      */
     def dfs(node: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
@@ -55,8 +57,8 @@ class GraphOps[V, E] {
           queue += ((edge, 1))
       }
       
-      while (queue.size > 0) {
-        val (edge, hops) = queue.front
+      while (!queue.isEmpty) {
+        val (edge, hops) = queue.dequeue
         visitor.visit(edge.target, edge, hops)
         mark add node
         visitor.edges(node, hops).foreach { edge =>

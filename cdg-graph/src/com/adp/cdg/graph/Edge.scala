@@ -1,8 +1,7 @@
 package com.adp.cdg.graph
 
 /**
- * An edge between two nodes/vertices in a graph
- * with optional data of type E associated with the edge.
+ * An edge between two nodes in a graph with optional associated data.
  */
 class Edge[V, E](val source: V, val target: V, val data: Option[E]) {
 
