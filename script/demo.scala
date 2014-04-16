@@ -131,14 +131,93 @@ val graph = DocumentGraph(author, 2, "works with")
 graph.topologicalSort
 graph.dijkstra
 
+
+// Make a small org chart for A* search
+val server = AccumuloServer("local-poc", "127.0.0.1:2181", "tester", "adpadp")
+val table = server.dataset("small", "public")
+
+val haifeng = Document("Haifeng")
+haifeng.rank = 1
+haifeng("works with", "Roberto") = true
+haifeng("reports to", "Jerome") = true
+
+val roberto = Document("Roberto")
+roberto.rank = 3
+roberto("works with", "Keith") = true
+roberto("reports to", "Mike") = true
+
+val jerome = Document("Jerome")
+jerome.rank = 2
+jerome("works with", "Roberto") = true
+jerome("reports to", "Mike") = true
+
+val keith = Document("Keith")
+keith.rank = 3
+keith("works with", "Roberto") = true
+keith("reports to", "Mike") = true
+
+val mike = Document("Mike")
+mike.rank = 4
+mike("works with", "Jim") = true
+mike("reports to", "Jerome") = true
+
+haifeng into table
+roberto into table
+jerome  into table
+keith   into table
+mike    into table
+
 val graphOps = new GraphOps[Document, (String, JsonValue)]()
-val path = graphOps.astar(author, Document("118025"),
+val path = graphOps.astar(haifeng, mike,
   (a: Document, b: Document, e: (String, JsonValue)) => 1.,
-  (a: Document, b: Document) => math.abs(a.rank - b.rank),
+  (a: Document, b: Document) => (a.rank, b.rank) match {
+    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
+    case _ => 100
+  },
   (doc: Document) => {
-    val neighbors = doc.neighbors("works with")
+    val neighbors = doc.neighbors("works with", "reports to")
     neighbors.foreach { case (doc, _) => doc.refreshRelationships }
     neighbors.iterator
   }
 )
-path.map{doc => doc.id}.mkString("-->")
+
+path.map {
+  case (doc, Some(edge)) => edge._1 + " --> " + doc.id
+  case (doc, None) => doc.id
+}.mkString(" -- ")
+
+val path = graphOps.astar(haifeng, mike,
+  (a: Document, b: Document, e: (String, JsonValue)) => 1.,
+  (a: Document, b: Document) => (a.rank, b.rank) match {
+    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
+    case _ => 100
+  },
+  (doc: Document) => {
+    val neighbors = doc.neighbors("reports to")
+    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.iterator
+  }
+)
+
+path.map {
+  case (doc, Some(edge)) => edge._1 + " --> " + doc.id
+  case (doc, None) => doc.id
+}.mkString(" -- ")
+
+val path = graphOps.astar(haifeng, roberto,
+  (a: Document, b: Document, e: (String, JsonValue)) => 1.,
+  (a: Document, b: Document) => (a.rank, b.rank) match {
+    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
+    case _ => 100
+  },
+  (doc: Document) => {
+    val neighbors = doc.neighbors("reports to")
+    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.iterator
+  }
+)
+
+path.map {
+  case (doc, Some(edge)) => edge._1 + " --> " + doc.id
+  case (doc, None) => doc.id
+}.mkString(" -- ")

@@ -90,7 +90,7 @@ class GraphOps[V, E] {
      *               Note that the heuristic function must be monotonic.
      * @return       the path from source to goal
      */
-    def astar(start: V, goal: V, g: (V, V, E) => Double, h: (V, V) => Double, neighbors: V => Iterator[(V, E)]): List[V] = {
+    def astar(start: V, goal: V, g: (V, V, E) => Double, h: (V, V) => Double, neighbors: V => Iterator[(V, E)]): List[(V, Option[E])] = {
       // The queue to find node with lowest f score
       val openQueue = new scala.collection.mutable.PriorityQueue[(V, Double)]()(NodeOrdering)
       openQueue.enqueue((start, h(start, goal)))
@@ -102,7 +102,7 @@ class GraphOps[V, E] {
       val closedSet = scala.collection.mutable.Set[V]()
 
       // The map of navigated nodes
-      val cameFrom = scala.collection.mutable.Map[V, V]()
+      val cameFrom = scala.collection.mutable.Map[V, (V, E)]()
 
       // Cost from start along best known path.
       val gScore = scala.collection.mutable.Map[V, Double]()
@@ -126,7 +126,7 @@ class GraphOps[V, E] {
             val gScoreUpdated = gScore(current) + g(current, neighbor, edge)
  
             if (!openSet.contains(neighbor) || gScoreUpdated < gScore(neighbor)) { 
-              cameFrom(neighbor) = current
+              cameFrom(neighbor) = (current, edge)
               gScore(neighbor) = gScoreUpdated
               val f = gScore(neighbor) + h(neighbor, goal)
               fScore(neighbor) = f
@@ -139,15 +139,16 @@ class GraphOps[V, E] {
       }
 
       // Fail. No path exists between the start node and the goal.
-      return List[V]()
+      return List[(V, Option[E])]()
     }
     
-    private def reconstructPath(cameFrom: scala.collection.mutable.Map[V, V], current: V): List[V] = {
+    private def reconstructPath(cameFrom: scala.collection.mutable.Map[V, (V, E)], current: V): List[(V, Option[E])] = {
       if (cameFrom.contains(current)) {
-        val path = reconstructPath(cameFrom, cameFrom(current))
-        return current :: path
+        val (from, edge) = cameFrom(current)
+        val path = reconstructPath(cameFrom, from)
+        return (current, Some(edge)) :: path
       } else {
-        return List[V](current)
+        return List[(V, Option[E])]((current, None))
       }
     }
  }
