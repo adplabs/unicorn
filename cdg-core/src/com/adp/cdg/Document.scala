@@ -8,15 +8,12 @@ import com.adp.cdg.store.DataSet
  * A document can be regarded as a JSON object with a key.
  */
 class Document(var id: String) extends Dynamic {
-  private val RootAttributeFamily = "cdg.doc"
-  private val RelationshipFamily  = "cdg.adj"
-  private val RelationshipKeyInfix  = "-->"
+  private val AttributeFamily     = "cdg.doc"
+  private val RelationshipFamily  = "cdg.graph"
+    
+  private val FieldSeparator            = "."
+  private val RelationshipKeySeparator  = "-->"
 
-  /**
-   * The column family of attributes. Note that a document may be
-   * a child of top document and thus the attributeFamily is different.
-   */
-  private var attributeFamily = RootAttributeFamily
   /**
    * The database that this document binds to.
    */
@@ -80,7 +77,7 @@ class Document(var id: String) extends Dynamic {
    */
   def remove(key: String): Option[JsonValue] = {
     val value = attributes.remove(key)
-    if (value.isDefined) remove(attributeFamily, key, value.get)
+    if (value.isDefined) remove(AttributeFamily, key, value.get)
     value
   }
   
@@ -92,12 +89,10 @@ class Document(var id: String) extends Dynamic {
     
     value match {
       case JsonObjectValue(obj) =>
-        val family = columnFamily + "." + key
-        obj.foreach {case (k, v) => remove(family, k, v)}
+        obj.foreach {case (k, v) => remove(columnFamily, key + FieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        val family = columnFamily + "." + key
-        array.zipWithIndex foreach {case (e, i) => remove(family, i.toString, e)}
+        array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + FieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -108,7 +103,7 @@ class Document(var id: String) extends Dynamic {
    */
   def update(key: String, value: JsonValue): Document = {
     attributes(key) = value
-    logUpdate(attributeFamily, key, value)
+    logUpdate(AttributeFamily, key, value)
     this
   }
  
@@ -123,12 +118,10 @@ class Document(var id: String) extends Dynamic {
     
     value match {
       case JsonObjectValue(obj) =>
-        val family = columnFamily + "." + key
-        obj.foreach {case (k, v) => logUpdate(family, k, v)}
+        obj.foreach {case (k, v) => logUpdate(columnFamily, key + FieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        val family = columnFamily + "." + key
-        array.zipWithIndex foreach {case (e, i) => logUpdate(family, i.toString, e)}
+        array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + FieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -273,7 +266,7 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, attributeFamily, attributes)
+        parseObject(context, AttributeFamily, attributes)
         parseRelationships(context, RelationshipFamily, links)
     }
     
@@ -287,7 +280,7 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, attributeFamily, attributes)
+        parseObject(context, AttributeFamily, attributes)
     }
     
     this
@@ -317,7 +310,7 @@ class Document(var id: String) extends Dynamic {
   /**
    * Parses the byte array to a JSON value.
    */
-  private def parse(context: DataSet, columnFamily: String, key: String, value: Array[Byte]): JsonValue = {
+  private def parse(key: String, value: Array[Byte], kv: collection.mutable.Map[String, Array[Byte]]): JsonValue = {
     if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
     else if (value.startsWith(JsonIntValue.prefix)) JsonIntValue(value)
     else if (value.startsWith(JsonDoubleValue.prefix)) JsonDoubleValue(value)
@@ -325,14 +318,25 @@ class Document(var id: String) extends Dynamic {
     else if (value.startsWith(JsonLongValue.prefix)) JsonLongValue(value)
     else if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
     else if (value.startsWith(JsonObjectValue.prefix)) {
+      val child = collection.mutable.Map[String, JsonValue]()
+       
       val fields = JsonObjectValue(value)
-      val doc = Document(id).from(context, key).select(fields: _*)
-      doc.json
+      fields.foreach { field =>
+        val fieldkey = key + FieldSeparator + field
+        child(field) = parse(fieldkey, kv(fieldkey), kv)
+      }
+      
+      new JsonObjectValue(child)
     }
     else if (value.startsWith(JsonArrayValue.prefix)) {
-        val family = columnFamily + "." + key
-        val size = JsonArrayValue(value)
-        val array = parseArray(context, family, size)
+        val size = JsonArrayValue(value)    
+        val array = new Array[JsonValue](size)
+        
+        for (i <- 0 until size) {
+          val fieldkey = key + FieldSeparator + i
+          array(i) = parse(fieldkey, kv(fieldkey), kv)
+        }
+        
         JsonArrayValue(array)
     }
     else JsonBlobValue(value)      
@@ -343,17 +347,10 @@ class Document(var id: String) extends Dynamic {
    */
   private def parseObject(context: DataSet, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
-    kv.foreach { case(key, value) => map(key) = parse(context, columnFamily, key, value) }
-  }
-  
-  /**
-   * Parses a column family (column qualifiers must be integers starting from 0) to an array.
-   */
-  private def parseArray(context: DataSet, columnFamily: String, size: Int): Array[JsonValue] = {
-    val array = new Array[JsonValue](size)
-    val kv = context.get(id, columnFamily)
-    kv.foreach { case(key, value) => array(key.toInt) = parse(context, columnFamily, key, value) }
-    array
+    kv.foreach { case(key, value) =>
+      if (!key.contains(FieldSeparator))
+        map(key) = parse(key, value, kv)
+    }
   }
   
   /**
@@ -362,29 +359,20 @@ class Document(var id: String) extends Dynamic {
   private def parseRelationships(context: DataSet, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
-      val token = key.split(RelationshipKeyInfix)
+      val token = key.split(RelationshipKeySeparator)
       if (token.length == 2)
-        map((token(0), token(1))) = parse(context, columnFamily, key, value)
+        map((token(0), token(1))) = parse(key, value, kv)
     }
   }
   
   /**
-   * Sets the context of this document (i.e. data set and column family).
+   * Sets the context of this document (i.e. data set).
    */
   def from(context: DataSet): Document = {
     dataset = Some(context)
     this
   }
-  
-  /**
-   * Sets the context of this document (i.e. data set and column family).
-   */
-  def from(context: DataSet, columnFamily: String): Document = {
-    dataset = Some(context)
-    attributeFamily = RootAttributeFamily + "." + columnFamily
-    this
-  }
-  
+
   /**
    * Loads given fields rather than the whole document.
    */
@@ -392,8 +380,8 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        context.get(id, attributeFamily, fields: _*).
-          foreach { case (key, value) => attributes(key) = parse(context, attributeFamily, key, value) }
+        val kv = context.get(id, AttributeFamily, fields: _*)
+        kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
         this
     }
   }
@@ -431,7 +419,7 @@ class Document(var id: String) extends Dynamic {
    * Creates the relationship column qualifier.
    */
   private def relationshipColumnQualifier(relationship: String, doc: String) =
-    relationship + RelationshipKeyInfix + doc
+    relationship + RelationshipKeySeparator + doc
   
   /**
    * Returns all neighbors of given types of relationship.

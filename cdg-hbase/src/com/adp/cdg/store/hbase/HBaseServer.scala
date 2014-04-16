@@ -8,6 +8,7 @@ import org.apache.hadoop.hbase.client.HTable
 import com.adp.cdg.store.DataStore
 import com.adp.cdg.store.DataSet
 import org.apache.hadoop.hbase.HColumnDescriptor
+import com.adp.cdg.Document
 
 class HBaseServer(config: Configuration) extends DataStore {
   lazy val admin = new HBaseAdmin(config)
@@ -15,6 +16,10 @@ class HBaseServer(config: Configuration) extends DataStore {
   override def dataset(name: String, auth: String): DataSet = {
     val table = new HTable(config, name)
     new HBaseTable(table)
+  }
+  
+  def createDataSet(name: String): DataSet = {
+    createDataSet(name, "cdg.doc", "cdg.graph")
   }
   
   override def createDataSet(name: String, columnFamilies: String*): DataSet = {
