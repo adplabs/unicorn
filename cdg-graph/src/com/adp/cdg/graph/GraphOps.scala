@@ -92,8 +92,10 @@ class GraphOps[V, E] {
      */
     def astar(start: V, goal: V, g: (V, V, E) => Double, h: (V, V) => Double, neighbors: V => Iterator[(V, E)]): List[(V, Option[E])] = {
       // The queue to find node with lowest f score
+      // Note that Scala priority queue maintains largest value on the top.
+      // So we will use negative f score in the queue.
       val openQueue = new scala.collection.mutable.PriorityQueue[(V, Double)]()(NodeOrdering)
-      openQueue.enqueue((start, h(start, goal)))
+      openQueue.enqueue((start, -h(start, goal)))
       
       // The set of tentative nodes to be evaluated.
       val openSet = scala.collection.mutable.Set[V](start)
@@ -113,7 +115,7 @@ class GraphOps[V, E] {
       fScore(start) = h(start, goal)
 
       while (!openQueue.isEmpty) {
-        val (current, f) = openQueue.dequeue
+        val (current, _) = openQueue.dequeue
         
         if (current == goal) return reconstructPath(cameFrom, goal).reverse
 
@@ -128,7 +130,7 @@ class GraphOps[V, E] {
             if (!openSet.contains(neighbor) || gScoreUpdated < gScore(neighbor)) { 
               cameFrom(neighbor) = (current, edge)
               gScore(neighbor) = gScoreUpdated
-              val f = gScore(neighbor) + h(neighbor, goal)
+              val f = -gScore(neighbor) - h(neighbor, goal)
               fScore(neighbor) = f
               if (!openSet.contains(neighbor)) {
                 openSet.add(neighbor)
@@ -142,6 +144,9 @@ class GraphOps[V, E] {
       return List[(V, Option[E])]()
     }
     
+    /**
+     * Reconstructs the A* search path.
+     */
     private def reconstructPath(cameFrom: scala.collection.mutable.Map[V, (V, E)], current: V): List[(V, Option[E])] = {
       if (cameFrom.contains(current)) {
         val (from, edge) = cameFrom(current)
