@@ -61,4 +61,4 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
 val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
 val table = server.dataset("wiki")
 
-wikipedia(server, table, "/Users/lihb/Downloads/enwikinews-20140410-pages-articles-multistream.xml")
+wikipedia(server, table, "/home/virtual/data/wiki/enwikinews-20140410-pages-articles-multistream.xml")

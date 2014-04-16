@@ -92,6 +92,7 @@ val wiki = cluster.dataset("wiki", "public")
 
 // Google+
 val gplus = cluster.dataset("gplus", "public")
+gplus cacheOn
 val dan = "111065108889012087599" of gplus
 
 //val graph = DocumentGraph(dan, 2, "follows")
@@ -121,8 +122,11 @@ visitor.dfs(dan)
 visitor.bfs(dan)
 
 val astroph = cluster.dataset("astroph", "public")
+astroph cacheOn
 val author = 63225 of astroph
-val visitor = new SimpleDocumentVisitor(1, "works with")
+val visitor = new SimpleDocumentVisitor(2, "works with")
 visitor.dfs(author)
 visitor.bfs(author)
 val graph = DocumentGraph(author, 2, "works with")
+graph.topologicalSort
+graph.dijkstra
