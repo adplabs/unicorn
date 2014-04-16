@@ -34,6 +34,14 @@ class Document(var id: String) extends Dynamic {
    */
   private lazy val updates = collection.mutable.Map[(String, String), Option[JsonValue]]()
 
+  /**
+   * Document equality is purely based on ID rather than values.
+   */
+  override def equals(other: Any) = other match { 
+    case that: Document => this.id == that.id 
+    case _ => false 
+  }
+
   override def hashCode = id.hashCode
   
   override def toString = {

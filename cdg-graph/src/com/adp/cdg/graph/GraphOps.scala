@@ -67,4 +67,87 @@ class GraphOps[V, E] {
         }
       }
     }
+    
+    /**
+     * Helper ordering object in A* for priority queue
+     */
+    private object NodeOrdering extends scala.math.Ordering[(V, Double)] {
+      def compare(x: (V, Double), y: (V, Double)): Int = {
+        x._2.compare(y._2)
+      }
+    }
+
+    /**
+     * A* search algorithm for path finding and graph traversal.
+     * It is an extension of Dijkstra algorithm and achieves better performance by using heuristics.
+     * 
+     * @param start  the start node
+     * @param goal   the goal node
+     * @param g      the past path-cost function, which is the known distance
+     *               from the starting node to the current node.
+     * @param h      the future path-cost function, which is an admissible
+     *               "heuristic estimate" of the distance from the current node to the goal.
+     *               Note that the heuristic function must be monotonic.
+     * @return       the path from source to goal
+     */
+    def astar(start: V, goal: V, g: (V, V, E) => Double, h: (V, V) => Double, neighbors: V => Iterator[(V, E)]): List[V] = {
+      // The queue to find node with lowest f score
+      val openQueue = new scala.collection.mutable.PriorityQueue[(V, Double)]()(NodeOrdering)
+      openQueue.enqueue((start, h(start, goal)))
+      
+      // The set of tentative nodes to be evaluated.
+      val openSet = scala.collection.mutable.Set[V](start)
+      
+      // The set of nodes already evaluated.
+      val closedSet = scala.collection.mutable.Set[V]()
+
+      // The map of navigated nodes
+      val cameFrom = scala.collection.mutable.Map[V, V]()
+
+      // Cost from start along best known path.
+      val gScore = scala.collection.mutable.Map[V, Double]()
+      gScore(start) = 0.
+        
+      // Estimated total cost from start to goal through y.
+      val fScore = scala.collection.mutable.Map[V, Double]()
+      fScore(start) = h(start, goal)
+
+      while (!openQueue.isEmpty) {
+        val (current, f) = openQueue.dequeue
+        
+        if (current == goal) return reconstructPath(cameFrom, goal).reverse
+
+        openSet.remove(current)
+        closedSet.add(current)
+
+        neighbors(current).foreach {
+          case (neighbor, _) if (closedSet.contains(neighbor)) => ()
+          case (neighbor, edge) =>
+            val gScoreUpdated = gScore(current) + g(current, neighbor, edge)
+ 
+            if (!openSet.contains(neighbor) || gScoreUpdated < gScore(neighbor)) { 
+              cameFrom(neighbor) = current
+              gScore(neighbor) = gScoreUpdated
+              val f = gScore(neighbor) + h(neighbor, goal)
+              fScore(neighbor) = f
+              if (!openSet.contains(neighbor)) {
+                openSet.add(neighbor)
+                openQueue.enqueue((neighbor, f))
+              }
+            }
+        }
+      }
+
+      // Fail. No path exists between the start node and the goal.
+      return List[V]()
+    }
+    
+    private def reconstructPath(cameFrom: scala.collection.mutable.Map[V, V], current: V): List[V] = {
+      if (cameFrom.contains(current)) {
+        val path = reconstructPath(cameFrom, cameFrom(current))
+        return current :: path
+      } else {
+        return List[V](current)
+      }
+    }
  }

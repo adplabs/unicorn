@@ -117,7 +117,7 @@ class SimpleDocumentVisitor(maxHops: Int, relationships: String*) extends Abstra
   }
 }
 
-val visitor = new SimpleDocumentVisitor(1, "follows")
+val visitor = new SimpleDocumentVisitor(3, "follows")
 visitor.dfs(dan)
 visitor.bfs(dan)
 
@@ -130,3 +130,15 @@ visitor.bfs(author)
 val graph = DocumentGraph(author, 2, "works with")
 graph.topologicalSort
 graph.dijkstra
+
+val graphOps = new GraphOps[Document, (String, JsonValue)]()
+val path = graphOps.astar(author, Document("118025"),
+  (a: Document, b: Document, e: (String, JsonValue)) => 1.,
+  (a: Document, b: Document) => math.abs(a.rank - b.rank),
+  (doc: Document) => {
+    val neighbors = doc.neighbors("works with")
+    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.iterator
+  }
+)
+path.map{doc => doc.id}.mkString("-->")
