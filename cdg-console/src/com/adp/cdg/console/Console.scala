@@ -4,9 +4,37 @@ object Console extends App {
   
   override def main(args: Array[String]): Unit = {
     val interpreter = new InterpreterWrapper() {
-      def prompt = "CDG> "
-      def welcomeMsg = """Welcome to the Column-Document-Graph Console!"""
-      def helpMsg = """CDG HELP"""
+      def prompt = "Unicorn> "
+      def welcomeMsg = """
+===============================================================================
+                        . . . .
+                        ,`,`,`,`,
+  . . . .               `\`\`\`\;
+  `\`\`\`\`,            ~|;!;!;\!
+   ~\;\;\;\|\          (--,!!!~`!       .
+  (--,\\\===~\         (--,|||~`!     ./
+   (--,\\\===~\         `,-,~,=,:. _,//
+    (--,\\\==~`\        ~-=~-.---|\;/J,       Welcome to the Unicorn Database
+     (--,\\\((```==.    ~'`~/       a |          Column, Document and Graph
+       (-,.\\('('(`\\.  ~'=~|     \_.  \
+          (,--(,(,(,'\\. ~'=|       \\_;>
+            (,-( ,(,(,;\\ ~=/        \                  Haifeng Li
+            (,-/ (.(.(,;\\,/          )             ADP Innovation Lab
+             (,--/,;,;,;,\\         ./------.
+               (==,-;-'`;'         /_,----`. \
+       ,.--_,__.-'                    `--.  ` \
+      (='~-_,--/        ,       ,!,___--. \  \_)
+     (-/~(     |         \   ,_-         | ) /_|
+     (~/((\    )\._,      |-'         _,/ /
+      \\))))  /   ./~.    |           \_\;             
+   ,__/////  /   /    )  /
+    '===~'   |  |    (, <.
+             / /       \. \
+           _/ /          \_\
+          /_!/            >_\
+===============================================================================
+         """
+      def helpMsg = """Unicorn Console"""
 
       autoImport("com.adp.cdg._")
       autoImport("com.adp.cdg.DocumentImplicits._")
