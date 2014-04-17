@@ -7,7 +7,6 @@ package com.adp.unicorn
 
 import scala.language.dynamics
 import scala.language.implicitConversions
-
 import com.adp.unicorn.store.DataSet
 
 /**
@@ -15,13 +14,8 @@ import com.adp.unicorn.store.DataSet
  * 
  * @author Haifeng Li (293050)
  */
-class Document(var id: String) extends Dynamic {
-  private val AttributeFamily     = "cdg.doc"
-  private val RelationshipFamily  = "cdg.graph"
-    
-  private val FieldSeparator            = "."
-  private val RelationshipKeySeparator  = "-->"
-
+class Document(var id: String) extends Dynamic with Traversable[(String, JsonValue)] {
+  
   /**
    * The database that this document binds to.
    */
@@ -59,6 +53,11 @@ class Document(var id: String) extends Dynamic {
       s + "\nrelationships = " +
       JsonObjectValue(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).toString("", ",\n")
   }
+ 
+  /**
+   * For each loop over attributes.
+   */
+  def foreach[U](f: ((String, JsonValue)) => U): Unit = attributes.foreach(f)
   
   /**
    * Returns all attributes as a JSON object.
@@ -93,7 +92,7 @@ class Document(var id: String) extends Dynamic {
    */
   def remove(key: String): Option[JsonValue] = {
     val value = attributes.remove(key)
-    if (value.isDefined) remove(AttributeFamily, key, value.get)
+    if (value.isDefined) remove(Document.AttributeFamily, key, value.get)
     value
   }
   
@@ -105,10 +104,10 @@ class Document(var id: String) extends Dynamic {
     
     value match {
       case JsonObjectValue(obj) =>
-        obj.foreach {case (k, v) => remove(columnFamily, key + FieldSeparator + k, v)}
+        obj.foreach {case (k, v) => remove(columnFamily, key + Document.FieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + FieldSeparator + i, e)}
+        array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + Document.FieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -119,7 +118,7 @@ class Document(var id: String) extends Dynamic {
    */
   def update(key: String, value: JsonValue): Document = {
     attributes(key) = value
-    logUpdate(AttributeFamily, key, value)
+    logUpdate(Document.AttributeFamily, key, value)
     this
   }
  
@@ -134,10 +133,10 @@ class Document(var id: String) extends Dynamic {
     
     value match {
       case JsonObjectValue(obj) =>
-        obj.foreach {case (k, v) => logUpdate(columnFamily, key + FieldSeparator + k, v)}
+        obj.foreach {case (k, v) => logUpdate(columnFamily, key + Document.FieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + FieldSeparator + i, e)}
+        array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + Document.FieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -282,8 +281,8 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, AttributeFamily, attributes)
-        parseRelationships(context, RelationshipFamily, links)
+        parseObject(context, Document.AttributeFamily, attributes)
+        parseRelationships(context, Document.RelationshipFamily, links)
     }
     
     this
@@ -296,7 +295,7 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, AttributeFamily, attributes)
+        parseObject(context, Document.AttributeFamily, attributes)
     }
     
     this
@@ -309,7 +308,7 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseRelationships(context, RelationshipFamily, links)
+        parseRelationships(context, Document.RelationshipFamily, links)
     }
     
     this
@@ -338,7 +337,7 @@ class Document(var id: String) extends Dynamic {
        
       val fields = JsonObjectValue(value)
       fields.foreach { field =>
-        val fieldkey = key + FieldSeparator + field
+        val fieldkey = key + Document.FieldSeparator + field
         child(field) = parse(fieldkey, kv(fieldkey), kv)
       }
       
@@ -349,7 +348,7 @@ class Document(var id: String) extends Dynamic {
         val array = new Array[JsonValue](size)
         
         for (i <- 0 until size) {
-          val fieldkey = key + FieldSeparator + i
+          val fieldkey = key + Document.FieldSeparator + i
           array(i) = parse(fieldkey, kv(fieldkey), kv)
         }
         
@@ -364,7 +363,7 @@ class Document(var id: String) extends Dynamic {
   private def parseObject(context: DataSet, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
-      if (!key.contains(FieldSeparator))
+      if (!key.contains(Document.FieldSeparator))
         map(key) = parse(key, value, kv)
     }
   }
@@ -375,8 +374,8 @@ class Document(var id: String) extends Dynamic {
   private def parseRelationships(context: DataSet, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
-      val token = key.split(RelationshipKeySeparator)
-      if (token.length == 2)
+      val token = key.split(Document.RelationshipKeySeparator)
+      if (token.length == 2 && !token(1).contains(Document.FieldSeparator))
         map((token(0), token(1))) = parse(key, value, kv)
     }
   }
@@ -396,7 +395,7 @@ class Document(var id: String) extends Dynamic {
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        val kv = context.get(id, AttributeFamily, fields: _*)
+        val kv = context.get(id, Document.AttributeFamily, fields: _*)
         kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
         this
     }
@@ -435,7 +434,7 @@ class Document(var id: String) extends Dynamic {
    * Creates the relationship column qualifier.
    */
   private def relationshipColumnQualifier(relationship: String, doc: String) =
-    relationship + RelationshipKeySeparator + doc
+    relationship + Document.RelationshipKeySeparator + doc
   
   /**
    * Returns all neighbors of given types of relationship.
@@ -489,7 +488,7 @@ class Document(var id: String) extends Dynamic {
       remove(relationship, doc)
     } else {
       links((relationship, doc)) = value
-      logUpdate(RelationshipFamily, relationshipColumnQualifier(relationship, doc), value)
+      logUpdate(Document.RelationshipFamily, relationshipColumnQualifier(relationship, doc), value)
     }
     
     this
@@ -528,12 +527,18 @@ class Document(var id: String) extends Dynamic {
    */
   def remove(relationship: String, doc: String): Document = {
     val value = links.remove((relationship, doc))
-    if (value.isDefined) remove(RelationshipFamily, relationshipColumnQualifier(relationship, doc), value.get)
+    if (value.isDefined) remove(Document.RelationshipFamily, relationshipColumnQualifier(relationship, doc), value.get)
     this
   }
 }
 
 object Document {
+  val AttributeFamily     = "unicorn.doc"
+  val RelationshipFamily  = "unicorn.graph"
+    
+  val FieldSeparator            = "."
+  val RelationshipKeySeparator  = "-->"
+
   def apply(id: String): Document = new Document(id)
 }
 

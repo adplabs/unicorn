@@ -52,6 +52,7 @@ object Console extends App {
       autoImport("com.adp.unicorn.store.hbase._")
       autoImport("com.adp.unicorn.graph._")
       autoImport("com.adp.unicorn.graph.document._")
+      autoImport("com.adp.unicorn.text._")
       org.apache.log4j.LogManager.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
     }
 
