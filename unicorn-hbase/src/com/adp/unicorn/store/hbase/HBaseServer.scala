@@ -11,6 +11,7 @@ import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.client.HBaseAdmin
 import org.apache.hadoop.hbase.client.HTable
 import org.apache.hadoop.hbase.HColumnDescriptor
+import org.apache.hadoop.hbase.TableName
 import com.adp.unicorn.store.DataStore
 import com.adp.unicorn.store.DataSet
 import com.adp.unicorn.Document
@@ -36,7 +37,7 @@ class HBaseServer(config: Configuration) extends DataStore {
     if (admin.tableExists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
-    val tableDesc = new HTableDescriptor(name)
+    val tableDesc = new HTableDescriptor(TableName.valueOf(name))
     columnFamilies.foreach { columnFamily =>
       val meta = new HColumnDescriptor(columnFamily.getBytes());
       tableDesc.addFamily(meta)
