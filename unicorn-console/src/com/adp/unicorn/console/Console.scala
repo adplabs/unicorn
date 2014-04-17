@@ -16,7 +16,6 @@ object Console extends App {
     val interpreter = new InterpreterWrapper() {
       def prompt = "Unicorn> "
       def welcomeMsg = """
-===============================================================================
                         . . . .
                         ,`,`,`,`,
   . . . .               `\`\`\`\;
