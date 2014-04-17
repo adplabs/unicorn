@@ -115,7 +115,7 @@ class GraphOps[V, E] {
 
       // Cost from start along best known path.
       val gScore = scala.collection.mutable.Map[V, Double]()
-      gScore(start) = 0.
+      gScore(start) = 0.0
         
       // Estimated total cost from start to goal through y.
       val fScore = scala.collection.mutable.Map[V, Double]()

@@ -12,5 +12,6 @@
 	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/etc/hadoop"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/hbase-0.98.1-hadoop2/lib/htrace-core-2.04.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/hadoop-2.3.0/share/hadoop/common/lib/commons-logging-1.1.3.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
