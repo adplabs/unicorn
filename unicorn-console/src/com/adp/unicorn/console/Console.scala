@@ -46,13 +46,13 @@ object Console extends App {
          """
       def helpMsg = """Unicorn Console"""
 
-      autoImport("com.adp.cdg._")
-      autoImport("com.adp.cdg.DocumentImplicits._")
-      autoImport("com.adp.cdg.store._")
-      autoImport("com.adp.cdg.store.accumulo._")
-      autoImport("com.adp.cdg.store.hbase._")
-      autoImport("com.adp.cdg.graph._")
-      autoImport("com.adp.cdg.graph.document._")
+      autoImport("com.adp.unicorn._")
+      autoImport("com.adp.unicorn.DocumentImplicits._")
+      autoImport("com.adp.unicorn.store._")
+      autoImport("com.adp.unicorn.store.accumulo._")
+      autoImport("com.adp.unicorn.store.hbase._")
+      autoImport("com.adp.unicorn.graph._")
+      autoImport("com.adp.unicorn.graph.document._")
       org.apache.log4j.LogManager.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
     }
 
