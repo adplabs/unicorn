@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>cdg-hbase</name>
+	<name>unicorn-hbase</name>
 	<comment></comment>
 	<projects>
-		<project>cdg-core</project>
+		<project>unicorn-core</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

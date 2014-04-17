@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>cdg-console</name>
+	<name>unicorn-console</name>
 	<comment></comment>
 	<projects>
-		<project>cdg-accumulo</project>
-		<project>cdg-core</project>
-		<project>cdg-graph</project>
-		<project>cdg-hbase</project>
+		<project>unicorn-accumulo</project>
+		<project>unicorn-core</project>
+		<project>unicorn-graph</project>
+		<project>unicorn-hbase</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
