@@ -533,8 +533,8 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
 }
 
 object Document {
-  val AttributeFamily     = "unicorn.doc"
-  val RelationshipFamily  = "unicorn.graph"
+  val AttributeFamily     = "doc"
+  val RelationshipFamily  = "graph"
     
   val FieldSeparator            = "."
   val RelationshipKeySeparator  = "-->"

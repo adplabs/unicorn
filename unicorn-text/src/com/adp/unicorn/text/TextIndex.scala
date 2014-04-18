@@ -18,14 +18,18 @@ import smile.nlp.dictionary.EnglishStopWords
 import smile.nlp.dictionary.EnglishPunctuations
 
 /**
- * Text corpus for full text search and relevance ranking.
+ * Text inverted index for full text search and relevance ranking.
  * 
  * @author Haifeng Li (293050)
  */
-class TextCorpus(context: DataSet) {
-  private val TextCorpusTermIndexSuffix = " index"
-  private val TextCorpusMetaDataKey = "unicorn.text.corpus.meta"
-  private val meta = TextCorpusMetaDataKey of context
+class TextIndex(context: DataSet) {
+  private val TermIndexSuffix = " index"
+  private val DocFieldSeparator = "##"
+  private val MetaDataKey = "unicorn.text.corpus.meta"
+  private val TextSizeKey = "unicorn.text.corpus.text.size"
+
+  val meta = MetaDataKey of context
+  val textSize = TextSizeKey of context
   
   /**
    * The number of words in the corpus.
@@ -44,15 +48,6 @@ class TextCorpus(context: DataSet) {
     case JsonLongValue(value) => value
     case _ => 0
   }
-  
-  /**
-   * The number of unique terms in the corpus.
-   */
-  var numTerms: Long = meta.numTerms match {
-    case JsonIntValue(value) => value
-    case JsonLongValue(value) => value
-    case _ => 0
-  }
 
   /**
    * The average size of documents in the corpus.
@@ -60,14 +55,6 @@ class TextCorpus(context: DataSet) {
   var avgTextSize: Int = meta.avgTextSize match {
     case JsonIntValue(value) => value
     case _ => 0
-  }
-
-  /**
-   * The total frequency of the term in the corpus.
-   */
-  val freq = meta.freq match {
-    case x: JsonObjectValue => x
-    case _ => collection.mutable.Map[String, Double]()
   }
 
   /**
@@ -97,10 +84,13 @@ class TextCorpus(context: DataSet) {
   
   /**
    * Add a text into corpus.
+   * @param doc   The id of document that owns the text.
+   * @param field The filed name of text in the document.
+   * @param text  The text itself.
    */
-  def add(key: String, column: String, text: String) {
-    val freq = scala.collection.mutable.Map[String, Int]()
-    var textSize = 0
+  def add(doc: String, field: String, text: String) {
+    val freq = scala.collection.mutable.Map[String, Int]().withDefaultValue(0)
+    var size = 0
     
     sentenceSpliter.split(text).foreach { sentence =>
       tokenizer.split(sentence).foreach { token =>
@@ -112,14 +102,37 @@ class TextCorpus(context: DataSet) {
           }
 
           freq(word) += 1
-          textSize += 1
+          size += 1
         }
       }
     }
-
-    freq.foreach { case (word, freq) =>
-      context.put(word + TextCorpusTermIndexSuffix, Document.AttributeFamily, key + Document.FieldSeparator + column, JsonIntValue(freq).bytes)
+    
+    val key = doc + DocFieldSeparator + field.replace(Document.FieldSeparator, DocFieldSeparator)
+    if (textSize(key) != JsonUndefinedValue) {
+      val oldSize = textSize(key) match {
+        case JsonIntValue(value) => value
+        case _ => 0
+      }
+      
+      numWords = numWords - oldSize + size
+      avgTextSize = ((avgTextSize * numTexts - oldSize + size) / numTexts).toInt
+    } else {
+      avgTextSize = ((avgTextSize * numTexts + size) / (numTexts + 1)).toInt
+      numTexts += 1
+      numWords += size
     }
+    
+    textSize(key) = size    
+    meta.numWords = numWords
+    meta.avgTextSize = avgTextSize
+    meta.numTexts = numTexts
+    
+    freq.foreach { case (word, freq) =>
+      context.put(word + TermIndexSuffix, Document.AttributeFamily, key, JsonIntValue(freq).bytes)
+    }
+    
+    textSize into context
+    meta into context
     context.commit
   }
   
@@ -131,18 +144,37 @@ class TextCorpus(context: DataSet) {
   /**
    * Search terms in corpus. The results are sorted by relevance.
    */
-  def search(terms: String*): Array[(Document, Double)] = {
-    val rank  = scala.collection.mutable.Map[Document, Double]()
+  def search(terms: String*): Array[((Document, String), Double)] = {
+    val rank = scala.collection.mutable.Map[(Document, String), Double]().withDefaultValue(0.0)
+    
     terms.foreach { term =>
-      val key = term + TextCorpusTermIndexSuffix
+      val lower = term.toLowerCase
+      val word = stemmer match {
+        case Some(stemmer) => stemmer.stem(lower)
+        case None => lower
+      }
+      
+      val key = word + TermIndexSuffix
       val invertedFile = key of context
-      invertedFile.foreach { case (id, value) =>
-        val doc = Document(id).from(context)
+      invertedFile.foreach { case (docField, value) =>
+        val id = docField.split(DocFieldSeparator, 2)
+        val doc = Document(id(0)).from(context)
+        val field = if (id.length == 2)
+          id(1).replace(DocFieldSeparator, Document.FieldSeparator)
+        else ""
+        
         val freq = value match {
           case JsonIntValue(value) => value
           case _ => 0
         }
-        rank(doc) += 0.0 //ranker.rank(freq, textSize, avgTextSize, numTexts, invertedFile.size) 
+        
+        val docSize = textSize(docField) match {
+          case JsonIntValue(value) => value
+          case _ => 100
+        }
+        
+        val score = ranker.rank(freq, docSize, avgTextSize, numTexts, invertedFile.size.toLong)
+        rank((doc, field)) += score
       }
     }
     
@@ -150,8 +182,8 @@ class TextCorpus(context: DataSet) {
   }
 }
 
-object TextCorpus {
-  def apply(context: DataSet): TextCorpus = {
-    new TextCorpus(context)
+object TextIndex {
+  def apply(context: DataSet): TextIndex = {
+    new TextIndex(context)
   }
 }
