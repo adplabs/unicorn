@@ -30,7 +30,7 @@ class HBaseServer(config: Configuration) extends DataStore {
   }
   
   def createDataSet(name: String): DataSet = {
-    createDataSet(name, "cdg.doc", "cdg.graph")
+    createDataSet(name, Document.AttributeFamily, Document.RelationshipFamily)
   }
   
   override def createDataSet(name: String, columnFamilies: String*): DataSet = {

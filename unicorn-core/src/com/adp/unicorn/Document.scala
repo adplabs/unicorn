@@ -540,6 +540,8 @@ object Document {
   val RelationshipKeySeparator  = "-->"
 
   def apply(id: String): Document = new Document(id)
+  def apply(id: Int): Document = new Document(id.toString)
+  def apply(id: Long): Document = new Document(id.toString)
 }
 
 object DocumentImplicits {
