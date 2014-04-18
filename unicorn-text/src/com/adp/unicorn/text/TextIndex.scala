@@ -95,7 +95,10 @@ class TextIndex(context: DataSet) {
     sentenceSpliter.split(text).foreach { sentence =>
       tokenizer.split(sentence).foreach { token =>
         val lower = token.toLowerCase
-        if (!(punctuations.contains(lower) || stopWords.contains(lower))) {
+        if (!(punctuations.contains(lower) ||
+              stopWords.contains(lower) ||
+              lower.length == 1 ||
+              lower.matches("[0-9\\.\\-\\|\\(\\)]+"))) {
           val word = stemmer match {
             case Some(stemmer) => stemmer.stem(lower)
             case None => lower
@@ -159,9 +162,7 @@ class TextIndex(context: DataSet) {
       invertedFile.foreach { case (docField, value) =>
         val id = docField.split(DocFieldSeparator, 2)
         val doc = Document(id(0)).from(context)
-        val field = if (id.length == 2)
-          id(1).replace(DocFieldSeparator, Document.FieldSeparator)
-        else ""
+        val field = if (id.length == 2) id(1).replace(DocFieldSeparator, Document.FieldSeparator) else ""
         
         val freq = value match {
           case JsonIntValue(value) => value
