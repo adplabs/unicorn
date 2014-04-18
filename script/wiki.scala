@@ -3,6 +3,7 @@ import scala.io.Source
 import scala.xml.pull._
 
 def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
+  val corpus = TextIndex(server.dataset("wiki", "public"))
   files.foreach { xmlFile =>
     val xml = new XMLEventReader(Source.fromFile(xmlFile))
 
@@ -22,6 +23,14 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
             d.json.value.foreach { case (key, value) => d(key) = value }
             println(d.id)
             d into table
+            d("revision") match {
+              case JsonObjectValue(value) => if (value.contains("text")) value("text") match {
+                case JsonStringValue(text) => corpus.add(d.id, "revision.text", text)
+                case _ => 
+              }
+              case _ => 
+            }
+            
             id = id + 1
           }
         }

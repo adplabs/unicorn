@@ -85,19 +85,62 @@ class GraphOps[V, E] {
     }
 
     /**
+     * Default edge weight.
+     */
+    def weight(source: V, target: V, edge: E) = 1.0
+    
+    /**
+     * Dijkstra shortest path search algorithm.
+     * 
+     * @param start  the start node
+     * @param goal   the goal node
+     * @param neighbors a function to returns node's neighbors of interest
+     * @param g      the past path-cost function, which is the known distance between two nodes.
+     * @return       the path from source to goal
+     */
+    def dijkstra(start: V, goal: V, neighbors: V => Iterator[(V, E)], g: (V, V, E) => Double = weight): List[(V, Option[E])] = {
+
+      val queue = new scala.collection.mutable.PriorityQueue[(V, Double)]()(NodeOrdering)
+      queue.enqueue((start, 0.0))
+      
+      val dist = scala.collection.mutable.Map[V, Double]().withDefaultValue(Double.PositiveInfinity)
+      dist(start) = 0.0
+
+      // The map of navigated nodes
+      val cameFrom = scala.collection.mutable.Map[V, (V, E)]()
+
+      while (!queue.isEmpty) {
+        val (current, distance) = queue.dequeue
+        if (current == goal) return reconstructPath(cameFrom, goal).reverse
+
+        neighbors(current).foreach { case (neighbor, edge) =>
+          val alt = distance+ g(current, neighbor, edge)
+          if (alt < dist(neighbor)) {
+            dist(neighbor) = alt
+            cameFrom(neighbor) = (current, edge)
+            queue.enqueue((neighbor, alt))
+          }
+        }
+      }
+
+      // Fail. No path exists between the start node and the goal.
+      return List[(V, Option[E])]()
+    }
+    
+    /**
      * A* search algorithm for path finding and graph traversal.
      * It is an extension of Dijkstra algorithm and achieves better performance by using heuristics.
      * 
      * @param start  the start node
      * @param goal   the goal node
-     * @param g      the past path-cost function, which is the known distance
-     *               from the starting node to the current node.
+     * @param neighbors a function to returns node's neighbors of interest
      * @param h      the future path-cost function, which is an admissible
      *               "heuristic estimate" of the distance from the current node to the goal.
      *               Note that the heuristic function must be monotonic.
+     * @param g      the past path-cost function, which is the known distance between two nodes.
      * @return       the path from source to goal
      */
-    def astar(start: V, goal: V, g: (V, V, E) => Double, h: (V, V) => Double, neighbors: V => Iterator[(V, E)]): List[(V, Option[E])] = {
+    def astar(start: V, goal: V, neighbors: V => Iterator[(V, E)], h: (V, V) => Double, g: (V, V, E) => Double = weight): List[(V, Option[E])] = {
       // The queue to find node with lowest f score
       // Note that Scala priority queue maintains largest value on the top.
       // So we will use negative f score in the queue.
@@ -132,11 +175,11 @@ class GraphOps[V, E] {
         neighbors(current).foreach {
           case (neighbor, _) if (closedSet.contains(neighbor)) => ()
           case (neighbor, edge) =>
-            val gScoreUpdated = gScore(current) + g(current, neighbor, edge)
+            val alt = gScore(current) + g(current, neighbor, edge)
  
-            if (!openSet.contains(neighbor) || gScoreUpdated < gScore(neighbor)) { 
+            if (!openSet.contains(neighbor) || alt < gScore(neighbor)) { 
               cameFrom(neighbor) = (current, edge)
-              gScore(neighbor) = gScoreUpdated
+              gScore(neighbor) = alt
               val f = -gScore(neighbor) - h(neighbor, goal)
               fScore(neighbor) = f
               if (!openSet.contains(neighbor)) {

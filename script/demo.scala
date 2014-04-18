@@ -168,16 +168,7 @@ keith   into table
 mike    into table
 
 val graphOps = new GraphOps[Document, (String, JsonValue)]()
-val path = graphOps.astar(haifeng, mike,
-  (a: Document, b: Document, e: (String, JsonValue)) => e._1 match {
-    case "works with" => 1.
-    case "reports to" => 2.
-    case _ => 3.
-    },
-  (a: Document, b: Document) => (a.rank, b.rank) match {
-    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
-    case _ => 100
-  },
+val path = graphOps.dijkstra(haifeng, mike,
   (doc: Document) => {
     val neighbors = doc.neighbors("works with", "reports to")
     neighbors.foreach { case (doc, _) => doc.refreshRelationships }
@@ -191,15 +182,36 @@ path.map {
 }.mkString(" -- ")
 
 val path = graphOps.astar(haifeng, mike,
-  (a: Document, b: Document, e: (String, JsonValue)) => 1.,
+  (doc: Document) => {
+    val neighbors = doc.neighbors("works with", "reports to")
+    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.iterator
+  },
   (a: Document, b: Document) => (a.rank, b.rank) match {
     case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
     case _ => 100
   },
+  (a: Document, b: Document, e: (String, JsonValue)) => e._1 match {
+    case "works with" => 1.
+    case "reports to" => 2.
+    case _ => 3.
+  }
+)
+
+path.map {
+  case (doc, Some(edge)) => edge._1 + " --> " + doc.id
+  case (doc, None) => doc.id
+}.mkString(" -- ")
+
+val path = graphOps.astar(haifeng, mike,
   (doc: Document) => {
     val neighbors = doc.neighbors("reports to")
     neighbors.foreach { case (doc, _) => doc.refreshRelationships }
     neighbors.iterator
+  },
+  (a: Document, b: Document) => (a.rank, b.rank) match {
+    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
+    case _ => 100
   }
 )
 
@@ -209,15 +221,14 @@ path.map {
 }.mkString(" -- ")
 
 val path = graphOps.astar(haifeng, roberto,
-  (a: Document, b: Document, e: (String, JsonValue)) => 1.,
-  (a: Document, b: Document) => (a.rank, b.rank) match {
-    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
-    case _ => 100
-  },
   (doc: Document) => {
     val neighbors = doc.neighbors("reports to")
     neighbors.foreach { case (doc, _) => doc.refreshRelationships }
     neighbors.iterator
+  },
+  (a: Document, b: Document) => (a.rank, b.rank) match {
+    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
+    case _ => 100
   }
 )
 
