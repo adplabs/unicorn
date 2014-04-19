@@ -54,7 +54,7 @@ class TextIndex(context: DataSet) {
    */
   var avgTextSize: Int = meta.avgTextSize match {
     case JsonIntValue(value) => value
-    case _ => 0
+    case _ => (numWords / numTexts).toInt
   }
 
   /**
@@ -98,7 +98,7 @@ class TextIndex(context: DataSet) {
         if (!(punctuations.contains(lower) ||
               stopWords.contains(lower) ||
               lower.length == 1 ||
-              lower.matches("[0-9\\.\\-\\|\\(\\)]+"))) {
+              lower.matches("[0-9\\.\\-\\+\\|\\(\\)]+"))) {
           val word = stemmer match {
             case Some(stemmer) => stemmer.stem(lower)
             case None => lower
@@ -117,18 +117,17 @@ class TextIndex(context: DataSet) {
         case _ => 0
       }
       
-      numWords = numWords - oldSize + size
-      avgTextSize = ((avgTextSize * numTexts - oldSize + size) / numTexts).toInt
+      numWords += size - oldSize
     } else {
-      avgTextSize = ((avgTextSize * numTexts + size) / (numTexts + 1)).toInt
       numTexts += 1
       numWords += size
     }
     
+    avgTextSize = (numWords / numTexts).toInt
     textSize(key) = size    
     meta.numWords = numWords
-    meta.avgTextSize = avgTextSize
     meta.numTexts = numTexts
+    meta.avgTextSize = avgTextSize
     
     freq.foreach { case (word, freq) =>
       context.put(word + TermIndexSuffix, Document.AttributeFamily, key, JsonIntValue(freq).bytes)
@@ -168,7 +167,7 @@ class TextIndex(context: DataSet) {
           case JsonIntValue(value) => value
           case _ => 0
         }
-        
+        println(docField)
         val docSize = textSize(docField) match {
           case JsonIntValue(value) => value
           case _ => 100

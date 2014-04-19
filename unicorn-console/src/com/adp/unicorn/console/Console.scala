@@ -25,7 +25,7 @@ object Console extends App {
    (--,\\\===~\         `,-,~,=,:. _,//
     (--,\\\==~`\        ~-=~-.---|\;/J,       Welcome to the Unicorn Database
      (--,\\\((```==.    ~'`~/       a |          Column, Document and Graph
-       (-,.\\('('(`\\.  ~'=~|     \_.  \
+       (-,.\\('('(`\\.  ~'=~|     \_.  \              Full Text Search
           (,--(,(,(,'\\. ~'=|       \\_;>
             (,-( ,(,(,;\\ ~=/        \                  Haifeng Li
             (,-/ (.(.(,;\\,/          )             ADP Innovation Lab
