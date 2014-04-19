@@ -163,17 +163,17 @@ class TextIndex(context: DataSet) {
         val doc = Document(id(0)).from(context)
         val field = if (id.length == 2) id(1).replace(DocFieldSeparator, Document.FieldSeparator) else ""
         
-        val freq = value match {
+        val tf = value match {
           case JsonIntValue(value) => value
           case _ => 0
         }
-        println(docField)
-        val docSize = textSize(docField) match {
+
+        val size = textSize(docField) match {
           case JsonIntValue(value) => value
           case _ => 100
         }
         
-        val score = ranker.rank(freq, docSize, avgTextSize, numTexts, invertedFile.size.toLong)
+        val score = ranker.rank(tf, size, avgTextSize, numTexts, invertedFile.size.toLong)
         rank((doc, field)) += score
       }
     }

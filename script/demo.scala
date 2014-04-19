@@ -236,3 +236,14 @@ path.map {
   case (doc, Some(edge)) => edge._1 + " --> " + doc.id
   case (doc, None) => doc.id
 }.mkString(" -- ")
+
+// full text search
+val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
+val wiki = server.dataset("wiki", "public")
+val index = TextIndex(wiki)
+val news = index.search("sporting")
+news.foreach { case ((doc, field), score) =>
+  doc.select(field)
+  println(doc.id + " = " + score)
+  println(doc(field))
+}
