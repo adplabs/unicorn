@@ -14,19 +14,19 @@ class GraphOps[V, E] {
   
     /**
      * Depth-first search of graph.
-     * @param node the current node to visit
+     * @param vertex the current vertex to visit
      * @param edge optional incoming edge
-     * @param visitor a visitor object to process the current node and also to return
-     * an iterator of edges of interest associated with the node. Note that the visitor
+     * @param visitor a visitor object to process the current vertex and also to return
+     * an iterator of edges of interest associated with the vertex. Note that the visitor
      * may not return all edges in the graph. For example, we may be only interested in
      * "work with" relationships and would like to filter out "reports to" relationships.
-     * @param mark a set of visited nodes.
-     * @param hops the number of hops to reach this node from the starting node.
+     * @param mark a set of visited vertices.
+     * @param hops the number of hops to reach this vertex from the starting vertex.
      */
-    private def dfs(node: V, edge: Edge[V, E], visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
-      visitor.visit(node, edge, hops)
-      mark add node
-      visitor.edges(node, hops).foreach { e =>
+    private def dfs(vertex: V, edge: Edge[V, E], visitor: Visitor[V, E], mark: collection.mutable.Set[V], hops: Int) {
+      visitor.visit(vertex, edge, hops)
+      mark add vertex
+      visitor.edges(vertex, hops).foreach { e =>
         if (!mark.contains(e.target))
           dfs(e.target, e, visitor, mark, hops + 1)
       }
@@ -34,32 +34,32 @@ class GraphOps[V, E] {
 
     /**
      * Depth-first search of graph.
-     * @param node the starting node
-     * @param visitor a visitor object to process the current node and also to return
-     * an iterator of edges of interest associated with the node. Note that the visitor
+     * @param vertex the starting vertex
+     * @param visitor a visitor object to process the current vertex and also to return
+     * an iterator of edges of interest associated with the vertex. Note that the visitor
      * may not return all edges in the graph. For example, we may be only interested in
      * "work with" relationships and would like to filter out "reports to" relationships.
      */
-    def dfs(node: V, visitor: Visitor[V, E]) {
+    def dfs(vertex: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
-      dfs(node, null, visitor, mark, 0)
+      dfs(vertex, null, visitor, mark, 0)
     }
 
     /**
      * Breadth-first search of graph.
-     * @param node the current node to visit
-     * @param visitor a visitor object to process the current node and also to return
-     * an iterator of edges of interest associated with the node. Note that the visitor
+     * @param vertex the current vertex to visit
+     * @param visitor a visitor object to process the current vertex and also to return
+     * an iterator of edges of interest associated with the vertex. Note that the visitor
      * may not return all edges in the graph. For example, we may be only interested in
      * "work with" relationships and would like to filter out "reports to" relationships.
      */
-    def bfs(node: V, visitor: Visitor[V, E]) {
+    def bfs(vertex: V, visitor: Visitor[V, E]) {
       val mark = collection.mutable.Set[V]()
       val queue = collection.mutable.Queue[(Edge[V, E], Int)]()
       
-      visitor.visit(node, null, 0)
-      mark add node
-      visitor.edges(node, 0).foreach { edge =>
+      visitor.visit(vertex, null, 0)
+      mark add vertex
+      visitor.edges(vertex, 0).foreach { edge =>
         if (!mark.contains(edge.target))
           queue += ((edge, 1))
       }
@@ -67,8 +67,8 @@ class GraphOps[V, E] {
       while (!queue.isEmpty) {
         val (edge, hops) = queue.dequeue
         visitor.visit(edge.target, edge, hops)
-        mark add node
-        visitor.edges(node, hops).foreach { edge =>
+        mark add vertex
+        visitor.edges(vertex, hops).foreach { edge =>
           if (!mark.contains(edge.target))
             queue += ((edge, hops + 1))
         }
@@ -92,10 +92,10 @@ class GraphOps[V, E] {
     /**
      * Dijkstra shortest path search algorithm.
      * 
-     * @param start  the start node
-     * @param goal   the goal node
-     * @param neighbors a function to returns node's neighbors of interest
-     * @param g      the past path-cost function, which is the known distance between two nodes.
+     * @param start  the start vertex
+     * @param goal   the goal vertex
+     * @param neighbors a function to returns vertex's neighbors of interest
+     * @param g      the past path-cost function, which is the known distance between two vertices.
      * @return       the path from source to goal
      */
     def dijkstra(start: V, goal: V, neighbors: V => Iterator[(V, E)], g: (V, V, E) => Double = weight): List[(V, Option[E])] = {
@@ -106,7 +106,7 @@ class GraphOps[V, E] {
       val dist = scala.collection.mutable.Map[V, Double]().withDefaultValue(Double.PositiveInfinity)
       dist(start) = 0.0
 
-      // The map of navigated nodes
+      // The map of navigated vertices
       val cameFrom = scala.collection.mutable.Map[V, (V, E)]()
 
       while (!queue.isEmpty) {
@@ -123,7 +123,7 @@ class GraphOps[V, E] {
         }
       }
 
-      // Fail. No path exists between the start node and the goal.
+      // Fail. No path exists between the start vertex and the goal.
       return List[(V, Option[E])]()
     }
     
@@ -131,29 +131,29 @@ class GraphOps[V, E] {
      * A* search algorithm for path finding and graph traversal.
      * It is an extension of Dijkstra algorithm and achieves better performance by using heuristics.
      * 
-     * @param start  the start node
-     * @param goal   the goal node
-     * @param neighbors a function to returns node's neighbors of interest
+     * @param start  the start vertex
+     * @param goal   the goal vertex
+     * @param neighbors a function to returns vertex's neighbors of interest
      * @param h      the future path-cost function, which is an admissible
-     *               "heuristic estimate" of the distance from the current node to the goal.
+     *               "heuristic estimate" of the distance from the current vertex to the goal.
      *               Note that the heuristic function must be monotonic.
-     * @param g      the past path-cost function, which is the known distance between two nodes.
+     * @param g      the past path-cost function, which is the known distance between two vertices.
      * @return       the path from source to goal
      */
     def astar(start: V, goal: V, neighbors: V => Iterator[(V, E)], h: (V, V) => Double, g: (V, V, E) => Double = weight): List[(V, Option[E])] = {
-      // The queue to find node with lowest f score
+      // The queue to find vertex with lowest f score
       // Note that Scala priority queue maintains largest value on the top.
       // So we will use negative f score in the queue.
       val openQueue = new scala.collection.mutable.PriorityQueue[(V, Double)]()(NodeOrdering)
       openQueue.enqueue((start, -h(start, goal)))
       
-      // The set of tentative nodes to be evaluated.
+      // The set of tentative vertices to be evaluated.
       val openSet = scala.collection.mutable.Set[V](start)
       
-      // The set of nodes already evaluated.
+      // The set of vertices already evaluated.
       val closedSet = scala.collection.mutable.Set[V]()
 
-      // The map of navigated nodes
+      // The map of navigated vertices
       val cameFrom = scala.collection.mutable.Map[V, (V, E)]()
 
       // Cost from start along best known path.
@@ -190,7 +190,7 @@ class GraphOps[V, E] {
         }
       }
 
-      // Fail. No path exists between the start node and the goal.
+      // Fail. No path exists between the start vertex and the goal.
       return List[(V, Option[E])]()
     }
     

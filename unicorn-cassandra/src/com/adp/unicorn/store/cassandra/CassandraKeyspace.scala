@@ -13,6 +13,12 @@ import org.apache.cassandra.thrift.SliceRange
 import com.adp.unicorn.store.DataSet
 import org.apache.cassandra.thrift.ColumnOrSuperColumn
 
+/**
+ * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
+ * in other NoSQL solutions such as Accumulo and HBase.
+ * 
+ * @author Haifeng Li (293050)
+ */
 class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.ONE) extends DataSet {
   val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
   
@@ -104,6 +110,7 @@ class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel 
   }
   
   private def toByteBuffer(value: String) = ByteBuffer.wrap(value.getBytes("UTF-8"))
+  
   private def toString(buffer: ByteBuffer): String = {
     val bytes = new Array[Byte](buffer.remaining)
     buffer.get(bytes)

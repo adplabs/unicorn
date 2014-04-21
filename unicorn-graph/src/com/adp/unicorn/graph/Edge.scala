@@ -6,7 +6,7 @@
 package com.adp.unicorn.graph
 
 /**
- * An edge between two nodes in a graph with optional associated data.
+ * An edge between two vertices in a graph with optional associated data.
  * 
  * @author Haifeng Li (293050)
  */

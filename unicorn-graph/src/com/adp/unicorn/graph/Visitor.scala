@@ -12,14 +12,14 @@ package com.adp.unicorn.graph
  */
 trait Visitor[V, E] {
   /**
-   * Visit a node during graph traversal. The edge is the incoming
-   * arc (null for starting node). The hops is the number of hops
-   * from the starting node to this node.
+   * Visit a vertex during graph traversal. The edge is the incoming
+   * arc (null for starting vertex). The hops is the number of hops
+   * from the starting vertex to this vertex.
    */
-  def visit(node: V, edge: Edge[V, E], hops: Int): Unit
+  def visit(vertex: V, edge: Edge[V, E], hops: Int): Unit
   /**
-   * Returns an iterator of edges for this node. The input parameters
-   * hops (# of hops from starting node) may be used for early termination.
+   * Returns an iterator of the outgoing edges of a vertex. The input parameters
+   * hops (# of hops from starting vertex) may be used for early termination.
    */
-  def edges(node: V, hops: Int): Iterator[Edge[V, E]]
+  def edges(vertex: V, hops: Int): Iterator[Edge[V, E]]
 }

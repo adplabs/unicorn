@@ -11,6 +11,11 @@ import com.adp.unicorn.store.DataStore
 import com.adp.unicorn.store.DataSet
 import com.adp.unicorn.Document
 
+/**
+ * Cassandra server adapter.
+ *
+ * @author Haifeng Li (293050)
+ */
 class CassandraServer(protocol: TProtocol) extends DataStore {
   val admin = new Cassandra.Client(protocol)
   
