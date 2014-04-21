@@ -27,9 +27,10 @@ abstract class JsonValue {
   protected def getBytes(buffer: ByteBuffer): Array[Byte] = {
     val bytes = new Array[Byte](buffer.position)
     buffer.position(0)
-    buffer.get(bytes, 0, bytes.length)
+    buffer.get(bytes)
     bytes  
-  }}
+  }
+}
 
 object JsonValue {
   val charset = Charset.forName("UTF-8")

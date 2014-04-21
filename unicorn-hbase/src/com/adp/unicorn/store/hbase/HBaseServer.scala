@@ -15,6 +15,7 @@ import org.apache.hadoop.hbase.TableName
 import com.adp.unicorn.store.DataStore
 import com.adp.unicorn.store.DataSet
 import com.adp.unicorn.Document
+import org.apache.hadoop.hbase.util.Bytes
 
 /**
  * HBase server adapter.
@@ -29,17 +30,17 @@ class HBaseServer(config: Configuration) extends DataStore {
     new HBaseTable(table)
   }
   
-  def createDataSet(name: String): DataSet = {
-    createDataSet(name, Document.AttributeFamily, Document.RelationshipFamily)
+  override def createDataSet(name: String): DataSet = {
+    createDataSet(name, "", 1, Document.AttributeFamily, Document.RelationshipFamily)
   }
   
-  override def createDataSet(name: String, columnFamilies: String*): DataSet = {
+  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): DataSet = {
     if (admin.tableExists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
     val tableDesc = new HTableDescriptor(TableName.valueOf(name))
     columnFamilies.foreach { columnFamily =>
-      val meta = new HColumnDescriptor(columnFamily.getBytes());
+      val meta = new HColumnDescriptor(Bytes.toBytes(columnFamily))
       tableDesc.addFamily(meta)
     }
     admin.createTable(tableDesc)
@@ -60,7 +61,7 @@ object HBaseServer {
   def apply(): HBaseServer = {
     // HBaseConfiguration reads in hbase-site.xml and in hbase-default.xml that
     // can be found on the CLASSPATH
-    val config = HBaseConfiguration.create();
+    val config = HBaseConfiguration.create
     new HBaseServer(config)
   }
 }

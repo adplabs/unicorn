@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>unicorn-console</name>
+	<name>unicorn-cassandra</name>
 	<comment></comment>
 	<projects>
-		<project>unicorn-accumulo</project>
-		<project>unicorn-cassandra</project>
 		<project>unicorn-core</project>
-		<project>unicorn-graph</project>
-		<project>unicorn-hbase</project>
-		<project>unicorn-text</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

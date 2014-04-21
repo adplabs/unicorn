@@ -22,7 +22,8 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
             // make sure we record all children’s changes
             d.json.value.foreach { case (key, value) => d(key) = value }
             println(d.id)
-            d into table
+            //d into table
+            
             d("revision") match {
               case JsonObjectValue(value) => if (value.contains("text")) value("text") match {
                 case JsonStringValue(text) => corpus.add(d.id, "revision.text", text)

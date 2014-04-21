@@ -49,6 +49,7 @@ object Console extends App {
       autoImport("com.adp.unicorn.DocumentImplicits._")
       autoImport("com.adp.unicorn.store._")
       autoImport("com.adp.unicorn.store.accumulo._")
+      autoImport("com.adp.unicorn.store.cassandra._")
       autoImport("com.adp.unicorn.store.hbase._")
       autoImport("com.adp.unicorn.graph._")
       autoImport("com.adp.unicorn.graph.document._")

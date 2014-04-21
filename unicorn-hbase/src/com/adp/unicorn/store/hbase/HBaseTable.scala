@@ -31,7 +31,7 @@ class HBaseTable(table: HTable) extends DataSet {
     val map = collection.mutable.Map[String, Array[Byte]]()
     val result = table.get(get).getFamilyMap(family)
     if (result != null) {
-      result.foreach { case (key, value) => map(new String(key)) = value }
+      result.foreach { case (key, value) => map(Bytes.toString(key)) = value }
     }
     map
   }
@@ -44,7 +44,7 @@ class HBaseTable(table: HTable) extends DataSet {
     val map = collection.mutable.Map[String, Array[Byte]]()
     val result = table.get(get).getFamilyMap(family)
     if (result != null) {
-      result.foreach { case (key, value) => map(new String(key)) = value }
+      result.foreach { case (key, value) => map(Bytes.toString(key)) = value }
     }
     map
   }

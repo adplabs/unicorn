@@ -21,7 +21,11 @@ class AccumuloServer(conn: Connector) extends DataStore {
     new AccumuloTable(conn, name, auth)
   }
   
-  override def createDataSet(name: String, columnFamilies: String*): DataSet = {
+  override def createDataSet(name: String): DataSet = {
+    createDataSet(name, "", 1)
+  }
+  
+  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): DataSet = {
     if (conn.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 

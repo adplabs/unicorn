@@ -17,8 +17,13 @@ val server = AccumuloServer("local-poc", "127.0.0.1:2181", "tester", "adpadp")
 // Use table "small" 
 val table = server.dataset("small", "public")
 
-//val server = HBaseServer()
-//val table = server.dataset("small")
+// HBase
+val server = HBaseServer()
+val table = server.dataset("small")
+
+// Cassandra
+val server = CassandraServer("127.0.0.1", 9160)
+val table = server.dataset("small")
 
 // Read a non-existing row. It is the pure time of round trip.
 val doc = time { "row1" of table }
@@ -241,7 +246,7 @@ path.map {
 val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
 val wiki = server.dataset("wiki", "public")
 val index = TextIndex(wiki)
-val news = index.search("sporting")
+val news = index.search("motorola", "nokia")
 news.foreach { case ((doc, field), score) =>
   doc.select(field)
   println(doc.id + " = " + score)

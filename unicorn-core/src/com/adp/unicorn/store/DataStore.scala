@@ -13,6 +13,7 @@ package com.adp.unicorn.store
  */
 trait DataStore {
     def dataset(name: String, auth: String = ""): DataSet
-    def createDataSet(name: String, columnFamilies: String*): DataSet
+    def createDataSet(name: String): DataSet
+    def createDataSet(name: String, stratey: String, replication: Int, columnFamilies: String*): DataSet
     def dropDataSet(name: String): Unit
 }
