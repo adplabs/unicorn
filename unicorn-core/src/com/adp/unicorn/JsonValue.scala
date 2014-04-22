@@ -143,6 +143,15 @@ case class JsonBlobValue(value: Array[Byte]) extends JsonValue {
   override def bytes = value
 }
 
+object JsonBlobValue {
+  def apply(value: Array[Int]): JsonBlobValue = {
+    val bytes = new Array[Byte](4 * value.length)
+    val buffer = ByteBuffer.wrap(bytes)
+    value.foreach { i => buffer.putInt(i) }
+    JsonBlobValue(bytes)
+  }
+}
+
 case class JsonObjectValue(value: collection.mutable.Map[String, JsonValue]) extends JsonValue{
   private val DefaultIndent = "  "
   private val DefaultSeparator = ", "
