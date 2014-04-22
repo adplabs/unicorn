@@ -25,16 +25,18 @@ import org.apache.hadoop.hbase.util.Bytes
 class HBaseServer(config: Configuration) extends DataStore {
   lazy val admin = new HBaseAdmin(config)
   
-  override def dataset(name: String, auth: String): DataSet = {
+  def dataset(name: String): DataSet = dataset(name, "")
+  
+  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
     val table = new HTable(config, name)
-    new HBaseTable(table)
+    new HBaseTable(table, visibility, authorizations: _*)
   }
   
-  override def createDataSet(name: String): DataSet = {
+  override def createDataSet(name: String): Unit = {
     createDataSet(name, "", 1, Document.AttributeFamily, Document.RelationshipFamily)
   }
   
-  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): DataSet = {
+  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
     if (admin.tableExists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
@@ -44,8 +46,6 @@ class HBaseServer(config: Configuration) extends DataStore {
       tableDesc.addFamily(meta)
     }
     admin.createTable(tableDesc)
-
-    dataset(name)
   }
   
   override def dropDataSet(name: String): Unit = {

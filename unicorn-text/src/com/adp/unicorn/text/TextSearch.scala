@@ -75,5 +75,4 @@ object TextSearch {
   def apply(storage: DataSet): TextSearch = {
     new TextSearch(storage)
   }
-
 }

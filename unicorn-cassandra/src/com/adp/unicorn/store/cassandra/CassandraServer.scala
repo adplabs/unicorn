@@ -19,17 +19,19 @@ import com.adp.unicorn.Document
 class CassandraServer(protocol: TProtocol) extends DataStore {
   val admin = new Cassandra.Client(protocol)
   
-  override def dataset(name: String, auth: String): DataSet = {
+  def dataset(name: String): DataSet = dataset(name, "")
+  
+  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
     val client = new Cassandra.Client(protocol)
     client.set_keyspace(name)
     new CassandraKeyspace(client)
   }
   
-  override def createDataSet(name: String): DataSet = {
+  override def createDataSet(name: String): Unit = {
     createDataSet(name, "org.apache.cassandra.locator.SimpleStrategy", 1, Document.AttributeFamily, Document.RelationshipFamily)
   }
   
-  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): DataSet = {
+  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
     val options = new java.util.HashMap[String, String]
     options.put("replication_factor", replication.toString)
     
@@ -47,7 +49,6 @@ class CassandraServer(protocol: TProtocol) extends DataStore {
     }
     
     admin.system_add_keyspace(keyspace)
-    dataset(name)
   }
   
   override def dropDataSet(name: String): Unit = {

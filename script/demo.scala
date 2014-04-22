@@ -15,7 +15,7 @@ def time[A](f: => A) = {
 // connect to Accumulo server
 val server = AccumuloServer("local-poc", "127.0.0.1:2181", "tester", "adpadp")
 // Use table "small" 
-val table = server.dataset("small", "public")
+val table = server.dataset("small", "public", "public")
 
 // HBase
 val server = HBaseServer()
@@ -67,18 +67,14 @@ time { person into table }
 val haifeng = time { "293050" of table }
 
 // Read partially a document
-val partial = time { "293050".from(table).select("name", "gender") }
+val partial = time { "293050".from(table).select("name", "zip") }
 
 // Remove a field
-partial remove "gender"
+partial remove "zip"
 partial commit
 
-// Let's check if "gender" was deleted
-val onlyname = time { "293050".from(table).select("name", "gender") }
-
-// Restore gender
-onlyname.gender = "Male"
-onlyname.commit
+// Let's check if "zip" was deleted
+val onlyname = time { "293050".from(table).select("name", "zip") }
 
 // Turn on the cache
 table cacheOn
@@ -246,7 +242,7 @@ path.map {
 val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
 val wiki = server.dataset("wiki", "public")
 val index = TextSearch(wiki)
-val news = index.search("apple")
+val news = index.search("football")
 news.foreach { case ((doc, field), score) =>
   doc.select("title")
   println(doc.id + " = " + score)

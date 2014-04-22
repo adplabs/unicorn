@@ -23,12 +23,10 @@ import com.adp.unicorn.Document
  * 
  * @author Haifeng Li (293050)
  */
-class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSet {
+class AccumuloTable(conn: Connector, table: String, visibility: String, authorizations: String*) extends DataSet {
   
-  lazy val scanner = {
-    val auths = new Authorizations(auth)
-    conn.createScanner(table, auths)
-  }
+  val columnVisibility = new ColumnVisibility(visibility)
+  val scanner = conn.createScanner(table, new Authorizations(authorizations: _*))
   
   lazy val writer = {
     val config = new BatchWriterConfig()
@@ -79,13 +77,13 @@ class AccumuloTable(conn: Connector, table: String, auth: String) extends DataSe
   
   override def write(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     val mutation = new Mutation(row)
-    mutation.put(columnFamily, column, new ColumnVisibility(auth), new Value(value))
+    mutation.put(columnFamily, column, columnVisibility, new Value(value))
     writer.addMutation(mutation)
   }
 
   override def delete(row: String, columnFamily: String, column: String): Unit = {
     val mutation = new Mutation(row)
-    mutation.putDelete(columnFamily, column, new ColumnVisibility(auth))
+    mutation.putDelete(columnFamily, column, columnVisibility)
     writer.addMutation(mutation)
   }
 

@@ -104,6 +104,7 @@ trait DataSet {
   
   /**
    * Cached write.
+   * @param visibility the cell visibility label expression.
    */
   def put(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     if (cacheEnabled && cache.contains((row, columnFamily))) {

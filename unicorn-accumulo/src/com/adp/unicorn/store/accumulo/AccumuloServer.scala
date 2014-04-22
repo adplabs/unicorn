@@ -17,20 +17,19 @@ import com.adp.unicorn.store.DataSet
  * @author Haifeng Li (293050)
  */
 class AccumuloServer(conn: Connector) extends DataStore {
-  override def dataset(name: String, auth: String): DataSet = {
-    new AccumuloTable(conn, name, auth)
+  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
+    new AccumuloTable(conn, name, visibility, authorizations: _*)
   }
   
-  override def createDataSet(name: String): DataSet = {
+  override def createDataSet(name: String): Unit = {
     createDataSet(name, "", 1)
   }
   
-  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): DataSet = {
+  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
     if (conn.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 
     conn.tableOperations.create(name)
-    dataset(name)
   }
   
   override def dropDataSet(name: String): Unit = {
