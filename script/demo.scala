@@ -245,10 +245,10 @@ path.map {
 // full text search
 val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
 val wiki = server.dataset("wiki", "public")
-val index = TextIndex(wiki)
-val news = index.search("motorola", "nokia")
+val index = TextSearch(wiki)
+val news = index.search("apple")
 news.foreach { case ((doc, field), score) =>
-  doc.select(field)
+  doc.select("title")
   println(doc.id + " = " + score)
-  println(doc(field))
+  println(doc("title"))
 }

@@ -8,6 +8,7 @@ package com.adp.unicorn
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.Charset
+import scala.language.implicitConversions
 
 /**
  * JSON value. Note that JavaScript doesn't distinguish
@@ -37,6 +38,55 @@ object JsonValue {
   val encoder = charset.newEncoder
   val decoder = charset.newDecoder
 
+  implicit def toBool(json: JsonValue): Boolean = json match {
+    case JsonBoolValue(value) => value
+    case JsonIntValue(value) => value != 0
+    case JsonLongValue(value) => value != 0
+    case JsonDoubleValue(value) => value != 0
+    case JsonStringValue(value) => !value.isEmpty
+    case JsonUndefinedValue => false
+    case JsonBlobValue(value) => value.length != 0
+  }
+
+  implicit def toInt(json: JsonValue): Int = json match {
+    case JsonBoolValue(value) => if (value) 1 else 0
+    case JsonIntValue(value) => value
+    case JsonLongValue(value) => value.toInt
+    case JsonDoubleValue(value) => value.toInt
+    case JsonStringValue(value) => value.toInt
+    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to int")
+    case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to int")
+  }
+
+  implicit def toLong(json: JsonValue): Long = json match {
+    case JsonBoolValue(value) => if (value) 1 else 0
+    case JsonIntValue(value) => value
+    case JsonLongValue(value) => value
+    case JsonDoubleValue(value) => value.toLong
+    case JsonStringValue(value) => value.toLong
+    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to long")
+    case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to long")
+  }
+
+  implicit def toDouble(json: JsonValue): Double = json match {
+    case JsonBoolValue(value) => if (value) 1 else 0
+    case JsonIntValue(value) => value
+    case JsonLongValue(value) => value
+    case JsonDoubleValue(value) => value
+    case JsonStringValue(value) => value.toDouble
+    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to double")
+    case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to double")
+  }
+
+  implicit def toString(json: JsonValue): String = json match {
+    case JsonBoolValue(value) => value.toString
+    case JsonIntValue(value) => value.toString
+    case JsonLongValue(value) => value.toString
+    case JsonDoubleValue(value) => value.toString
+    case JsonStringValue(value) => value.toString
+    case JsonUndefinedValue => "undefined"
+    case JsonBlobValue(value) => value.toString
+  }
 }
 
 case object JsonUndefinedValue extends JsonValue {

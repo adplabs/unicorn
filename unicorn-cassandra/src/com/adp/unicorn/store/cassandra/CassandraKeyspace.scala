@@ -19,7 +19,7 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
  * 
  * @author Haifeng Li (293050)
  */
-class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.ONE) extends DataSet {
+class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends DataSet {
   val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
   
   override def read(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {

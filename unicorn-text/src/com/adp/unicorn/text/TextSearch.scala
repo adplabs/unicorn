@@ -21,11 +21,7 @@ class TextSearch(storage: DataSet) extends TextIndex {
   var numTexts: Long = 0
 
   (TextSizeKey of storage).json.value.foreach { case (key, value) =>
-    val size = value match {
-      case JsonIntValue(value) => value
-      case _ => 0
-    }
-    
+    val size: Int = value
     if (size > 0) {
       numWords += size
       numTexts += 1
@@ -64,13 +60,7 @@ class TextSearch(storage: DataSet) extends TextIndex {
         if (id.length == 2) {
           val doc = Document(id(0)).from(storage)
           val field = id(1).replace(DocFieldSeparator, Document.FieldSeparator)
-        
-          val tf = value match {
-            case JsonIntValue(value) => value
-            case JsonDoubleValue(value) => value
-            case _ => 0
-          }
-
+          val tf: Double = value
           val score = ranker.rank(tf, textSize(docField), avgTextSize, numTexts, invertedFile.size.toLong)
           rank((doc, field)) += score        
         }
