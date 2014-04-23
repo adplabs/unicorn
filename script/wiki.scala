@@ -30,7 +30,7 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
 
                 if (title != "") {
                   println(d.id, title)
-                  d.id = title
+                  //d.id = title
                   d into table
 
                   d("revision") match {
@@ -81,7 +81,8 @@ def wikipedia(server: DataStore, table: DataSet, files: String*): Unit = {
   }
 }
 
-val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
+val server = CassandraServer("127.0.0.1", 9160)
+server.createDataSet("wiki")
 val table = server.dataset("wiki")
 
 wikipedia(server, table, "/home/virtual/data/wiki/enwikinews-20140410-pages-articles-multistream.xml")

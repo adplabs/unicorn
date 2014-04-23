@@ -20,6 +20,7 @@ def astroph(server: DataStore, table: DataSet, files: String*): Unit = {
 }
 
 val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
+server.createDataSet("wiki")
 val table = server.dataset("astroph")
 
 astroph(server, table, "/home/virtual/data/ca-AstroPh.txt")

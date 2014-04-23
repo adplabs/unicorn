@@ -87,12 +87,12 @@ haifeng commit
 val twice = time { "293050" of table }
 
 // wiki
-val cluster = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
+val server = CassandraServer("127.0.0.1", 9160)
 val wiki = cluster.dataset("wiki", "public")
-1 of wiki
+81859 of wiki
 
 // Google+
-val gplus = cluster.dataset("gplus", "public")
+val gplus = server.dataset("gplus", "public")
 gplus cacheOn
 val dan = "111065108889012087599" of gplus
 
@@ -122,7 +122,7 @@ val visitor = new SimpleDocumentVisitor(3, "follows")
 visitor.dfs(dan)
 visitor.bfs(dan)
 
-val astroph = cluster.dataset("astroph", "public")
+val astroph = server.dataset("astroph", "public")
 astroph cacheOn
 val author = 63225 of astroph
 val visitor = new SimpleDocumentVisitor(2, "works with")
@@ -134,7 +134,7 @@ graph.dijkstra
 
 
 // Make a small org chart for A* search
-val server = AccumuloServer("local-poc", "127.0.0.1:2181", "tester", "adpadp")
+val server = CassandraServer("127.0.0.1", 9160)
 val table = server.dataset("small", "public")
 
 val haifeng = Document("Haifeng")
@@ -239,12 +239,20 @@ path.map {
 }.mkString(" -- ")
 
 // full text search
-val server = AccumuloServer("poc", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181", "tester", "adpadp")
-val wiki = server.dataset("wiki", "public")
+val server = CassandraServer("127.0.0.1", 9160)
+val wiki = server.dataset("wiki")
 val index = TextSearch(wiki)
 val news = index.search("football")
 news.foreach { case ((doc, field), score) =>
   doc.select("title")
   println(doc.id + " = " + score)
   println(doc("title"))
+}
+
+// Prefix tree example
+val trie = new smile.nlp.Trie[Character, String]
+news.foreach { case ((doc, field), score) =>
+  doc.select("title")
+  val title: String = doc.title
+  trie.put(title.toCharArray, title)
 }
