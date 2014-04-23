@@ -10,25 +10,23 @@ class TextSearch(storage: DataSet) extends TextIndex {
 
   val textSize = collection.mutable.Map[String, Int]().withDefaultValue(0)
   
-  /**
-   * The number of words in the corpus.
-   */
-  var numWords: Long = 0
-
-  /**
-   * The number of texts in the corpus.
-   */
-  var numTexts: Long = 0
-
-  (TextSizeKey of storage).json.value.foreach { case (key, value) =>
+  (TextBodySizeKey of storage).json.value.foreach { case (key, value) =>
     val size: Int = value
     if (size > 0) {
-      numWords += size
-      numTexts += 1
       textSize(key) = size
     }
   }
   
+  /**
+   * The number of texts in the corpus.
+   */
+  val numTexts = textSize.size
+  
+  /**
+   * The number of words in the corpus.
+   */
+  val numWords: Long = textSize.values.foldLeft(0: Long) { _ + _ }
+
   /**
    * The average size of documents in the corpus.
    */

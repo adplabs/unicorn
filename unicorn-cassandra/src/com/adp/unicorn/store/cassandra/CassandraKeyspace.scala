@@ -26,7 +26,7 @@ class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel 
     val key = toByteBuffer(row)
     val parent = new ColumnParent(columnFamily)
     val predicate = new SlicePredicate
-    val range = new SliceRange(toByteBuffer(""), toByteBuffer(""), false, 1000)
+    val range = new SliceRange(toByteBuffer(""), toByteBuffer(""), false, Int.MaxValue)
     predicate.setSlice_range(range)
 
     val result = client.get_slice(key, parent, predicate, consistency)  

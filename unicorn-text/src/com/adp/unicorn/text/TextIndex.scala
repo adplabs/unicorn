@@ -13,10 +13,12 @@ import smile.nlp.stemmer.Stemmer
  * @author Haifeng Li (293050)
  */
 trait TextIndex {
-  val TermIndexSuffix = " index"
+  val TermIndexSuffix = " idx"
   val TermPositionSuffix = " pos"
   val DocFieldSeparator = "##"
-  val TextSizeKey = "unicorn.text.corpus.text.size"
+  val TextBodySizeKey = "unicorn.text.corpus.text.size"
+  val TextTitleSizeKey = "unicorn.text.corpus.text.title.size"
+  val TextAnchorSizeKey = "unicorn.text.corpus.text.anchor.size"
   val TextPageRankKey = "unicorn.text.corpus.text.page_rank"
   val TextBrowseRankKey = "unicorn.text.corpus.text.browse_rank"
 

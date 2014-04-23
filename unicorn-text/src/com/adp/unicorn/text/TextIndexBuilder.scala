@@ -11,7 +11,7 @@ import smile.nlp.dictionary.EnglishPunctuations
 
 class TextIndexBuilder(storage: DataSet) extends TextIndex {
 
-  val textSize = TextSizeKey of storage
+  val textSize = TextBodySizeKey of storage
 
   /**
    * Sentence splitter.
