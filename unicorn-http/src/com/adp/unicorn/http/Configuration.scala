@@ -10,6 +10,7 @@ import com.adp.unicorn.store.cassandra.CassandraServer
 object Configuration {
   val server = CassandraServer("127.0.0.1", 9160)
   val data = server.dataset("wiki")
+  data cacheOn
   
   val skeletonTop =
     """<html>
