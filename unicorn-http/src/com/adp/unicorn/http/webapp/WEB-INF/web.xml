@@ -20,6 +20,17 @@
   </servlet>
 
   <servlet-mapping>
+    <servlet-name>doc</servlet-name>
+    <url-pattern>/doc/*</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>doc</servlet-name>
+    <servlet-class>com.adp.unicorn.http.DocumentServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <servlet-mapping>
     <servlet-name>search</servlet-name>
     <url-pattern>/search/*</url-pattern>
   </servlet-mapping>

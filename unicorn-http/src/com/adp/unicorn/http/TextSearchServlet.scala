@@ -1,3 +1,8 @@
+/******************************************************************************
+ *                   Confidential Proprietary                                 *
+ *          (c) Copyright ADP 2014, All Rights Reserved                       *
+ ******************************************************************************/
+
 package com.adp.unicorn.http
 
 import javax.servlet.http.HttpServlet
@@ -6,14 +11,11 @@ import javax.servlet.http.HttpServletResponse
 import scala.xml._
 import scala.xml.transform.RewriteRule
 import scala.xml.transform.RuleTransformer
-import com.adp.unicorn.store.cassandra.CassandraServer
 import com.adp.unicorn.text.TextSearch
 
 
 class TextSearchServlet extends HttpServlet {
-  val server = CassandraServer("127.0.0.1", 9160)
-  val wiki = server.dataset("wiki")
-  val index = TextSearch(wiki)
+  val index = TextSearch(Configuration.data)
 
   class TransformArticle(title: String, link: String, summary: String) extends RewriteRule {
     override def transform(n: Node): Seq[Node] = n match {
@@ -31,25 +33,6 @@ class TextSearchServlet extends HttpServlet {
       case other => other
     }
   }
-
-  val skeletonTop =
-    """<html>
-      <head>
-        <title>Unicorn Full Text Search</title>
-        <link rel="stylesheet" type="text/css" href="/css/style.css" />
-      </head>
-      <body>
-        <div id="content">
-        <form method="get" action="/search">                                        
-        <input type="text" name="q" style="height:30px; width:30%;"></input>              
-        </form>                                                                     
-        <hr></hr>
-    """    
-  val skeletonBottom = 
-    """
-        </div>
-      </body>
-    </html>"""
   
   val template =
     <dl>
@@ -74,13 +57,13 @@ class TextSearchServlet extends HttpServlet {
       matches.flatMap { case ((doc, field), score) =>
         doc.select("title")
         val title: String = doc("title")
-        new RuleTransformer(new TransformArticle(title, "/doc/"+doc.id, score.toString)) transform template
+        new RuleTransformer(new TransformArticle(title, "/doc/?q="+doc.id, score.toString)) transform template
       }
     )
 
     val writer = response.getWriter
-    writer.write(skeletonTop)
+    writer.write(Configuration.skeletonTop)
     writer.write(body.toString)
-    writer.write(skeletonBottom)
+    writer.write(Configuration.skeletonBottom)
   }
 }
