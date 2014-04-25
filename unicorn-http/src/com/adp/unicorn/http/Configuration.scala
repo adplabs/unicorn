@@ -20,8 +20,8 @@ object Configuration {
       <body>
         <div id="content" style="margin-top:10px;">
         <form method="get" action="/search">                                        
-        <input type="text" name="q" style="height:30px; width:30%;"></input>  
-        <input type="submit" value="Search" style="height:30px; width:100px"></input> 
+        <input type="text" name="q" style="width:30%;"></input>  
+        <input type="submit" value="Search" style="width:100px"></input> 
         </form>                                                                     
         <hr></hr>
     """
