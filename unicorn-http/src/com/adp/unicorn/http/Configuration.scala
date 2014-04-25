@@ -18,9 +18,10 @@ object Configuration {
         <link rel="stylesheet" type="text/css" href="/css/style.css" />
       </head>
       <body>
-        <div id="content">
+        <div id="content" style="margin-top:10px;">
         <form method="get" action="/search">                                        
-        <input type="text" name="q" style="height:30px; width:30%;"></input>              
+        <input type="text" name="q" style="height:30px; width:30%;"></input>  
+        <input type="submit" value="Search" style="height:30px; width:100px"></input> 
         </form>                                                                     
         <hr></hr>
     """

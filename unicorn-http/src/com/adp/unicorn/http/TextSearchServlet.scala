@@ -57,7 +57,7 @@ class TextSearchServlet extends HttpServlet {
       matches.flatMap { case ((doc, field), score) =>
         doc.select("title")
         val title: String = doc("title")
-        new RuleTransformer(new TransformArticle(title, "/doc/?q="+doc.id, score.toString)) transform template
+        new RuleTransformer(new TransformArticle(title, "/doc/?id="+doc.id, score.toString)) transform template
       }
     )
 

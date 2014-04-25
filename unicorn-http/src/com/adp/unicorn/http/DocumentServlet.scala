@@ -16,17 +16,19 @@ class DocumentServlet extends HttpServlet {
     response.setContentType("text/html")
     response.setCharacterEncoding("UTF-8")
     
-    val q = request.getParameter("q")
-    if (q == null || q.isEmpty) {
+    val id = request.getParameter("id")
+    if (id == null || id.isEmpty) {
       request.getRequestDispatcher("index.html").forward(request, response)
       return
     }
     
-    val doc = q of Configuration.data
+    val doc = id of Configuration.data
 
     val writer = response.getWriter
     writer.write(Configuration.skeletonTop)
+    writer.write("""<pre><code class="javascript">""")
     writer.write(doc.toString)
+    writer.write("</code></pre>")
     writer.write(Configuration.skeletonBottom)
   }
 }
