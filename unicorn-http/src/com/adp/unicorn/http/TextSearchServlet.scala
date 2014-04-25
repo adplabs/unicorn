@@ -41,7 +41,7 @@ class TextSearchServlet extends HttpServlet {
       </dl>
 
     val writer = response.getWriter
-    writer.write(Configuration.skeletonTop)
+    writer.write(Configuration.skeletonTop.replace("""name="q"""", s"""name="q" value="$q""""))
     writer.write(body.toString)
     writer.write(Configuration.skeletonBottom)
   }
