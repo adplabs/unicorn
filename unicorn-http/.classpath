@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-core"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-graph"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-text"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/servlet-api-3.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-server-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-servlet-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-util-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-annotations-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-continuation-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-deploy-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-http-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-io-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-jaas-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-jaspi-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-jmx-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-jndi-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-plus-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-proxy-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-rewrite-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-schemas-3.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-security-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-servlets-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-webapp-9.1.4.v20140401.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/jetty-distribution-9.1.4.v20140401/lib/jetty-xml-9.1.4.v20140401.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-cassandra"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-hbase"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-accumulo"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/antlr-3.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/apache-cassandra-2.0.6.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/apache-cassandra-clientutil-2.0.6.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/apache-cassandra-thrift-2.0.6.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/commons-cli-1.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/commons-codec-1.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/commons-lang3-3.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/compress-lzf-0.8.4.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/concurrentlinkedhashmap-lru-1.3.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/cql-internal-only-1.4.1.zip"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/disruptor-3.0.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/guava-15.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/high-scale-lib-1.1.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/jackson-core-asl-1.9.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/jackson-mapper-asl-1.9.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/jamm-0.2.5.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/jbcrypt-0.3m.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/jline-1.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/json-simple-1.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/libthrift-0.9.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/log4j-1.2.16.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/lz4-1.2.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/metrics-core-2.2.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/netty-3.6.6.Final.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/reporter-config-2.1.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/servlet-api-2.5-20081211.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/slf4j-api-1.7.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/slf4j-log4j12-1.7.2.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/snakeyaml-1.11.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/snappy-java-1.0.5.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/snaptree-0.1.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/super-csv-2.1.0.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/thrift-python-internal-only-0.9.1.zip"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/thrift-server-0.3.3.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/smile-core.jar"/>
+	<classpathentry kind="lib" path="/Users/lihb/dev/smile-nlp.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

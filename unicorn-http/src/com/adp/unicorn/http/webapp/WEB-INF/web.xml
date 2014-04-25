@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app 
+   xmlns="http://xmlns.jcp.org/xml/ns/javaee" 
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+   metadata-complete="false"
+   version="3.1"> 
+
+  <display-name>Unicorn WebApp</display-name>
+  
+  <context-param>
+    <param-name>org.eclipse.jetty.server.context.ManagedAttributes</param-name>
+    <param-value>QoSFilter,TransparentProxy.ThreadPool,TransparentProxy.HttpClient</param-value>
+  </context-param>
+  
+  <servlet>
+    <servlet-name>search</servlet-name>
+    <servlet-class>com.adp.unicorn.http.TextSearchServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>search</servlet-name>
+    <url-pattern>/search/*</url-pattern>
+  </servlet-mapping>
+
+  <servlet-mapping>            
+    <servlet-name>default</servlet-name>
+    <url-pattern>/css/*</url-pattern>
+  </servlet-mapping>
+  
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+  </welcome-file-list> 
+</web-app>

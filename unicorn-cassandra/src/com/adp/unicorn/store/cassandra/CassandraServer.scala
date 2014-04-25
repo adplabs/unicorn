@@ -39,7 +39,6 @@ class CassandraServer(protocol: TProtocol) extends DataStore {
     keyspace.setName(name)
     keyspace.setStrategy_class(strategy)
     keyspace.setStrategy_options(options)
-    keyspace.setReplication_factor(replication)
     
     columnFamilies.foreach { columnFamily =>
       val cf = new CfDef
