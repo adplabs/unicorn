@@ -58,6 +58,16 @@ trait DataSet {
   }
   
   /**
+   * Returns the document of given id.
+   */
+  def get(id: String): Document = Document(id).load(this)
+  
+  /**
+   * Puts the document into the database.
+   */
+  def put(doc: Document) = doc into this
+  
+  /**
    * Cached read. Get all columns in a column family.
    * If refresh is true, force to read from database even if cache is on.
    */

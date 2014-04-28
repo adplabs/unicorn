@@ -8,6 +8,7 @@ package com.adp.unicorn
 import scala.language.dynamics
 import scala.language.implicitConversions
 import com.adp.unicorn.store.DataSet
+import com.adp.unicorn.JsonValueImplicits._
 
 /**
  * A document can be regarded as a JSON object with a unique key.
@@ -185,95 +186,6 @@ class Document(val id: String,
   }
   
   /**
-   * Update a field with boolean value.
-   */
-  def update(key: String, value: Boolean) {
-    update(key, JsonBoolValue(value))
-  }
-   
-  /**
-   * Update a field with boolean array.
-   */
-  def update(key: String, values: Array[Boolean]) {
-    val array: Array[JsonValue] = values.map {e => JsonBoolValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
-   * Update a field with int value.
-   */
-  def update(key: String, value: Int) {
-    update(key, JsonIntValue(value))
-  }
-   
-  /**
-   * Update a field with int array.
-   */
-  def update(key: String, values: Array[Int]) {
-    val array: Array[JsonValue] = values.map {e => JsonIntValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
-   * Update a field with long value.
-   */
-  def update(key: String, value: Long) {
-    update(key, JsonLongValue(value))
-  }
-   
-  /**
-   * Update a field with date array.
-   */
-  def update(key: String, values: Array[Long]) {
-    val array: Array[JsonValue] = values.map {e => JsonLongValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
-   * Update a field with double value.
-   */
-  def update(key: String, value: Double) {
-    update(key, JsonDoubleValue(value))
-  }
-   
-  /**
-   * Update a field with double array.
-   */
-  def update(key: String, values: Array[Double]) {
-    val array: Array[JsonValue] = values.map {e => JsonDoubleValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
-   * Update a field with string value.
-   */
-  def update(key: String, value: String) {
-    update(key, JsonStringValue(value))
-  }
-   
-  /**
-   * Update a field with string array.
-   */
-  def update(key: String, values: Array[String]) {
-    val array: Array[JsonValue] = values.map {e => JsonStringValue(e) }
-    update(key, JsonArrayValue(array))
-  }
-   
-  /**
-   * Update a field with array value.
-   */
-  def update(key: String, value: Array[JsonValue]) {
-    update(key, JsonArrayValue(value))
-  }
-   
-  /**
-   * Update a field with object map value.
-   */
-  def update(key: String, value: collection.mutable.Map[String, JsonValue]) {
-    update(key, JsonObjectValue(value))
-  }
-   
-  /**
    * Update a field with another document.
    */
   def update(key: String, value: Document) {
@@ -317,51 +229,35 @@ class Document(val id: String,
   }
   
   /**
-   * Loads/Reloads both attributes and relationships of this document.
+   * Loads both attributes and relationships from database.
    */
-  def refresh: Document = {
-    dataset match {
-      case None => throw new IllegalStateException("Document is not binding to a dataset")
-      case Some(context) =>
-        parseObject(context, attributeFamily, attributes)
-        parseRelationships(context, relationshipFamily, links)
-    }
-    
-    this
-  }
-  
-  /**
-   * Loads/Reloads only the attributes.
-   */
-  def refreshAttributes: Document = {
-    dataset match {
-      case None => throw new IllegalStateException("Document is not binding to a dataset")
-      case Some(context) =>
-        parseObject(context, attributeFamily, attributes)
-    }
-    
-    this
-  }
-  
-  /**
-   * Loads/Reloads only the relationships.
-   */
-  def refreshRelationships: Document = {
-    dataset match {
-      case None => throw new IllegalStateException("Document is not binding to a dataset")
-      case Some(context) =>
-        parseRelationships(context, relationshipFamily, links)
-    }
-    
-    this
-  }
-  
-  /**
-   * Loads this document from the given database.
-   */
-  def of(context: DataSet): Document = {
+  def load(context: DataSet): Document = {
     dataset = Some(context)
-    refresh
+    parseObject(context, attributeFamily, attributes)
+    parseRelationships(context, relationshipFamily, links)
+    this
+  }
+  
+  /**
+   * Loads only the attributes.
+   */
+  def loadAttributes: Document = {
+    dataset match {
+      case None => throw new IllegalStateException("Document is not binding to a dataset")
+      case Some(context) => parseObject(context, attributeFamily, attributes)
+    }
+    this
+  }
+  
+  /**
+   * Loads only the relationships.
+   */
+  def loadRelationships: Document = {
+    dataset match {
+      case None => throw new IllegalStateException("Document is not binding to a dataset")
+      case Some(context) => parseRelationships(context, relationshipFamily, links)
+    }
+    this
   }
   
   /**
@@ -536,34 +432,6 @@ class Document(val id: String,
     this
   }
   
-  def update(relationship: String, doc: String, value: Boolean): Document = {
-    update(relationship, doc, JsonBoolValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: Int): Document = {
-    update(relationship, doc, JsonIntValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: Long): Document = {
-    update(relationship, doc, JsonLongValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: Double): Document = {
-    update(relationship, doc, JsonDoubleValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: String): Document = {
-    update(relationship, doc, JsonStringValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: Array[JsonValue]): Document = {
-    update(relationship, doc, JsonArrayValue(value))
-  }
-   
-  def update(relationship: String, doc: String, value: Document): Document = {
-    update(relationship, doc, value.json)
-  }
-    
   /**
    * Removes a relationship.
    */
@@ -584,10 +452,4 @@ object Document {
   def apply(id: String): Document = new Document(id)
   def apply(id: Int): Document = new Document(id.toString)
   def apply(id: Long): Document = new Document(id.toString)
-}
-
-object DocumentImplicits {
-  implicit def String2Document(id: String) = new Document(id)
-  implicit def Int2Document(id: Int) = new Document(id.toString)
-  implicit def Long2Document(id: Long) = new Document(id.toString)
 }

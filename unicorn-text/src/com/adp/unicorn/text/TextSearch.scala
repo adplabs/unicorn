@@ -1,7 +1,7 @@
 package com.adp.unicorn.text
 
 import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
+import com.adp.unicorn.JsonValueImplicits._
 import com.adp.unicorn.store.DataSet
 import smile.nlp.relevance.BM25
 import smile.nlp.stemmer.Stemmer
@@ -10,7 +10,7 @@ class TextSearch(storage: DataSet) extends TextIndex {
 
   val textSize = collection.mutable.Map[String, Int]().withDefaultValue(0)
   
-  (TextBodySizeKey of storage).json.value.foreach { case (key, value) =>
+  storage.get(TextBodySizeKey).foreach { case (key, value) =>
     val size: Int = value
     if (size > 0) {
       textSize(key) = size
@@ -51,7 +51,7 @@ class TextSearch(storage: DataSet) extends TextIndex {
       }
       
       val key = word + TermIndexSuffix
-      val invertedFile = key of storage
+      val invertedFile = storage.get(key)
       invertedFile.foreach { case (docField, value) =>
         val id = docField.split(DocFieldSeparator, 2)
 

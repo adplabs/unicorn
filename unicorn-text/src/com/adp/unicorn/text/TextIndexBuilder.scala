@@ -1,7 +1,7 @@
 package com.adp.unicorn.text
 
 import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
+import com.adp.unicorn.JsonValueImplicits._
 import com.adp.unicorn.store.DataSet
 import smile.nlp.stemmer.Stemmer
 import smile.nlp.tokenizer.SimpleTokenizer
@@ -11,7 +11,7 @@ import smile.nlp.dictionary.EnglishPunctuations
 
 class TextIndexBuilder(storage: DataSet) extends TextIndex {
 
-  val textSize = TextBodySizeKey of storage
+  val textSize = storage.get(TextBodySizeKey)
 
   /**
    * Sentence splitter.

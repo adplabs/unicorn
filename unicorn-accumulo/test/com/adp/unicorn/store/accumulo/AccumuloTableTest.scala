@@ -6,7 +6,6 @@
 package com.adp.unicorn.store.accumulo
 
 import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
 import com.adp.unicorn.store._
 
 /**
@@ -15,18 +14,18 @@ import com.adp.unicorn.store._
  */
 class AccumuloSuite extends UnitSpec {
   "Load a non-existing document" should "pass" in new Context {
-    "row1" of table
+    table.get("row1")
   }
   
   "Save a document into table" should "pass" in new Context {
-    person into table
+    table.put(person)
   }
   
   "Load it back from table" should "pass" in new Context {
-    "293050" of table
+    table.get("293050")
   }  
   
   "Load partial document back from table" should "pass" in new Context {
-    "293050".from(table).select("name", "gender")
+    table.get("293050")
   }  
 }

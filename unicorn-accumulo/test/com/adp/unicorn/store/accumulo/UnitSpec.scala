@@ -8,7 +8,7 @@ package com.adp.unicorn.store.accumulo
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
+import com.adp.unicorn.JsonValueImplicits._
 import com.adp.unicorn.store._
 
 /**
@@ -50,8 +50,8 @@ class UnitSpec extends FlatSpec with BeforeAndAfter {
     person("report to", "Jerome") = true
 
     // Fetch a non-existing row to warm up the system (loading classes, etc.).
-    "row1" of table
+    table.get("row1")
     // Do it twice
-    "row1" of table
+    table.get("row1")
   }
 }

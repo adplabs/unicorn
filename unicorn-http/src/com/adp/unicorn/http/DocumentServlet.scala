@@ -8,7 +8,7 @@ package com.adp.unicorn.http
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import com.adp.unicorn.DocumentImplicits._
+import com.adp.unicorn.JsonValueImplicits._
 
 class DocumentServlet extends HttpServlet {
 
@@ -22,7 +22,7 @@ class DocumentServlet extends HttpServlet {
       return
     }
     
-    val doc = id of Configuration.data
+    val doc = Configuration.data.get(id)
 
     val writer = response.getWriter
     writer.write(Configuration.skeletonTop)

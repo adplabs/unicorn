@@ -6,7 +6,6 @@
 package com.adp.unicorn.store.accumulo
 
 import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
 import com.adp.unicorn.store._
 
 /**
@@ -16,10 +15,10 @@ import com.adp.unicorn.store._
 class CacheTest extends UnitSpec {
   trait MyContext extends Context {
     table.cacheOn
-    "293050" of table
+    table.get("293050")
   }
   
   "Load from cache" should "pass" in new MyContext {
-    "293050" of table
+    table.get("293050")
   }
 }

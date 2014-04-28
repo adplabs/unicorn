@@ -46,7 +46,7 @@ object Console extends App {
       def helpMsg = """Unicorn Console"""
 
       autoImport("com.adp.unicorn._")
-      autoImport("com.adp.unicorn.DocumentImplicits._")
+      autoImport("com.adp.unicorn.JsonValueImplicits._")
       autoImport("com.adp.unicorn.store._")
       autoImport("com.adp.unicorn.store.accumulo._")
       autoImport("com.adp.unicorn.store.cassandra._")

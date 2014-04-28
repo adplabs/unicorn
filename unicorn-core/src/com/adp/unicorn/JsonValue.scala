@@ -96,6 +96,14 @@ object JsonValueImplicits {
   implicit def Double2JsonValue(value: Double) = JsonDoubleValue(value)
   implicit def String2JsonValue(value: String) = JsonStringValue(value)
   implicit def ByteArray2JsonValue(value: Array[Byte]) = JsonBlobValue(value)
+  implicit def Array2JsonValue(value: Array[JsonValue]) = JsonArrayValue(value)
+  implicit def Map2JsonValue(value: collection.mutable.Map[String, JsonValue]) = JsonObjectValue(value)
+  implicit def Document2JsonValue(value: Document) = value.json
+  implicit def BoolArray2JsonValue(values: Array[Boolean]): JsonArrayValue = JsonArrayValue(values.map {e => JsonBoolValue(e) })
+  implicit def IntArray2JsonValue(values: Array[Int]): JsonArrayValue = JsonArrayValue(values.map {e => JsonIntValue(e) })
+  implicit def LongArray2JsonValue(values: Array[Long]): JsonArrayValue = JsonArrayValue(values.map {e => JsonLongValue(e) })
+  implicit def DoubleArray2JsonValue(values: Array[Double]): JsonArrayValue = JsonArrayValue(values.map {e => JsonDoubleValue(e) })
+  implicit def StringArray2JsonValue(values: Array[String]): JsonArrayValue = JsonArrayValue(values.map {e => JsonStringValue(e) })
 }
 
 case object JsonUndefinedValue extends JsonValue {
