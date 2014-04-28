@@ -10,11 +10,16 @@ import scala.language.implicitConversions
 import com.adp.unicorn.store.DataSet
 
 /**
- * A document can be regarded as a JSON object with a key.
+ * A document can be regarded as a JSON object with a unique key.
  * 
  * @author Haifeng Li (293050)
  */
-class Document(var id: String) extends Dynamic with Traversable[(String, JsonValue)] {
+class Document(val id: String,
+    attributeFamily: String = Document.AttributeFamily,
+    relationshipFamily: String = Document.RelationshipFamily,
+    fieldSeparator: String = Document.FieldSeparator,
+    relationshipKeySeparator: String = Document.RelationshipKeySeparator
+  ) extends Dynamic with Traversable[(String, JsonValue)] {
   
   /**
    * The database that this document binds to.
@@ -44,6 +49,9 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     case _ => false 
   }
 
+  /**
+   * The hash code of document is based on ID only.
+   */
   override def hashCode = id.hashCode
   
   override def toString = {
@@ -55,9 +63,24 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
   }
  
   /**
+   * Returns a copy of this document with a new ID.
+   */
+  def copy(id: String): Document = {
+    val doc = Document(id);
+    foreach { case (attr, value) => doc(attr) = value }
+    foreachRelationship { case ((label, target), value) => doc(label, target) = value }
+    doc
+  }
+  
+  /**
    * For each loop over attributes.
    */
   def foreach[U](f: ((String, JsonValue)) => U): Unit = attributes.foreach(f)
+  
+  /**
+   * For each loop over relationships.
+   */
+  def foreachRelationship[U](f: (((String, String), JsonValue)) => U): Unit = links.foreach(f)
   
   /**
    * Returns all attributes as a JSON object.
@@ -65,7 +88,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
   def json = JsonObjectValue(attributes)
 
   /**
-   * Returns the value of a field if it exists or None.
+   * Returns the value of a field if it exists or JsonUndefinedValue.
    */
   def apply(key: String): JsonValue = {
     if (attributes.contains(key))
@@ -79,11 +102,30 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
   }
   
   /**
+   * Removes all attributes and relationships. If commit immediately after clear,
+   * all attributes and relationships will be deleted from data set.
+   */
+  def clear: Document = {
+    clearAttributes
+    clearRelationships
+    this
+  }
+  
+  /**
    * Removes all attributes. If commit immediately after clear,
    * all attributes will be deleted from data set.
    */
-  def clear: Document = {
+  def clearAttributes: Document = {
     attributes.keySet.foreach { key => remove(key) }
+    this
+  }
+  
+  /**
+   * Removes all attributes. If commit immediately after clear,
+   * all attributes will be deleted from data set.
+   */
+  def clearRelationships: Document = {
+    links.keySet.foreach { case (label, target) => remove(label, target) }
     this
   }
   
@@ -92,7 +134,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
    */
   def remove(key: String): Option[JsonValue] = {
     val value = attributes.remove(key)
-    if (value.isDefined) remove(Document.AttributeFamily, key, value.get)
+    if (value.isDefined) remove(attributeFamily, key, value.get)
     value
   }
   
@@ -104,10 +146,10 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     
     value match {
       case JsonObjectValue(obj) =>
-        obj.foreach {case (k, v) => remove(columnFamily, key + Document.FieldSeparator + k, v)}
+        obj.foreach {case (k, v) => remove(columnFamily, key + fieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + Document.FieldSeparator + i, e)}
+        array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -118,7 +160,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
    */
   def update(key: String, value: JsonValue): Document = {
     attributes(key) = value
-    logUpdate(Document.AttributeFamily, key, value)
+    logUpdate(attributeFamily, key, value)
     this
   }
  
@@ -133,10 +175,10 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     
     value match {
       case JsonObjectValue(obj) =>
-        obj.foreach {case (k, v) => logUpdate(columnFamily, key + Document.FieldSeparator + k, v)}
+        obj.foreach {case (k, v) => logUpdate(columnFamily, key + fieldSeparator + k, v)}
         
       case JsonArrayValue(array) =>
-        array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + Document.FieldSeparator + i, e)}
+        array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
     }    
@@ -281,8 +323,8 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, Document.AttributeFamily, attributes)
-        parseRelationships(context, Document.RelationshipFamily, links)
+        parseObject(context, attributeFamily, attributes)
+        parseRelationships(context, relationshipFamily, links)
     }
     
     this
@@ -295,7 +337,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseObject(context, Document.AttributeFamily, attributes)
+        parseObject(context, attributeFamily, attributes)
     }
     
     this
@@ -308,7 +350,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        parseRelationships(context, Document.RelationshipFamily, links)
+        parseRelationships(context, relationshipFamily, links)
     }
     
     this
@@ -337,7 +379,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
        
       val fields = JsonObjectValue(value)
       fields.foreach { field =>
-        val fieldkey = key + Document.FieldSeparator + field
+        val fieldkey = key + fieldSeparator + field
         child(field) = parse(fieldkey, kv(fieldkey), kv)
       }
       
@@ -348,7 +390,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
         val array = new Array[JsonValue](size)
         
         for (i <- 0 until size) {
-          val fieldkey = key + Document.FieldSeparator + i
+          val fieldkey = key + fieldSeparator + i
           array(i) = parse(fieldkey, kv(fieldkey), kv)
         }
         
@@ -363,7 +405,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
   private def parseObject(context: DataSet, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
-      if (!key.contains(Document.FieldSeparator))
+      if (!key.contains(fieldSeparator))
         map(key) = parse(key, value, kv)
     }
   }
@@ -374,8 +416,8 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
   private def parseRelationships(context: DataSet, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
-      val token = key.split(Document.RelationshipKeySeparator)
-      if (token.length == 2 && !token(1).contains(Document.FieldSeparator))
+      val token = key.split(relationshipKeySeparator)
+      if (token.length == 2 && !token(1).contains(fieldSeparator))
         map((token(0), token(1))) = parse(key, value, kv)
     }
   }
@@ -395,7 +437,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        val kv = context.get(id, Document.AttributeFamily, fields: _*)
+        val kv = context.get(id, attributeFamily, fields: _*)
         kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
         this
     }
@@ -434,7 +476,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
    * Creates the relationship column qualifier.
    */
   private def relationshipColumnQualifier(relationship: String, doc: String) =
-    relationship + Document.RelationshipKeySeparator + doc
+    relationship + relationshipKeySeparator + doc
   
   /**
    * Returns all neighbors of given types of relationship.
@@ -488,7 +530,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
       remove(relationship, doc)
     } else {
       links((relationship, doc)) = value
-      logUpdate(Document.RelationshipFamily, relationshipColumnQualifier(relationship, doc), value)
+      logUpdate(relationshipFamily, relationshipColumnQualifier(relationship, doc), value)
     }
     
     this
@@ -527,7 +569,7 @@ class Document(var id: String) extends Dynamic with Traversable[(String, JsonVal
    */
   def remove(relationship: String, doc: String): Document = {
     val value = links.remove((relationship, doc))
-    if (value.isDefined) remove(Document.RelationshipFamily, relationshipColumnQualifier(relationship, doc), value.get)
+    if (value.isDefined) remove(relationshipFamily, relationshipColumnQualifier(relationship, doc), value.get)
     this
   }
 }

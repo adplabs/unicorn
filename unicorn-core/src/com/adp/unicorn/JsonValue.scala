@@ -89,6 +89,15 @@ object JsonValue {
   }
 }
 
+object JsonValueImplicits {
+  implicit def Bool2JsonValue(value: Boolean) = JsonBoolValue(value)
+  implicit def Int2JsonValue(value: Int) = JsonIntValue(value)
+  implicit def Long2JsonValue(value: Long) = JsonLongValue(value)
+  implicit def Double2JsonValue(value: Double) = JsonDoubleValue(value)
+  implicit def String2JsonValue(value: String) = JsonStringValue(value)
+  implicit def ByteArray2JsonValue(value: Array[Byte]) = JsonBlobValue(value)
+}
+
 case object JsonUndefinedValue extends JsonValue {
   override def toString = "undefined"
   override def bytes = throw new UnsupportedOperationException

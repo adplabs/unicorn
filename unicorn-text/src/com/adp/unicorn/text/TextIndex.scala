@@ -13,6 +13,7 @@ import smile.nlp.stemmer.Stemmer
  * @author Haifeng Li (293050)
  */
 trait TextIndex {
+  val TextIndexFamily = "text index"
   val TermIndexSuffix = " idx"
   val TermPositionSuffix = " pos"
   val DocFieldSeparator = "##"

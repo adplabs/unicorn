@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletResponse
 import scala.xml._
 import scala.xml.transform.RewriteRule
 import scala.xml.transform.RuleTransformer
+import com.adp.unicorn._
 import com.adp.unicorn.text.TextSearch
 
 
@@ -34,7 +35,11 @@ class TextSearchServlet extends HttpServlet {
         {
           val doc = hit._1._1
           doc.select("title")
-          <dt><a href={"/doc/?id="+doc.id}>{doc("title")}</a></dt>
+          val title: String = doc("title") match {
+            case JsonUndefinedValue => doc.id
+            case _ => doc("title")
+          }
+          <dt><a href={"/doc/?id="+doc.id}>{title}</a></dt>
           <dd>{hit._2}</dd>
         }
       }
