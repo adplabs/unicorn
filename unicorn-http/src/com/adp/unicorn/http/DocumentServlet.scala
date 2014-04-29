@@ -27,8 +27,14 @@ class DocumentServlet extends HttpServlet {
     val writer = response.getWriter
     writer.write(Configuration.skeletonTop)
     writer.write("""<pre><code class="javascript">""")
-    writer.write(doc.toString)
+    writer.write(doc.json.toString("", ",<br>"))
     writer.write("</code></pre>")
+    
+    writer.write("<p><ol>")
+    doc.foreachRelationship { case ((label, target), value) =>
+      writer.write(s"""<li><a href="/doc/?id=$target">$target</a>""")
+    }
+    writer.write("</ol>")
     writer.write(Configuration.skeletonBottom)
   }
 }

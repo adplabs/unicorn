@@ -54,13 +54,23 @@ body
  width:80%;	
 }
 
-table, th, td
-{
+pre{
+    white-space: pre-wrap;       /* css-3 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+pre > div {
+    padding-left: 1em;
+    text-indent: -1em;
+}
+
+table, th, td {
  border: 1px solid black;
 }
 
-td
-{
+td {
  padding:5px;
 }
 

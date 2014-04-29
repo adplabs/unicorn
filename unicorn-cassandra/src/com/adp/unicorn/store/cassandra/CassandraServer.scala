@@ -57,7 +57,10 @@ class CassandraServer(protocol: TProtocol) extends DataStore {
 
 object CassandraServer {
   def apply(host: String, port: Int): CassandraServer = {
-    val transport = new TFramedTransport(new TSocket(host, port))
+    // For ultra-wide row, we set the maxLength to 1G.
+    // Note that we also need to set the server side configuration
+    // thrift_framed_transport_size_in_mb in cassandra.yaml
+    val transport = new TFramedTransport(new TSocket(host, port), 1024 * 1024 * 1024)
     transport.open
     
     val protocol = new TBinaryProtocol(transport)

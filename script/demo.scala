@@ -1,8 +1,8 @@
-import com.adp.cdg._
-import com.adp.cdg.DocumentImplicits._
-import com.adp.cdg.store._
-import com.adp.cdg.store.accumulo._
-import com.adp.cdg.store.hbase._
+import com.adp.unicorn._
+import com.adp.unicorn.DocumentImplicits._
+import com.adp.unicorn.store._
+import com.adp.unicorn.store.accumulo._
+import com.adp.unicorn.store.hbase._
 
 // measure running time of a function/block 
 def time[A](f: => A) = {
@@ -26,7 +26,7 @@ val server = CassandraServer("127.0.0.1", 9160)
 val table = server.dataset("small")
 
 // Read a non-existing row. It is the pure time of round trip.
-val doc = time { "row1" of table }
+val doc = time { table get "row1" }
 
 // Create a document 
 val person = Document("293050")
@@ -64,37 +64,37 @@ time { person into table }
 time { person into table }
 
 // Read back the document
-val haifeng = time { "293050" of table }
+val haifeng = time { table get "293050" }
 
 // Read partially a document
-val partial = time { "293050".from(table).select("name", "zip") }
+val partial = time { Document("293050").from(table).select("name", "zip") }
 
 // Remove a field
 partial remove "zip"
 partial commit
 
 // Let's check if "zip" was deleted
-val onlyname = time { "293050".from(table).select("name", "zip") }
+val onlyname = time { Document("293050").from(table).select("name", "zip") }
 
 // Turn on the cache
 table cacheOn
 
-val once = time { "293050" of table }
+val once = time { table get "293050" }
 haifeng.name = "Haifeng Li"
 haifeng.gender = null
 haifeng commit
 
-val twice = time { "293050" of table }
+val twice = time { table get "293050" }
 
 // wiki
 val server = CassandraServer("127.0.0.1", 9160)
 val wiki = cluster.dataset("wiki", "public")
-81859 of wiki
+wiki get "81859"
 
 // Google+
 val gplus = server.dataset("gplus", "public")
 gplus cacheOn
-val dan = "111065108889012087599" of gplus
+val dan = gplus get "111065108889012087599"
 
 //val graph = DocumentGraph(dan, 2, "follows")
 
@@ -113,7 +113,7 @@ class SimpleDocumentVisitor(maxHops: Int, relationships: String*) extends Abstra
   }
 
   def visit(node: Document, edge: Edge[Document, (String, JsonValue)], hops: Int) {
-    node.refreshRelationships
+    node.loadRelationships
     if (hops > 0) println(doc.id + "--" + hops + "-->" + node.id)
   }
 }
@@ -124,7 +124,7 @@ visitor.bfs(dan)
 
 val astroph = server.dataset("astroph", "public")
 astroph cacheOn
-val author = 63225 of astroph
+val author = astroph get "63225"
 val visitor = new SimpleDocumentVisitor(2, "works with")
 visitor.dfs(author)
 visitor.bfs(author)
@@ -172,7 +172,7 @@ val graphOps = new GraphOps[Document, (String, JsonValue)]()
 val path = graphOps.dijkstra(haifeng, mike,
   (doc: Document) => {
     val neighbors = doc.neighbors("works with", "reports to")
-    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.foreach { case (doc, _) => doc.loadRelationships }
     neighbors.iterator
   }
 )
@@ -185,7 +185,7 @@ path.map {
 val path = graphOps.astar(haifeng, mike,
   (doc: Document) => {
     val neighbors = doc.neighbors("works with", "reports to")
-    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.foreach { case (doc, _) => doc.loadRelationships }
     neighbors.iterator
   },
   (a: Document, b: Document) => (a.rank, b.rank) match {
@@ -207,7 +207,7 @@ path.map {
 val path = graphOps.astar(haifeng, mike,
   (doc: Document) => {
     val neighbors = doc.neighbors("reports to")
-    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.foreach { case (doc, _) => doc.loadRelationships }
     neighbors.iterator
   },
   (a: Document, b: Document) => (a.rank, b.rank) match {
@@ -224,7 +224,7 @@ path.map {
 val path = graphOps.astar(haifeng, roberto,
   (doc: Document) => {
     val neighbors = doc.neighbors("reports to")
-    neighbors.foreach { case (doc, _) => doc.refreshRelationships }
+    neighbors.foreach { case (doc, _) => doc.loadRelationships }
     neighbors.iterator
   },
   (a: Document, b: Document) => (a.rank, b.rank) match {

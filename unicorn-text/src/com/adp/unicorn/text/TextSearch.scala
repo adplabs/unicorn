@@ -1,5 +1,6 @@
 package com.adp.unicorn.text
 
+import java.nio.ByteBuffer
 import com.adp.unicorn._
 import com.adp.unicorn.JsonValueImplicits._
 import com.adp.unicorn.store.DataSet
@@ -8,29 +9,55 @@ import smile.nlp.stemmer.Stemmer
 
 class TextSearch(storage: DataSet) extends TextIndex {
 
-  val textSize = collection.mutable.Map[String, Int]().withDefaultValue(0)
+  val textLength = collection.mutable.Map[String, Int]().withDefaultValue(0)
   
-  storage.get(TextBodySizeKey).foreach { case (key, value) =>
-    val size: Int = value
+  storage.get(TextBodyLengthKey, TextIndexFamily).foreach { case (key, value) =>
+    val size: Int = ByteBuffer.wrap(value, 2, value.length - 2).getInt
     if (size > 0) {
-      textSize(key) = size
+      textLength(key) = size
+    }
+  }
+  
+  val titleLength = collection.mutable.Map[String, Int]().withDefaultValue(0)
+  
+  storage.get(TextTitleLengthKey, TextIndexFamily).foreach { case (key, value) =>
+    val size: Int = ByteBuffer.wrap(value, 2, value.length - 2).getInt
+    if (size > 0) {
+      titleLength(key) = size
+    }
+  }
+  
+  val anchorLength = collection.mutable.Map[String, Int]().withDefaultValue(0)
+  
+  storage.get(TextAnchorLengthKey, TextIndexFamily).foreach { case (key, value) =>
+    val size: Int = ByteBuffer.wrap(value, 2, value.length - 2).getInt
+    if (size > 0) {
+      anchorLength(key) = size
     }
   }
   
   /**
    * The number of texts in the corpus.
    */
-  val numTexts = textSize.size
+  val numTexts = textLength.size
   
   /**
    * The number of words in the corpus.
    */
-  val numWords: Long = textSize.values.foldLeft(0: Long) { _ + _ }
+  val numWords: Long = textLength.values.foldLeft(0: Long) { _ + _ }
 
   /**
-   * The average size of documents in the corpus.
+   * The average length of documents in the corpus.
    */
-  val avgTextSize = numWords.toDouble / numTexts.toDouble
+  val avgTextLength = if (numTexts > 0) numWords.toDouble / numTexts else 0
+
+  val numTitles = titleLength.size
+  val numTitleWords: Long = titleLength.values.foldLeft(0: Long) { _ + _ }
+  val avgTitleLength = if (numTitles > 0) numTitleWords.toDouble / numTitles else 0
+
+  val numAnchors = anchorLength.size
+  val numAnchorWords: Long = anchorLength.values.foldLeft(0: Long) { _ + _ }
+  val avgAnchorLength = if (numAnchors > 0) numAnchorWords.toDouble / numAnchors else 0
 
   /**
    * Relevance ranking algorithm.
@@ -51,15 +78,22 @@ class TextSearch(storage: DataSet) extends TextIndex {
       }
       
       val key = word + TermIndexSuffix
-      val invertedFile = storage.get(key)
-      invertedFile.foreach { case (docField, value) =>
+      val invertedText = new Document(word + TermIndexSuffix, TextIndexFamily).load(storage)
+      val invertedTitle = new Document(word + TermTitleIndexSuffix, TextIndexFamily).load(storage)
+      val invertedAnchor = new Document(word + TermAnchorIndexSuffix, TextIndexFamily).load(storage)
+      invertedText.foreach { case (docField, value) =>
         val id = docField.split(DocFieldSeparator, 2)
 
         if (id.length == 2) {
           val doc = Document(id(0)).from(storage)
           val field = id(1).replace(DocFieldSeparator, Document.FieldSeparator)
-          val tf: Double = value
-          val score = ranker.rank(tf, textSize(docField), avgTextSize, numTexts, invertedFile.size.toLong)
+          val termFreq: Int = value
+          val titleTermFreq: Int = if (invertedTitle(id(0)) == JsonUndefinedValue) 0 else invertedTitle(id(0))
+          val anchorTermFreq: Int = if (invertedAnchor(id(0)) == JsonUndefinedValue) 0 else invertedAnchor(id(0))
+          val score = ranker.score(termFreq, textLength(docField), avgTextLength,
+              titleTermFreq, titleLength(docField), avgTitleLength,
+              anchorTermFreq, anchorLength(docField), avgAnchorLength,
+              numTexts, invertedText.size)
           rank((doc, field)) += score        
         }
       }
