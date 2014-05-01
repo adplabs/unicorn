@@ -31,6 +31,17 @@
   </servlet>
 
   <servlet-mapping>
+    <servlet-name>link</servlet-name>
+    <url-pattern>/link/*</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>link</servlet-name>
+    <servlet-class>com.adp.unicorn.http.LinkServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <servlet-mapping>
     <servlet-name>search</servlet-name>
     <url-pattern>/search/*</url-pattern>
   </servlet-mapping>

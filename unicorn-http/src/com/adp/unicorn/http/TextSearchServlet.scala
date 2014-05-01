@@ -16,7 +16,7 @@ import com.adp.unicorn.text.TextSearch
 
 
 class TextSearchServlet extends HttpServlet {
-  val index = TextSearch(Configuration.data)
+  val index = TextSearch(Configuration.data, Configuration.numTexts)
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
     response.setContentType("text/html")
@@ -46,7 +46,7 @@ class TextSearchServlet extends HttpServlet {
       </dl>
 
     val writer = response.getWriter
-    writer.write(Configuration.skeletonTop.replace("""name="q"""", s"""name="q" value="$q""""))
+    writer.write(Configuration.skeletonTop(q))
     writer.write(body.toString)
     writer.write(Configuration.skeletonBottom)
   }

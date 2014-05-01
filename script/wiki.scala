@@ -85,4 +85,4 @@ val server = CassandraServer("127.0.0.1", 9160)
 server.createDataSet("wiki")
 val table = server.dataset("wiki")
 
-wikipedia(server, table, "/home/virtual/data/wiki/enwikinews-20140410-pages-articles-multistream.xml")
+wikipedia(server, table, "/Users/lihb/data/wiki/enwikinews-20140410-pages-articles-multistream.xml")

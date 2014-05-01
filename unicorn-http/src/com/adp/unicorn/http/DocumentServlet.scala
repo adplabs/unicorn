@@ -25,16 +25,24 @@ class DocumentServlet extends HttpServlet {
     val doc = Configuration.data.get(id)
 
     val writer = response.getWriter
-    writer.write(Configuration.skeletonTop)
-    writer.write("""<pre><code class="javascript">""")
-    writer.write(doc.json.toString("", ",<br>"))
-    writer.write("</code></pre>")
+    writer.write(Configuration.skeletonTop(id, id))
     
-    writer.write("<p><ol>")
+    // doc
+    writer.write("""<div id="doc" style="clear:both;"><pre><code class="javascript">""")
+    writer.write(doc.json.toString("", ",<br>"))
+    writer.write("</code></pre></div>")
+    
+    // links
+    writer.write("""<div id="link" style="width:30%; float:left;"><ul>""")
     doc.foreachRelationship { case ((label, target), value) =>
       writer.write(s"""<li><a href="/doc/?id=$target">$target</a>""")
     }
-    writer.write("</ol>")
+    writer.write("</ul></div>")
+    
+    // d3
+    writer.write("""<div id="network" style="width:70%; float:right;"></div>""")
+    writer.write("""<script type="text/javascript" src="/network.js"></script>""")
+  
     writer.write(Configuration.skeletonBottom)
   }
 }

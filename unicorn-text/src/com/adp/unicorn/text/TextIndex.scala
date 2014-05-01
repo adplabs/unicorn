@@ -19,6 +19,8 @@ trait TextIndex {
   val TermAnchorIndexSuffix = " aidx"
   val TermPositionSuffix = " pos"
   val DocFieldSeparator = "##"
+    
+  val CorpusMetaKey = "unicorn.text.corpus.meta"
   val TextBodyLengthKey = "unicorn.text.corpus.text.size"
   val TextTitleLengthKey = "unicorn.text.corpus.text.title.size"
   val TextAnchorLengthKey = "unicorn.text.corpus.text.anchor.size"

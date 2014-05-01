@@ -8,7 +8,8 @@ def triple(line: String): (String, String, String, Boolean, Boolean) = {
   val tokens = line.split(" ", 3)
   val subject = java.net.URLDecoder.decode(tokens(0).replace("<http://dbpedia.org/resource/", "")).replace(">", "")
   val predicate = java.net.URLDecoder.decode(tokens(1)).split("/").last.split("#").last.replace(">", "")
-  var obj = org.apache.commons.lang.StringEscapeUtils.unescapeJava(tokens(2))
+  var obj = if (tokens(2).startsWith("<")) java.net.URLDecoder.decode(tokens(2))
+    else org.apache.commons.lang.StringEscapeUtils.unescapeJava(tokens(2))
 
   if (obj.endsWith(" ."))
     obj = obj.substring(0, obj.length-2)
@@ -134,3 +135,93 @@ def properties(server: DataStore, table: DataSet, files: String*): Unit = {
 }
 
 properties(server, table, "/Users/lihb/data/dbpedia/mappingbased_properties_cleaned_en.nt")
+
+def abstracts(server: DataStore, table: DataSet, files: String*): Unit = {
+  val corpus = TextIndexBuilder(table)
+  //var start = false
+  files.foreach { file =>
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        val nt = triple(line)
+        //if (nt._1 == "Ignatius_Bryanchaninov") start = true
+        //if (!nt._3.isEmpty && start) {
+        if (!nt._3.isEmpty) {
+          val doc = Document(nt._1)
+          doc("abstract") = nt._3
+          println(doc.id)
+          //doc into table
+          corpus.add(doc.id, "abstract", nt._3)
+        }
+      }
+    }
+  }
+}
+
+abstracts(server, table, "/Users/lihb/data/dbpedia/long_abstracts_en.nt")
+
+def titles(server: DataStore, table: DataSet, files: String*): Unit = {
+  val corpus = TextIndexBuilder(table)
+  files.foreach { file =>
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        val nt = triple(line)
+        if (!nt._3.isEmpty) {
+          val doc = Document(nt._1)
+          //doc("title") = nt._3.replaceAll("(?<=\\p{Ll})(?=\\p{Lu})|(?<=\\p{L})(?=\\p{Lu}\\p{Ll})|_", " ")
+          doc("title") = nt._3.replace("_", " ")
+          println(doc.id)
+          doc into table
+          corpus.addTitle(doc.id, "abstract", nt._3)
+        }
+      }
+    }
+  }
+}
+
+titles(server, table, "/Users/lihb/data/dbpedia/labels_en.nt")
+
+def geo(server: DataStore, table: DataSet, files: String*): Unit = {
+  files.foreach { file =>
+    var doc: Document = null
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        val nt = triple(line)
+        if (doc == null) doc = Document(nt._1)
+        if (nt._1 != doc.id) {
+          println(doc.id)
+          doc into table
+          doc = Document(nt._1)
+        } else {
+          if (nt._2 == "lat" || nt._2 == "long") {
+            val obj = nt._3
+            val value: JsonValue = JsonDoubleValue(obj.toDouble)
+            doc(nt._2) = value
+          }
+        }
+      }
+    }
+  }
+}
+
+geo(server, table, "/Users/lihb/data/dbpedia/geo_coordinates_en.nt")
+
+def link(server: DataStore, table: DataSet, files: String*): Unit = {
+  files.foreach { file =>
+    var doc: Document = null
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        val nt = triple(line)
+        if (doc == null) doc = Document(nt._1)
+        if (nt._1 != doc.id) {
+          println(doc.id)
+          doc into table
+          doc = Document(nt._1)
+        } else {
+          doc("link", nt._3) = true
+        }
+      }
+    }
+  }
+}
+
+link(server, table, "/Users/lihb/data/dbpedia/page_links_en.nt")

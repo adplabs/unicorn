@@ -30,13 +30,13 @@ class Document(val id: String,
   /**
    * Document attributes.
    */
-  private lazy val attributes = collection.mutable.Map[String, JsonValue]()
+  lazy val attributes = collection.mutable.Map[String, JsonValue]()
   /**
    * The relationships to other documents.
    * The key is the (relationship, doc). The value is any JSON object
    * associated with the relationship.
    */
-  private lazy val links = collection.mutable.Map[(String, String), JsonValue]()
+  lazy val links = collection.mutable.Map[(String, String), JsonValue]()
   /**
    * Updates to commit into database.
    */
@@ -333,7 +333,8 @@ class Document(val id: String,
     dataset match {
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
-        val kv = context.get(id, attributeFamily, fields: _*)
+        val unloaded = Set(fields: _*) &~ attributes.keySet
+        val kv = context.get(id, attributeFamily, unloaded.toSeq: _*)
         kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
         this
     }

@@ -54,7 +54,7 @@ object JsonValue {
     case JsonLongValue(value) => value.toInt
     case JsonDoubleValue(value) => value.toInt
     case JsonStringValue(value) => value.toInt
-    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to int")
+    case JsonUndefinedValue => 0
     case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to int")
   }
 
@@ -64,7 +64,7 @@ object JsonValue {
     case JsonLongValue(value) => value
     case JsonDoubleValue(value) => value.toLong
     case JsonStringValue(value) => value.toLong
-    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to long")
+    case JsonUndefinedValue => 0
     case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to long")
   }
 
@@ -74,7 +74,7 @@ object JsonValue {
     case JsonLongValue(value) => value
     case JsonDoubleValue(value) => value
     case JsonStringValue(value) => value.toDouble
-    case JsonUndefinedValue => throw new UnsupportedOperationException("convert undefined to double")
+    case JsonUndefinedValue => 0
     case JsonBlobValue(_) => throw new UnsupportedOperationException("convert BLOB to double")
   }
 
