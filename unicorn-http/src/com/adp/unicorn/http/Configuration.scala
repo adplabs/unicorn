@@ -42,8 +42,8 @@ object Configuration {
               var script = document.createElement('script');
               script.type = 'text/javascript';
 	          script.src = "http://d3js.org/d3.v3.min.js";
-              script.addEventListener('load', initD3, false);
-              script.onload = "initD3();";
+              script.addEventListener('load', plot_graph, false);
+              script.onload = "plot_graph();";
               script.node = '$d3Node'
 	          head.appendChild(script);
             }

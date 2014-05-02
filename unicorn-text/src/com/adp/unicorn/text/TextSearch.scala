@@ -37,6 +37,10 @@ class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
       val invertedAnchor = new Document(word + TermAnchorIndexSuffix, TextIndexFamily).load(storage)
       
       val docs = (invertedText.map { case (docField, value) => docField }).toSeq
+      if (docs.length == 0) {
+        return Array[((Document, String), Double)]()
+      }
+      
       textLength.select(docs: _*)
       titleLength.select(docs: _*)
       anchorLength.select(docs: _*)
