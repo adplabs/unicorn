@@ -22,12 +22,14 @@ class LinkServlet extends HttpServlet {
 
       writer.write(""""nodes": [""")
       var idx = 0
+      val escapedId = id.replace("\"", "\\\"")
       val links = new Array[String](doc.links.size)
-      val nodes = s"""{"id": "$id", "index": 0}""" +: doc.links.map { case ((_, target), value) =>
+      val nodes = s"""{"id": "$escapedId", "index": 0}""" +: doc.links.map { case ((_, target), value) =>
         val weight: Double = value
         idx += 1
         links(idx-1) = s"""{"source": 0, "target": $idx, "weight": $weight}"""
-        s"""{"id": "$target", "index": $idx}"""
+        val escaped = target.replace("\"", "\\\"")
+        s"""{"id": "$escaped", "index": $idx}"""
       }.toArray
       writer.write(nodes.deep.mkString(",\n  "))
       writer.write("],\n")

@@ -140,7 +140,7 @@ circle.main {
 g.gLabel {
     font: 10px sans-serif;
     font-weight: normal;
-    visibility: hidden;
+    /*visibility: hidden;*/
 }
 
 g.on {

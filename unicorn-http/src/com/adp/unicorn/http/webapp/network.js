@@ -88,14 +88,6 @@ function initD3(evt) {
 	       y: d.body.scrollTop};
   }
 
-
-
-  function getQStringParameterByName(name) {
-    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
-    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
-  }
-
-
   /* Change status of a panel from visible to hidden or vice versa
      id: identifier of the div to change
      status: 'on' or 'off'. If not specified, the panel will toggle status
@@ -116,81 +108,101 @@ function initD3(evt) {
     // Declare the variables pointing to the node & link arrays
     var nodeArray = graphData.nodes;
     var linkArray = graphData.links;
+    startGraph(nodeArray, linkArray);
+    
+    var graphLinks;
+    var graphNodes;
+    var graphLabels; 
+    
+    /* Initialize graph */
+    function startGraph(nodeArray, linkArray) {
+  	  var minLinkWeight = 
+  	      Math.min.apply( null, linkArray.map( function(n) {return n.weight;} ) );
+        var maxLinkWeight = 
+      	  Math.max.apply( null, linkArray.map( function(n) {return n.weight;} ) );
 
-    var minLinkWeight = 
-      Math.min.apply( null, linkArray.map( function(n) {return n.weight;} ) );
-    var maxLinkWeight = 
-      Math.max.apply( null, linkArray.map( function(n) {return n.weight;} ) );
+  	  // Add the node & link arrays to the layout, and start it
+        force.nodes(nodeArray).links(linkArray).start();
 
-    // Add the node & link arrays to the layout, and start it
-    force.nodes(nodeArray).links(linkArray).start();
+       // A couple of scales for node radius & edge width
+       var node_size = d3.scale.linear()
+  	        .domain([0,20])
+  	        .range([1,16])
+  	        .clamp(true);
+       var edge_width = d3.scale.pow().exponent(8)
+  	        .domain( [minLinkWeight,maxLinkWeight] )
+  	        .range([1,3])
+  	        .clamp(true);
 
-    // A couple of scales for node radius & edge width
-    var node_size = d3.scale.linear()
-      .domain([0,20])
-      .range([1,16])
-      .clamp(true);
-    var edge_width = d3.scale.pow().exponent(8)
-      .domain( [minLinkWeight,maxLinkWeight] )
-      .range([1,3])
-      .clamp(true);
+       /* Add drag & zoom behaviors */
+      svg.call( d3.behavior.drag()
+   	      .on("drag",dragmove) );
+      svg.call( d3.behavior.zoom()
+   	      .x(xScale)
+   	      .y(yScale)
+    	  .scaleExtent([1, 6])
+    	  .on("zoom", doZoom) );
+      
+      // ------- Create the elements of the layout (links and nodes) ------
+      // clear up SVG
+      d3.select(".grpParent").remove();      
+      var networkGraph = svg.append('svg:g').attr('class','grpParent');
 
-    /* Add drag & zoom behaviors */
-    svg.call( d3.behavior.drag()
-	      .on("drag",dragmove) );
-    svg.call( d3.behavior.zoom()
-	      .x(xScale)
-	      .y(yScale)
-	      .scaleExtent([1, 6])
-	      .on("zoom", doZoom) );
+      var diagonal = d3.svg.diagonal().projection(function(d) { return [d.y, d.x]; });
+      svg.append("defs").append("marker")
+      .attr("id", "arrowhead")
+      .attr("refX", 6 + 3) /*must be smarter way to calculate shift*/
+      .attr("refY", 2)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 4)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M 0,0 V 4 L6,2 Z");
+      
+      // links: simple lines
+      graphLinks = networkGraph.append('svg:g').attr('class','grp gLinks')
+          .selectAll("line")
+          .data(linkArray)
+          .enter().append("line")
+          .style('stroke-width', function(d) { return edge_width(d.weight);} )
+          .attr("class", "link")
+          .attr("marker-end", "url(#arrowhead)")
+          .attr("d", diagonal);
 
-    // ------- Create the elements of the layout (links and nodes) ------
+      // nodes: an SVG circle
+      graphNodes = networkGraph.append('svg:g').attr('class','grp gNodes')
+          .selectAll("circle")
+          .data( nodeArray, function(d){return d.id} )
+          .enter().append("svg:circle")
+          .attr("r", 5)
+          .attr('id', function(d) { return "c" + d.index; } )
+          .attr('pointer-events', 'all')  
+          .on("click", function(d) { addLinks(d); } );
 
-    var networkGraph = svg.append('svg:g').attr('class','grpParent');
+      // labels: a group with two SVG text: a title and a shadow (as background)
+      graphLabels = networkGraph.append('svg:g').attr('class','grp gLabel')
+          .selectAll("g.label")
+  	      .data( nodeArray, function(d){return d.id} )
+          .enter().append("svg:g")
+          .attr('id', function(d) { return "l" + d.index; } )
+          .attr('class','label');
+  	     
+      var shadows = graphLabels.append('svg:text')
+          .attr('x','-2em')
+          .attr('y','-.3em')
+          .attr('pointer-events', 'none') // they go to the circle beneath
+          .attr('id', function(d) { return "lb" + d.index; } )
+          .attr('class','nshadow')
+          .text( function(d) { return d.id; } );
 
-    // links: simple lines
-    var graphLinks = networkGraph.append('svg:g').attr('class','grp gLinks')
-      .selectAll("line")
-      .data(linkArray)
-      .enter().append("line")
-      .style('stroke-width', function(d) { return edge_width(d.weight);} )
-      .attr("class", "link");
-
-    // nodes: an SVG circle
-    var graphNodes = networkGraph.append('svg:g').attr('class','grp gNodes')
-      .selectAll("circle")
-      .data( nodeArray, function(d){return d.id} )
-      .enter().append("svg:circle")
-      .attr("r", 5)
-      .attr('id', function(d) { return "c" + d.id; } )
-      .attr('pointer-events', 'all')  
-      //.on("click", function(d) { showNodePanel(d); } )
-      .on("mouseover", function(d) { highlightGraphNode(d,true,this);  } )
-      .on("mouseout",  function(d) { highlightGraphNode(d,false,this); } );
-
-    // labels: a group with two SVG text: a title and a shadow (as background)
-    var graphLabels = networkGraph.append('svg:g').attr('class','grp gLabel')
-      .selectAll("g.label")
-      .data( nodeArray, function(d){return d.id} )
-      .enter().append("svg:g")
-      .attr('id', function(d) { return "l" + d.id; } )
-      .attr('class','label');
-   
-    var shadows = graphLabels.append('svg:text')
-      .attr('x','-2em')
-      .attr('y','-.3em')
-      .attr('pointer-events', 'none') // they go to the circle beneath
-      .attr('id', function(d) { return "lb" + d.id; } )
-      .attr('class','nshadow')
-      .text( function(d) { return d.id; } );
-
-    var labels = graphLabels.append('svg:text')
-      .attr('x','-2em')
-      .attr('y','-.3em')
-      .attr('pointer-events', 'none') // they go to the circle beneath
-      .attr('id', function(d) { return "lf" + d.id; } )
-      .attr('class','nlabel')
-      .text( function(d) { return d.id; } );
+      var labels = graphLabels.append('svg:text')
+          .attr('x','-2em')
+          .attr('y','-.3em')
+          .attr('pointer-events', 'none') // they go to the circle beneath
+          .attr('id', function(d) { return "lf" + d.index; } )
+          .attr('class','nlabel')
+          .text( function(d) { return d.id; } );	  
+    }
 
     /* --------------------------------------------------------------------- */
     /* Select/unselect a node in the network graph.
@@ -205,28 +217,20 @@ function initD3(evt) {
       // If we are to activate a node, and there's already one active,
       // first switch that one off
       if( on && activeNode !== undefined ) {
-	      highlightGraphNode( graphNodes[activeNode], false );
+	      //highlightGraphNode( activeNode, false );
       }
 
       // locate the SVG nodes: circle & label group
-      circle = d3.select( '#c' + node.id );
-      label  = d3.select( '#l' + node.id );
+      circle = d3.select( '#c' + node.index );
+      label  = d3.select( '#l' + node.index );
 
       // activate/deactivate the node itself
       circle.classed( 'main', on );
       label.classed( 'on', on || currentZoom >= SHOW_THRESHOLD );
       label.selectAll('text').classed( 'main', on );
 
-      // activate all siblings
-      Object(node.links).forEach( function(id) {
-	      d3.select("#c"+id).classed( 'sibling', on );
-	      label = d3.select('#l'+id);
-	      label.classed( 'on', on || currentZoom >= SHOW_THRESHOLD );
-	      label.selectAll('text.nlabel').classed( 'sibling', on );
-      } );
-
       // set the value for the current active node
-      activeNode = on ? node.index : undefined;
+      activeNode = on ? node : undefined;
     }
 
 
@@ -247,16 +251,77 @@ function initD3(evt) {
 	      var height = s.h<HEIGHT ? s.h : HEIGHT;
 
 	      var offset = {
-	        x : s.x + width/2 - graphNodes[new_idx].x*currentZoom,
-		    y : s.y + height/2 - graphNodes[new_idx].y*currentZoom };
+	        x : s.x + width/2 - nodeArray[new_idx].x*currentZoom,
+		    y : s.y + height/2 - nodeArray[new_idx].y*currentZoom };
 	      repositionGraph( offset, undefined, 'move' );
       }
       // Now highlight the graph node
-      highlightGraphNode( graphNodes[new_idx], true );
+      highlightGraphNode( nodeArray[new_idx], true );
+    }
+ 
+    /* add links from a given node
+     */
+    function addLinks( node ) {
+      d3.xhr('/link?id=' + node.id, 'application/json', function(error, data) {
+    	if (error !== null) return;
+    	
+        var additionalData = JSON.parse(data.response);
+        var newNodeArray = additionalData.nodes;
+        var newLinkArray = additionalData.links;
+
+        var numOldNodes = nodeArray.length;
+        for (var i in newNodeArray) {
+        	var newNode = newNodeArray[i];
+        	var idx = -1;
+        	for (var j in nodeArray) {
+        		if (j >= numOldNodes) break;
+        		var oldNode = nodeArray[j];
+        		if (oldNode.id === newNode.id) {
+        			idx = oldNode.index;
+        			break;
+        		}
+        	}
+
+        	var nodeIdx = newNode.index;
+        	if (idx === -1) {
+        		idx = nodeArray.length;
+    		    newNode.index = idx;
+    		    nodeArray.push(newNode);
+        	}
+        	
+    		for (var j in newLinkArray) {
+    			var link = newLinkArray[j];
+    			if (link.source === nodeIdx) {
+    				link.source = -idx;
+    			}
+    			if (link.target === nodeIdx) {
+    				link.target = -idx;
+    			}
+    		}
+        }
+
+		for (var i in newLinkArray) {
+			var link = newLinkArray[i];
+			if (link.source < 0) {
+				link.source = -link.source;
+			}
+			if (link.target < 0) {
+				link.target = -link.target;
+			}
+		}
+		
+        for (var i in linkArray) {
+        	var link = linkArray[i];
+        	link.source = link.source.index;
+        	link.target = link.target.index;
+        }
+        
+        linkArray = linkArray.concat(newLinkArray);
+        
+        startGraph(nodeArray, linkArray);
+      });
     }
 
-
-    /* --------------------------------------------------------------------- */
     /* Move all graph elements to its new positions. Triggered:
        - on node repositioning (as result of a force-directed iteration)
        - on translations (user is panning)
@@ -356,8 +421,6 @@ function initD3(evt) {
     force.on("tick", function() {
       repositionGraph(undefined,undefined,'tick');
     });
-
-    selectNode(0, true);
   });
 
 } // end of initD3()
