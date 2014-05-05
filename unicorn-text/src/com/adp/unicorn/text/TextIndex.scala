@@ -24,8 +24,8 @@ trait TextIndex {
   val TextBodyLengthKey = "unicorn.text.corpus.text.size"
   val TextTitleLengthKey = "unicorn.text.corpus.text.title.size"
   val TextAnchorLengthKey = "unicorn.text.corpus.text.anchor.size"
-  val TextPageRankKey = "unicorn.text.corpus.text.page_rank"
-  val TextBrowseRankKey = "unicorn.text.corpus.text.browse_rank"
+  val PageRankKey = "unicorn.text.corpus.text.page_rank"
+  val BrowseRankKey = "unicorn.text.corpus.text.browse_rank"
 
   /**
    * Optional stemmer.

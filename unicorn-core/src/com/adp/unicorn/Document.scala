@@ -334,8 +334,10 @@ class Document(val id: String,
       case None => throw new IllegalStateException("Document is not binding to a dataset")
       case Some(context) =>
         val unloaded = Set(fields: _*) &~ attributes.keySet
-        val kv = context.get(id, attributeFamily, unloaded.toSeq: _*)
-        kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
+        if (!unloaded.isEmpty) {
+          val kv = context.get(id, attributeFamily, unloaded.toSeq: _*)
+          kv.foreach { case (key, value) => attributes(key) = parse(key, value, kv) }
+        }
         this
     }
   }

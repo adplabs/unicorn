@@ -135,7 +135,7 @@ graph.dijkstra
 
 // Make a small org chart for A* search
 val server = CassandraServer("127.0.0.1", 9160)
-val table = server.dataset("small", "public")
+val table = server.dataset("small")
 
 val haifeng = Document("Haifeng")
 haifeng.rank = 1
