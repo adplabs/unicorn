@@ -130,9 +130,9 @@ function plot_graph(evt) {
         /* Initialize graph */
         function startGraph(nodeArray, linkArray) {
             var minNodeWeight = 
-                Math.min.apply( null, nodeArray.map( function(n) {return n.weight;} ) );
+                Math.min.apply( null, nodeArray.map( function(n) {return n.rank;} ) );
             var maxNodeWeight = 
-                Math.max.apply( null, nodeArray.map( function(n) {return n.weight;} ) );
+                Math.max.apply( null, nodeArray.map( function(n) {return n.rank;} ) );
 
             var minLinkWeight = 
                 Math.min.apply( null, linkArray.map( function(n) {return n.weight;} ) );
@@ -143,18 +143,18 @@ function plot_graph(evt) {
             force.nodes(nodeArray).links(linkArray).start();
 
             // A couple of scales for node radius & edge width
-            var node_size = d3.scale.linear()
+            var nodeSize = d3.scale.linear()
                 .domain([minNodeWeight,maxNodeWeight])
                 .range([5,16])
                 .clamp(true);
-            var edge_width = d3.scale.pow().exponent(8)
+            var edgeWidth = d3.scale.pow().exponent(8)
                 .domain([minLinkWeight,maxLinkWeight])
                 .range([1,3])
                 .clamp(true);
 
             /* Add drag & zoom behaviors */
             svg.call(d3.behavior.drag()
-                    .on("drag",dragmove));
+                    .on("drag",dragMove));
             svg.call(d3.behavior.zoom()
                     .x(xScale)
                     .y(yScale)
@@ -182,7 +182,7 @@ function plot_graph(evt) {
                 .selectAll("line")
                 .data(linkArray)
                 .enter().append("line")
-                .style('stroke-width', function(d) { return edge_width(d.weight);} )
+                .style('stroke-width', function(d) { return edgeWidth(d.weight);} )
                 .attr("class", "link")
                 .attr("marker-end", "url(#arrowhead)")
                 .attr("d", diagonal);
@@ -193,7 +193,7 @@ function plot_graph(evt) {
                 .data( nodeArray, function(d){return d.id} )
                 .enter().append("svg:circle")
                 //.attr('r', 5)
-                .attr('r', function(d) { return node_size(d.weight);} )
+                .attr('r', function(d) { return nodeSize(d.weight);} )
                 .attr('id', function(d) { return "c" + d.index; } )
                 .attr('pointer-events', 'all')  
                 .on("click", function(d) { addLinks(d); } );
@@ -391,7 +391,7 @@ function plot_graph(evt) {
         /* --------------------------------------------------------------------- */
         /* Perform drag
          */
-        function dragmove(d) {
+        function dragMove(d) {
             offset = {
                 x : currentOffset.x + d3.event.dx,
                 y : currentOffset.y + d3.event.dy

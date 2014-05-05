@@ -9,7 +9,7 @@ import com.adp.unicorn.text.TextIndex
 
 class LinkServlet extends HttpServlet {
   val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(Configuration.data)
-  val pr = -math.log(1.0 / Configuration.numTexts)
+  val pr = math.log(1.0 / Configuration.numTexts)
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
     response.setContentType("application/json")
@@ -28,10 +28,10 @@ class LinkServlet extends HttpServlet {
       var idx = 0
       val escapedId = id.replace("\"", "\\\"")
       val rank = pagerank(id) match {
-        case JsonDoubleValue(value) => -math.log(value)
+        case JsonDoubleValue(value) => math.log(value)
         case _ => pr
       }
-      val center = s"""{"id": "$escapedId", "index": 0, "weight": $rank}"""
+      val center = s"""{"id": "$escapedId", "index": 0, "rank": $rank}"""
       
       val links = new Array[String](doc.links.size)
       val nodes = center +: doc.links.map { case ((_, target), value) =>
@@ -41,10 +41,10 @@ class LinkServlet extends HttpServlet {
         
         val escaped = target.replace("\"", "\\\"")
         val rank = pagerank(target) match {
-          case JsonDoubleValue(value) => -math.log(value)
+          case JsonDoubleValue(value) => math.log(value)
           case _ => pr
         }
-        s"""{"id": "$escaped", "index": $idx, "weight": $rank}"""
+        s"""{"id": "$escaped", "index": $idx, "rank": $rank}"""
       }.toArray
       
       writer.write("{\n")
