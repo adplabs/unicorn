@@ -145,7 +145,7 @@ function plot_graph(evt) {
             // A couple of scales for node radius & edge width
             var nodeSize = d3.scale.linear()
                 .domain([minNodeWeight,maxNodeWeight])
-                .range([5,16])
+                .range([5,12])
                 .clamp(true);
             var edgeWidth = d3.scale.pow().exponent(8)
                 .domain([minLinkWeight,maxLinkWeight])
@@ -193,7 +193,7 @@ function plot_graph(evt) {
                 .data( nodeArray, function(d){return d.id} )
                 .enter().append("svg:circle")
                 //.attr('r', 5)
-                .attr('r', function(d) { return nodeSize(d.weight);} )
+                .attr('r', function(d) { return nodeSize(d.rank);} )
                 .attr('id', function(d) { return "c" + d.index; } )
                 .attr('pointer-events', 'all')  
                 .on("click", function(d) { addLinks(d); } );

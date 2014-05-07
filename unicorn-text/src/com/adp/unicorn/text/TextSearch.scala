@@ -8,7 +8,9 @@ import smile.nlp.relevance.BM25
 import smile.nlp.stemmer.Stemmer
 
 class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
-
+  val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(storage)
+  val defaultPageRank = math.log(0.85 / numTexts)
+  
   val textLength = new Document(TextBodyLengthKey, TextIndexFamily).from(storage)
   val titleLength = new Document(TextTitleLengthKey, TextIndexFamily).from(storage)
   val anchorLength = new Document(TextAnchorLengthKey, TextIndexFamily).from(storage)
@@ -77,7 +79,9 @@ class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
     if (numMatchedTexts > 0) avgTextLength /= numMatchedTexts
     if (numMatchedTitles > 0) avgTitleLength /= numMatchedTitles
     if (numMatchedAnchors > 0) avgAnchorLength /= numMatchedAnchors
-
+    
+    pagerank.select(invertedText.map { case (docField, _) => docField }.toArray : _*)
+      
     invertedText.foreach { case (docField, value) =>
       val id = docField.split(DocFieldSeparator, 2)
 
@@ -89,11 +93,17 @@ class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
         val titleTermFreq: Int = invertedTitle(docField)
         val anchorTermFreq: Int = invertedAnchor(docField)
 
-        val score = ranker.score(termFreq, textLength(docField), avgTextLength,
+        val bm25 = ranker.score(termFreq, textLength(docField), avgTextLength,
               titleTermFreq, titleLength(docField), avgTitleLength,
               anchorTermFreq, anchorLength(docField), avgAnchorLength,
               numTexts, invertedText.size)
-        rank((doc, field)) += score        
+              
+        val pr = pagerank(docField) match {
+          case JsonDoubleValue(value) => math.log(value)
+          case _ => defaultPageRank
+        }
+        
+        rank((doc, field)) += (bm25 + pr)      
       }
     }
   }

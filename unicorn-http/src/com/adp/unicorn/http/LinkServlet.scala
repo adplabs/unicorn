@@ -9,7 +9,8 @@ import com.adp.unicorn.text.TextIndex
 
 class LinkServlet extends HttpServlet {
   val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(Configuration.data)
-  val pr = math.log(1.0 / Configuration.numTexts)
+  val pr = math.log(0.85 / Configuration.numTexts)
+  val suffix = "##abstract"
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
     response.setContentType("application/json")
@@ -23,11 +24,11 @@ class LinkServlet extends HttpServlet {
     } else {
       val doc = Configuration.data.get(id)
 
-      pagerank.select((doc.links.map { case ((_, target), _) => target }.toArray :+ id): _*)
+      pagerank.select((doc.links.map { case ((_, target), _) => target + suffix }.toArray :+ (id + suffix)): _*)
       
       var idx = 0
       val escapedId = id.replace("\"", "\\\"")
-      val rank = pagerank(id) match {
+      val rank = pagerank(id + suffix) match {
         case JsonDoubleValue(value) => math.log(value)
         case _ => pr
       }
@@ -40,7 +41,7 @@ class LinkServlet extends HttpServlet {
         links(idx-1) = s"""{"source": 0, "target": $idx, "weight": $weight}"""
         
         val escaped = target.replace("\"", "\\\"")
-        val rank = pagerank(target) match {
+        val rank = pagerank(target + suffix) match {
           case JsonDoubleValue(value) => math.log(value)
           case _ => pr
         }
