@@ -5,13 +5,16 @@
 
 package com.adp.unicorn.http
 
+import com.adp.unicorn.store.DataSet
 import com.adp.unicorn.store.cassandra.CassandraServer
 
 object Configuration {
-  val server = CassandraServer("127.0.0.1", 9160)
-  val data = server.dataset("dbpedia")
   val numTexts: Long = 4004478
-  data.cacheOn
+  
+  def data: DataSet = {
+    val server = CassandraServer("127.0.0.1", 9160)
+    server.dataset("dbpedia")
+  }
   
   def skeletonTop(query: String = "", d3Node: String = ""): String = {
     val onload = if (d3Node.isEmpty) "" else """onload="loadD3();""""

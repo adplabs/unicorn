@@ -8,7 +8,8 @@ import com.adp.unicorn.JsonValueImplicits._
 import com.adp.unicorn.text.TextIndex
 
 class LinkServlet extends HttpServlet {
-  val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(Configuration.data)
+  val data = Configuration.data
+  val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(data)
   val pr = math.log(0.85 / Configuration.numTexts)
   val suffix = "##abstract"
 
@@ -22,7 +23,7 @@ class LinkServlet extends HttpServlet {
     if (id == null || id.isEmpty) {
       writer.write("""{"nodes": [], "links": []}""")
     } else {
-      val doc = Configuration.data.get(id)
+      val doc = data.get(id)
 
       pagerank.select((doc.links.map { case ((_, target), _) => target + suffix }.toArray :+ (id + suffix)): _*)
       

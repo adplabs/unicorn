@@ -16,7 +16,8 @@ import com.adp.unicorn.text.TextSearch
 
 
 class TextSearchServlet extends HttpServlet {
-  val index = TextSearch(Configuration.data, Configuration.numTexts)
+  val data = Configuration.data
+  val index = TextSearch(data, Configuration.numTexts)
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
     response.setContentType("text/html")
@@ -34,11 +35,14 @@ class TextSearchServlet extends HttpServlet {
         for (hit <- index.search(q.split(" "): _*)) yield
         {
           val doc = hit._1._1
+          /*
           doc.select("title")
           val title: String = doc("title") match {
             case JsonUndefinedValue => doc.id
             case _ => doc("title")
           }
+          */
+          val title = doc.id
           <dt><a href={"/doc/?id="+doc.id}>{title}</a></dt>
           <dd>{hit._2}</dd>
         }

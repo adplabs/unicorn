@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletResponse
 import com.adp.unicorn.JsonValueImplicits._
 
 class DocumentServlet extends HttpServlet {
+  val data = Configuration.data
 
   override def service(request: HttpServletRequest, response: HttpServletResponse) {
     response.setContentType("text/html")
@@ -22,7 +23,7 @@ class DocumentServlet extends HttpServlet {
       return
     }
     
-    val doc = Configuration.data.get(id)
+    val doc = data.get(id)
 
     val writer = response.getWriter
     writer.write(Configuration.skeletonTop(id, id))
