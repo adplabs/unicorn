@@ -11,7 +11,7 @@ import com.adp.unicorn.store.cassandra.CassandraServer
 object Configuration {
   val numTexts: Long = 4004478
   
-  def data: DataSet = {
+  def data(): DataSet = {
     val server = CassandraServer("127.0.0.1", 9160)
     server.dataset("dbpedia")
   }

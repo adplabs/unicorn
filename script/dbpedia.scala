@@ -101,7 +101,6 @@ def properties(server: DataStore, table: DataSet, files: String*): Unit = {
     Source.fromFile(file).getLines.foreach { line =>
       if (!line.startsWith("#")) {
         val nt = triple(line)
-        //println(nt)
         if (doc == null) doc = Document(nt._1)
         if (nt._1 != doc.id) {
           println(doc.id)
@@ -149,7 +148,7 @@ def abstracts(server: DataStore, table: DataSet, files: String*): Unit = {
           val doc = Document(nt._1)
           doc("abstract") = nt._3
           println(doc.id)
-          //doc into table
+          doc into table
           corpus.add(doc.id, "abstract", nt._3)
         }
       }
@@ -165,7 +164,7 @@ def titles(server: DataStore, table: DataSet, files: String*): Unit = {
     Source.fromFile(file).getLines.foreach { line =>
       if (!line.startsWith("#")) {
         val nt = triple(line)
-        if (!nt._3.isEmpty) {
+        if (!nt._1.contains("/") && !nt._3.isEmpty) {
           val doc = Document(nt._1)
           //doc("title") = nt._3.replaceAll("(?<=\\p{Ll})(?=\\p{Lu})|(?<=\\p{L})(?=\\p{Lu}\\p{Ll})|_", " ")
           doc("title") = nt._3.replace("_", " ")
