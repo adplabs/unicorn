@@ -128,3 +128,82 @@ benchmark(table)
 val server = CassandraServer("127.0.0.1", 9160)
 val table = server.dataset("small")
 benchmark(table)
+
+
+// MongoDB
+import com.mongodb.casbah.Imports._
+val mongoClient = MongoClient("localhost", 27017)
+val db = mongoClient("dbpedia")
+val table = db("text")
+
+def writeAbstracts(table: com.mongodb.casbah.MongoCollection, batch: Int, files: String*): Unit = {
+  var n = 0
+  val size = 100000
+  val start = batch * size
+  val end = (batch + 1) * size
+  val writeConcern = WriteConcern.apply(w=2, wTimeout=5000, fsync=true)
+  files.foreach { file =>
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        if (n >= start) {
+          val nt = line.split(" ", 3)
+          val doc = MongoDBObject("_id" -> nt(0), "abstract" -> nt(2))
+          table.save(doc, writeConcern)
+        }
+        n += 1
+        if (n % 10000 == 0) println(batch, n)
+        if (n >= end) return
+      }
+    }
+  }
+}
+
+def readAbstracts(table: com.mongodb.casbah.MongoCollection, batch: Int, files: String*): Unit = {
+  var n = 0
+  val size = 100000
+  val start = batch * size
+  val end = (batch + 1) * size
+  files.foreach { file =>
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        if (n >= start) {
+          val nt = line.split(" ", 3)
+          val doc = MongoDBObject("_id" -> nt(0))
+          table.findOne(doc)
+        }
+        n += 1
+        if (n % 10000 == 0) println(batch, n)
+        if (n >= end) return
+      }
+    }
+  }
+}
+
+println("put dbpedia abstracts:")
+time(1) { writeAbstracts(table, 0, "/disk2/virtual/data/dbpedia/long_abstracts_en.nt") }
+table.count()
+println("get dbpedia abstracts:")
+time(1) { readAbstracts(table, 0, "/disk2/virtual/data/dbpedia/long_abstracts_en.nt") }
+
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+var i = 0
+val tasks: Seq[Future[Int]] = for (i <- 0 to 1) yield future {
+  println("Executing task " + i)
+  time(1) { writeAbstracts(table, i, "/disk2/virtual/data/dbpedia/long_abstracts_en.nt") }
+  i
+}
+
+val tasks: Seq[Future[Int]] = for (i <- 2 to 3) yield future {
+  println("Executing task " + i)
+  time(1) { writeAbstracts(table, i, "/disk2/virtual/data/dbpedia/long_abstracts_en.nt") }
+  i
+}
+
+val tasks: Seq[Future[Int]] = for (i <- 4 to 5) yield future {
+  println("Executing task " + i)
+  time(1) { writeAbstracts(table, i, "/disk2/virtual/data/dbpedia/long_abstracts_en.nt") }
+  i
+}

@@ -2,7 +2,6 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-core"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-graph"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/unicorn-text"/>
@@ -66,5 +65,6 @@
 	<classpathentry kind="lib" path="/Users/lihb/dev/apache-cassandra-2.0.6/lib/thrift-server-0.3.3.jar"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/smile-core.jar"/>
 	<classpathentry kind="lib" path="/Users/lihb/dev/smile-nlp.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
