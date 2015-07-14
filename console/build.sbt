@@ -4,7 +4,9 @@ name := "console"
 
 version := "1.0"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.7"
+
+scalacOptions := Seq("-unchecked", "-deprecation")
 
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.2"
 

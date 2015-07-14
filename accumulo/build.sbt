@@ -4,7 +4,9 @@ name := "accumulo"
 
 version := "1.0"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.7"
 
-libraryDependencies += "org.apache.accumulo" % "accumulo-core" % "1.6.2"
+scalacOptions := Seq("-unchecked", "-deprecation")
+
+libraryDependencies += "org.apache.accumulo" % "accumulo-core" % "1.7.0"
 

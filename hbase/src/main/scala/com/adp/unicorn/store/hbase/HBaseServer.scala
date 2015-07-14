@@ -8,8 +8,7 @@ package com.adp.unicorn.store.hbase
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.HTableDescriptor
-import org.apache.hadoop.hbase.client.HBaseAdmin
-import org.apache.hadoop.hbase.client.HTable
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
 import com.adp.unicorn.store.DataStore
@@ -23,12 +22,13 @@ import org.apache.hadoop.hbase.util.Bytes
  * @author Haifeng Li (293050)
  */
 class HBaseServer(config: Configuration) extends DataStore {
-  lazy val admin = new HBaseAdmin(config)
+  lazy val connection = ConnectionFactory.createConnection(config)
+  lazy val admin = connection.getAdmin
   
   def dataset(name: String): DataSet = dataset(name, "")
   
   override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
-    val table = new HTable(config, name)
+    val table = connection.getTable(TableName.valueOf(name))
     new HBaseTable(table, visibility, authorizations: _*)
   }
   
@@ -37,7 +37,7 @@ class HBaseServer(config: Configuration) extends DataStore {
   }
   
   override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
-    if (admin.tableExists(name))
+    if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
     val tableDesc = new HTableDescriptor(TableName.valueOf(name))
@@ -49,11 +49,12 @@ class HBaseServer(config: Configuration) extends DataStore {
   }
   
   override def dropDataSet(name: String): Unit = {
-    if (!admin.tableExists(name))
+    val tableName = TableName.valueOf(name)
+    if (!admin.tableExists(tableName))
       throw new IllegalStateException(s"Drop Table $name, which does not exists")
 
-    admin.disableTable(name)
-    admin.deleteTable(name)
+    admin.disableTable(tableName)
+    admin.deleteTable(tableName)
   }
 }
 

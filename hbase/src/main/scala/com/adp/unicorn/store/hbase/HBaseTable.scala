@@ -8,9 +8,8 @@ package com.adp.unicorn.store.hbase
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.client.Delete
 import org.apache.hadoop.hbase.client.Get
-import org.apache.hadoop.hbase.client.HTable
+import org.apache.hadoop.hbase.client.Table
 import org.apache.hadoop.hbase.client.Put
-import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.client.Row
 import org.apache.hadoop.hbase.util.Bytes
 import com.adp.unicorn.store.DataSet
@@ -22,7 +21,7 @@ import org.apache.hadoop.hbase.security.visibility.Authorizations
  * 
  * @author Haifeng Li (293050)
  */
-class HBaseTable(table: HTable, visibility: String, authorizations: String*) extends DataSet {
+class HBaseTable(table: Table, visibility: String, authorizations: String*) extends DataSet {
   var updates = List[Row]()
   val auth = new Authorizations(authorizations: _*)
   
@@ -55,14 +54,14 @@ class HBaseTable(table: HTable, visibility: String, authorizations: String*) ext
   
   override def write(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     val put = new Put(Bytes.toBytes(row));
-    put.add(Bytes.toBytes(columnFamily), Bytes.toBytes(column), value)
+    put.addColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column), value)
     if (visibility != "") put.setCellVisibility(new CellVisibility(visibility))
     updates = put :: updates
   }
 
   override def delete(row: String, columnFamily: String, column: String): Unit = {
     val del = new Delete(Bytes.toBytes(row));
-    del.deleteColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
+    del.addColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(column))
     if (visibility != "") del.setCellVisibility(new CellVisibility(visibility))
     updates = del :: updates
   }
