@@ -1,4 +1,4 @@
-name := "hbase"
+name := "adp-unicorn-hbase"
 
 libraryDependencies += "org.apache.hbase" % "hbase-common" % "1.1.1" % "provided"
 

@@ -1,4 +1,4 @@
-name := "demo"
+name := "adp-unicorn-demo"
 
 libraryDependencies += "org.eclipse.jetty" % "jetty-servlet" % "9.2.10.v20150310"
 
