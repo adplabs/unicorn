@@ -5,16 +5,27 @@
 
 package com.adp.unicorn.console
 
+import scala.sys.SystemProperties
+import scala.tools.nsc.interpreter.ILoop
+import scala.tools.nsc.Settings
+
 /**
  * Unicorn console.
  * 
  * @author Haifeng Li (293050)
  */
 object Console extends App {
+  val settings = new Settings
+  settings.usejavacp.value = true
+  settings.deprecation.value = true
 
-  val interpreter = new InterpreterWrapper() {
-    def prompt = "Unicorn> "
-    def welcomeMsg = """
+  // import unicorn packages
+  new SystemProperties += ("scala.repl.autoruncode" -> "init.scala")
+  new UnicornILoop().process(settings)
+
+  class UnicornILoop extends ILoop  {
+    override def prompt = "ADP Unicorn> "
+    override def printWelcome = echo("""
                         . . . .
                         ,`,`,`,`,
   . . . .               `\`\`\`\;
@@ -41,20 +52,6 @@ object Console extends App {
            _/ /          \_\
           /_!/            >_\
 ===============================================================================
-    """
-    def helpMsg = """Unicorn Console"""
-
-    autoImport("com.adp.unicorn._")
-    autoImport("com.adp.unicorn.JsonValueImplicits._")
-    autoImport("com.adp.unicorn.store._")
-    autoImport("com.adp.unicorn.store.accumulo._")
-    autoImport("com.adp.unicorn.store.cassandra._")
-    autoImport("com.adp.unicorn.store.hbase._")
-    autoImport("com.adp.unicorn.graph._")
-    autoImport("com.adp.unicorn.graph.document._")
-    autoImport("com.adp.unicorn.text._")
-    //org.apache.logging.log4j.LogManager.getRootLogger().setLevel(org.apache.logging.log4j.Level.ERROR);
+    """)
   }
-
-  interpreter.startInterpreting
 }

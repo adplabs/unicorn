@@ -1,28 +1,25 @@
-organization := "com.adp.lab.unicorn"
+lazy val commonSettings = Seq(
+  organization := "com.adp.lab.unicorn",
+  version := "1.0",
+  scalaVersion := "2.11.7",
+  scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
+)
 
-name := "unicorn"
+lazy val root = project.in(file(".")).aggregate(core, hbase, accumulo, cassandra, console, graph, search, demo)
 
-version := "1.0"
+lazy val core = project.in(file("core")).settings(commonSettings: _*)
 
-scalaVersion := "2.11.2"
+lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val root =
-        project.in(file("."))
-    .aggregate(core, hbase, accumulo, cassandra, console, graph, text, demo)
+lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val core = project.in(file("core"))
+lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val hbase = project.in(file("hbase")).dependsOn(core)
+lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val accumulo = project.in(file("accumulo")).dependsOn(core)
+lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val cassandra = project.in(file("cassandra")).dependsOn(core)
+lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph)
 
-lazy val graph = project.in(file("graph")).dependsOn(core)
-
-lazy val text = project.in(file("text")).dependsOn(core)
-
-lazy val console = project.in(file("console")).dependsOn(core, graph)
-
-lazy val demo = project.in(file("demo")).dependsOn(core, graph, text, cassandra)
+lazy val demo = project.in(file("demo")).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
 

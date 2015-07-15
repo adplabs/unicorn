@@ -5,7 +5,7 @@ import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import com.adp.unicorn._
 import com.adp.unicorn.JsonValueImplicits._
-import com.adp.unicorn.text.TextIndex
+import com.adp.unicorn.search.TextIndex
 
 class LinkServlet extends HttpServlet {
   val data = Configuration.data

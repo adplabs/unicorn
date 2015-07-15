@@ -1,10 +1,4 @@
-organization := "com.adp.lab.unicorn"
-
-name := "http"
-
-version := "1.0"
-
-scalaVersion := "2.11.7"
+name := "demo"
 
 libraryDependencies += "org.eclipse.jetty" % "jetty-servlet" % "9.2.10.v20150310"
 

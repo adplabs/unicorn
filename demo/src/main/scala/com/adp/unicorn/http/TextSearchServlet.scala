@@ -12,7 +12,7 @@ import scala.xml._
 import scala.xml.transform.RewriteRule
 import scala.xml.transform.RuleTransformer
 import com.adp.unicorn._
-import com.adp.unicorn.text.TextSearch
+import com.adp.unicorn.search.TextSearch
 
 
 class TextSearchServlet extends HttpServlet {
