@@ -1,12 +1,20 @@
-name := "adp-unicorn-console"
+name := "console"
 
-import sbtassembly.AssemblyPlugin.defaultShellScript
+enablePlugins(JavaAppPackaging)
 
-assemblyJarName in assembly := s"${name.value}-${version.value}.jar"
+maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
-mainClass in assembly := Some("com.adp.unicorn.console.Console")
+packageName := "adp-unicorn-console"
 
-test in assembly := {}
+packageSummary := "ADP Unicorn Console"
+
+packageDescription := "ADP Unicorn Console"
+
+executableScriptName := "unicorn"
+
+bashScriptExtraDefines += """addJava "-Dscala.repl.autoruncode=${app_home}/init.scala""""
+
+mainClass in Compile := Some("com.adp.unicorn.console.Console")
 
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.7"
 

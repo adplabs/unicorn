@@ -1,1 +1,1 @@
-name := "adp-unicorn-core"
+name := "core"

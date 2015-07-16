@@ -1,6 +1,8 @@
 lazy val commonSettings = Seq(
-  organization := "com.adp.lab.unicorn",
-  version := "1.0",
+  organization := "com.adp.unicorn",
+  organizationName := "ADP, LLC",
+  organizationHomepage := Some(url("http://www.adp.com")),
+  version := "1.0.0",
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 )
@@ -19,7 +21,7 @@ lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsO
 
 lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph)
+lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, accumulo, cassandra)
 
 lazy val demo = project.in(file("demo")).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
 

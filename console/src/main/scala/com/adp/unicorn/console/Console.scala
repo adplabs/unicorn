@@ -19,8 +19,6 @@ object Console extends App {
   settings.usejavacp.value = true
   settings.deprecation.value = true
 
-  // import unicorn packages
-  new SystemProperties += ("scala.repl.autoruncode" -> "init.scala")
   new UnicornILoop().process(settings)
 
   class UnicornILoop extends ILoop  {

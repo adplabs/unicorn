@@ -15,7 +15,7 @@
   
   <servlet>
     <servlet-name>search</servlet-name>
-    <servlet-class>com.adp.unicorn.http.TextSearchServlet</servlet-class>
+    <servlet-class>com.adp.unicorn.demo.TextSearchServlet</servlet-class>
     <load-on-startup>1</load-on-startup>
   </servlet>
 
@@ -26,7 +26,7 @@
 
   <servlet>
     <servlet-name>doc</servlet-name>
-    <servlet-class>com.adp.unicorn.http.DocumentServlet</servlet-class>
+    <servlet-class>com.adp.unicorn.demo.DocumentServlet</servlet-class>
     <load-on-startup>1</load-on-startup>
   </servlet>
 
@@ -37,7 +37,7 @@
 
   <servlet>
     <servlet-name>link</servlet-name>
-    <servlet-class>com.adp.unicorn.http.LinkServlet</servlet-class>
+    <servlet-class>com.adp.unicorn.demo.LinkServlet</servlet-class>
     <load-on-startup>1</load-on-startup>
   </servlet>
 

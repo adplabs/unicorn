@@ -1,10 +1,28 @@
-name := "adp-unicorn-demo"
+name := "demo"
 
-libraryDependencies += "org.eclipse.jetty" % "jetty-servlet" % "9.2.10.v20150310"
+enablePlugins(JavaServerAppPackaging)
 
-libraryDependencies += "org.eclipse.jetty" % "jetty-webapp" % "9.2.10.v20150310"
+maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
-libraryDependencies += "org.eclipse.jetty" % "jetty-jmx" % "9.2.10.v20150310"
+packageName := "adp-unicorn-demo"
 
-libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.0.2"
+packageSummary := "ADP Unicorn Search Demo Web Server"
 
+packageDescription := "ADP Unicorn Search Demo Web Server"
+
+executableScriptName := "unicorn-demo"
+
+mainClass in Compile := Some("com.adp.unicorn.demo.Boot")
+
+libraryDependencies ++= {
+  val akkaV = "2.3.6"
+  val sprayV = "1.3.2"
+  Seq(
+    "io.spray"            %%  "spray-can"     % sprayV,
+    "io.spray"            %%  "spray-routing" % sprayV,
+    "io.spray"            %%  "spray-json"    % "1.3.1",
+    "io.spray"            %%  "spray-testkit" % sprayV  % "test",
+    "com.typesafe.akka"   %%  "akka-actor"    % akkaV,
+    "com.typesafe.akka"   %%  "akka-testkit"  % akkaV   % "test"
+  )
+}
