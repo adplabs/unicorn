@@ -15,7 +15,7 @@ import com.adp.unicorn.Document
  * 
  * @author Haifeng Li (293050)
  */
-trait DataSet {
+trait Dataset {
   class CacheEntry(val keyValuePairs: collection.mutable.Map[String, Array[Byte]], var timestamp: Long) {
     
   }
@@ -114,7 +114,6 @@ trait DataSet {
   
   /**
    * Cached write.
-   * @param visibility the cell visibility label expression.
    */
   def put(row: String, columnFamily: String, column: String, value: Array[Byte]): Unit = {
     if (cacheEnabled && cache.contains((row, columnFamily))) {

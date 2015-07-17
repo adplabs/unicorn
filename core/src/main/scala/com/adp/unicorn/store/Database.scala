@@ -6,19 +6,19 @@
 package com.adp.unicorn.store
 
 /**
- * A NoSQL data store that include a number of data sets,
+ * A NoSQL database that include a number of datasets,
  * which don't have to support JOIN operation.
  * 
  * @author Haifeng Li (293050)
  */
-trait DataStore {
+trait Database {
   /**
    * Returns a data set connection.
    * @param name the name of data set.
    * @param visibility the visibility label expression (for mutations).
    * @param authorizations the authorization labels (for read).
    */
-  def dataset(name: String, visibility: String, authorizations: String*): DataSet
+  def dataset(name: String, visibility: Option[String] = None, authorizations: Option[Seq[String]] = None): Dataset
   /**
    * Creates a data set with default settings.
    */

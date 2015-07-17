@@ -1,5 +1,7 @@
 package com.adp.unicorn.store.cassandra
 
+import com.adp.unicorn._
+import com.adp.unicorn.store._
 import org.apache.cassandra.thrift.Cassandra
 import org.apache.cassandra.thrift.KsDef
 import org.apache.cassandra.thrift.CfDef
@@ -7,21 +9,16 @@ import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TBinaryProtocol
-import com.adp.unicorn.store.DataStore
-import com.adp.unicorn.store.DataSet
-import com.adp.unicorn.Document
 
 /**
  * Cassandra server adapter.
  *
  * @author Haifeng Li (293050)
  */
-class CassandraServer(protocol: TProtocol) extends DataStore {
+class CassandraServer(protocol: TProtocol) extends Database {
   val admin = new Cassandra.Client(protocol)
   
-  def dataset(name: String): DataSet = dataset(name, "")
-  
-  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
+  override def dataset(name: String, visibility: Option[String], authorizations: Option[Seq[String]]): Dataset = {
     val client = new Cassandra.Client(protocol)
     client.set_keyspace(name)
     new CassandraKeyspace(client)

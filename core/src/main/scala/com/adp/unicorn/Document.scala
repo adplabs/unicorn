@@ -7,7 +7,7 @@ package com.adp.unicorn
 
 import scala.language.dynamics
 import scala.language.implicitConversions
-import com.adp.unicorn.store.DataSet
+import com.adp.unicorn.store.Dataset
 import com.adp.unicorn.JsonValueImplicits._
 
 /**
@@ -25,7 +25,7 @@ class Document(val id: String,
   /**
    * The database that this document binds to.
    */
-  private var dataset: Option[DataSet] = None
+  private var dataset: Option[Dataset] = None
   
   /**
    * Document attributes.
@@ -56,11 +56,10 @@ class Document(val id: String,
   override def hashCode = id.hashCode
   
   override def toString = {
-    val s = id + " = " + JsonObjectValue(attributes).toString("", ",\n")
+    val s = id + " = " + JsonObject(attributes).prettyPrint
     if (links.isEmpty) s
-    else
-      s + "\nrelationships = " +
-      JsonObjectValue(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).toString("", ",\n")
+    else s + "\nrelationships = " +
+      JsonObject(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).prettyPrint
   }
  
   /**
@@ -86,7 +85,7 @@ class Document(val id: String,
   /**
    * Returns all attributes as a JSON object.
    */
-  def json = JsonObjectValue(attributes)
+  def json = JsonObject(attributes)
 
   /**
    * Returns the value of a field if it exists or JsonUndefinedValue.
@@ -95,7 +94,7 @@ class Document(val id: String,
     if (attributes.contains(key))
       attributes(key)
     else
-      JsonUndefinedValue
+      JsonUndefined
   }
   
   def selectDynamic(key: String): JsonValue = {
@@ -146,10 +145,10 @@ class Document(val id: String,
     updates((columnFamily, key)) = None
     
     value match {
-      case JsonObjectValue(obj) =>
+      case JsonObject(obj) =>
         obj.foreach {case (k, v) => remove(columnFamily, key + fieldSeparator + k, v)}
         
-      case JsonArrayValue(array) =>
+      case JsonArray(array) =>
         array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
@@ -170,15 +169,15 @@ class Document(val id: String,
    */
   private def logUpdate(columnFamily: String, key: String, value: JsonValue): Unit = {
     value match {
-      case JsonUndefinedValue => remove(key)
+      case JsonUndefined => remove(key)
       case _ => updates((columnFamily, key)) = Some(value)
     }
     
     value match {
-      case JsonObjectValue(obj) =>
+      case JsonObject(obj) =>
         obj.foreach {case (k, v) => logUpdate(columnFamily, key + fieldSeparator + k, v)}
         
-      case JsonArrayValue(array) =>
+      case JsonArray(array) =>
         array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
@@ -195,9 +194,9 @@ class Document(val id: String,
   /**
    * Update a field with document array.
    */
-  def update(key: String, values: Array[Document]) {
-    val array: Array[JsonValue] = values.map {e => e.json }
-    update(key, JsonArrayValue(array))
+  def update(key: String, values: Seq[Document]) {
+    val array = values.map(_.json)
+    update(key, JsonArray(array: _*))
   }
     
   def updateDynamic(key: String)(value: Any) {
@@ -231,7 +230,7 @@ class Document(val id: String,
   /**
    * Loads both attributes and relationships from database.
    */
-  def load(context: DataSet): Document = {
+  def load(context: Dataset): Document = {
     dataset = Some(context)
     parseObject(context, attributeFamily, attributes)
     parseRelationships(context, relationshipFamily, links)
@@ -264,41 +263,40 @@ class Document(val id: String,
    * Parses the byte array to a JSON value.
    */
   private def parse(key: String, value: Array[Byte], kv: collection.mutable.Map[String, Array[Byte]]): JsonValue = {
-    if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
-    else if (value.startsWith(JsonIntValue.prefix)) JsonIntValue(value)
-    else if (value.startsWith(JsonDoubleValue.prefix)) JsonDoubleValue(value)
-    else if (value.startsWith(JsonBoolValue.prefix)) JsonBoolValue(value)
-    else if (value.startsWith(JsonLongValue.prefix)) JsonLongValue(value)
-    else if (value.startsWith(JsonStringValue.prefix)) JsonStringValue(value)
-    else if (value.startsWith(JsonObjectValue.prefix)) {
+    if (value.startsWith(JsonString.prefix)) JsonString(value)
+    else if (value.startsWith(JsonInt.prefix)) JsonInt(value)
+    else if (value.startsWith(JsonDouble.prefix)) JsonDouble(value)
+    else if (value.startsWith(JsonBool.prefix)) JsonBool(value)
+    else if (value.startsWith(JsonLong.prefix)) JsonLong(value)
+    else if (value.startsWith(JsonString.prefix)) JsonString(value)
+    else if (value.startsWith(JsonObject.prefix)) {
       val child = collection.mutable.Map[String, JsonValue]()
        
-      val fields = JsonObjectValue(value)
+      val fields = JsonObject(value)
       fields.foreach { field =>
         val fieldkey = key + fieldSeparator + field
         child(field) = parse(fieldkey, kv(fieldkey), kv)
       }
       
-      new JsonObjectValue(child)
-    }
-    else if (value.startsWith(JsonArrayValue.prefix)) {
-        val size = JsonArrayValue(value)    
-        val array = new Array[JsonValue](size)
+      new JsonObject(child)
+    } else if (value.startsWith(JsonArray.prefix)) {
+      val size = JsonArray(value)
+      val array = new Array[JsonValue](size)
         
-        for (i <- 0 until size) {
-          val fieldkey = key + fieldSeparator + i
-          array(i) = parse(fieldkey, kv(fieldkey), kv)
-        }
+      for (i <- 0 until size) {
+        val fieldkey = key + fieldSeparator + i
+        array(i) = parse(fieldkey, kv(fieldkey), kv)
+      }
         
-        JsonArrayValue(array)
+      JsonArray(array: _*)
     }
-    else JsonBlobValue(value)      
+    else JsonBlob(value)
   }
   
   /**
    * Parses the JSON object/map into this document.
    */
-  private def parseObject(context: DataSet, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
+  private def parseObject(context: Dataset, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
       if (!key.contains(fieldSeparator))
@@ -309,7 +307,7 @@ class Document(val id: String,
   /**
    * Parses the JSON object/map into this document.
    */
-  private def parseRelationships(context: DataSet, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
+  private def parseRelationships(context: Dataset, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
       val token = key.split(relationshipKeySeparator)
@@ -321,7 +319,7 @@ class Document(val id: String,
   /**
    * Sets the context of this document (i.e. data set).
    */
-  def from(context: DataSet): Document = {
+  def from(context: Dataset): Document = {
     dataset = Some(context)
     this
   }
@@ -366,7 +364,7 @@ class Document(val id: String,
   /**
    * Writes this documents (only updated/deleted fields) to the data set.
    */
-  def into(context: DataSet) {
+  def into(context: Dataset) {
     dataset = Some(context)
     commit
   }
@@ -418,7 +416,7 @@ class Document(val id: String,
     if (links.contains((relationship, doc)))
       links((relationship, doc))
     else
-      JsonUndefinedValue
+      JsonUndefined
   }
   
   /**

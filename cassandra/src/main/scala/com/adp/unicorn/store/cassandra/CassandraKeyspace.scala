@@ -1,16 +1,15 @@
 package com.adp.unicorn.store.cassandra
 
 import java.nio.ByteBuffer
+import com.adp.unicorn.store.Dataset
 import org.apache.cassandra.thrift.Cassandra
 import org.apache.cassandra.thrift.Column
 import org.apache.cassandra.thrift.ColumnParent
-import org.apache.cassandra.thrift.ColumnPath
 import org.apache.cassandra.thrift.ConsistencyLevel
 import org.apache.cassandra.thrift.Mutation
 import org.apache.cassandra.thrift.Deletion
 import org.apache.cassandra.thrift.SlicePredicate
 import org.apache.cassandra.thrift.SliceRange
-import com.adp.unicorn.store.DataSet
 import org.apache.cassandra.thrift.ColumnOrSuperColumn
 
 /**
@@ -19,7 +18,7 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
  * 
  * @author Haifeng Li (293050)
  */
-class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends DataSet {
+class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends Dataset {
   val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
   
   override def read(row: String, columnFamily: String): collection.mutable.Map[String, Array[Byte]] = {

@@ -3,11 +3,11 @@ package com.adp.unicorn.search
 import java.nio.ByteBuffer
 import com.adp.unicorn._
 import com.adp.unicorn.JsonValueImplicits._
-import com.adp.unicorn.store.DataSet
+import com.adp.unicorn.store.Dataset
 import smile.nlp.relevance.BM25
 import smile.nlp.stemmer.Stemmer
 
-class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
+class TextSearch(storage: Dataset, numTexts: Long) extends TextIndex {
   val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(storage)
   val defaultPageRank = math.log(0.85 / numTexts)
   
@@ -99,7 +99,7 @@ class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
               numTexts, invertedText.size)
               
         val pr = pagerank(docField) match {
-          case JsonDoubleValue(value) => math.log(value)
+          case JsonDouble(value) => math.log(value)
           case _ => defaultPageRank
         }
         
@@ -110,7 +110,7 @@ class TextSearch(storage: DataSet, numTexts: Long) extends TextIndex {
 }
 
 object TextSearch {
-  def apply(storage: DataSet, numTexts: Long): TextSearch = {
+  def apply(storage: Dataset, numTexts: Long): TextSearch = {
     new TextSearch(storage, numTexts)
   }
 }

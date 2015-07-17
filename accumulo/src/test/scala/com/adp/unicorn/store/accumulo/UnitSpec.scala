@@ -7,9 +7,6 @@ package com.adp.unicorn.store.accumulo
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
-import com.adp.unicorn._
-import com.adp.unicorn.JsonValueImplicits._
-import com.adp.unicorn.store._
 
 /**
  * 

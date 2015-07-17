@@ -5,9 +5,6 @@
 
 package com.adp.unicorn.store.accumulo
 
-import com.adp.unicorn._
-import com.adp.unicorn.store._
-
 /**
  * 
  * @author Haifeng Li (293050)

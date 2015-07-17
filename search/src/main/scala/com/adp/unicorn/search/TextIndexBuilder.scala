@@ -2,14 +2,14 @@ package com.adp.unicorn.search
 
 import com.adp.unicorn._
 import com.adp.unicorn.JsonValueImplicits._
-import com.adp.unicorn.store.DataSet
+import com.adp.unicorn.store.Dataset
 import smile.nlp.stemmer.Stemmer
 import smile.nlp.tokenizer.SimpleTokenizer
 import smile.nlp.tokenizer.SimpleSentenceSplitter
 import smile.nlp.dictionary.EnglishStopWords
 import smile.nlp.dictionary.EnglishPunctuations
 
-class TextIndexBuilder(storage: DataSet) extends TextIndex {
+class TextIndexBuilder(storage: Dataset) extends TextIndex {
 
   val textLength = new Document(TextBodyLengthKey, TextIndexFamily)
   val titleLength = new Document(TextTitleLengthKey, TextIndexFamily)
@@ -84,7 +84,7 @@ class TextIndexBuilder(storage: DataSet) extends TextIndex {
     sizeDoc(key) = size    
     
     termFreq.foreach { case (word, freq) =>
-      storage.put(word + indexKeySuffix, TextIndexFamily, key, JsonIntValue(freq).bytes)
+      storage.put(word + indexKeySuffix, TextIndexFamily, key, JsonInt(freq).bytes)
     }
 
     /*
@@ -129,7 +129,7 @@ class TextIndexBuilder(storage: DataSet) extends TextIndex {
 }
 
 object TextIndexBuilder {
-  def apply(storage: DataSet): TextIndexBuilder = {
+  def apply(storage: Dataset): TextIndexBuilder = {
     new TextIndexBuilder(storage)
   }
 }

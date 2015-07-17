@@ -7,7 +7,7 @@ lazy val commonSettings = Seq(
   scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 )
 
-lazy val root = project.in(file(".")).aggregate(core, hbase, accumulo, cassandra, console, graph, search, demo)
+lazy val root = project.in(file(".")).aggregate(core, hbase, cassandra, accumulo, console, graph, search, demo)
 
 lazy val core = project.in(file("core")).settings(commonSettings: _*)
 
@@ -21,7 +21,7 @@ lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsO
 
 lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, accumulo, cassandra)
+lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, cassandra, accumulo)
 
-lazy val demo = project.in(file("demo")).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
+lazy val demo = project.in(file("demo")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
 

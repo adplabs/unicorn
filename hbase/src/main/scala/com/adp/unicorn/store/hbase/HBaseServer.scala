@@ -11,8 +11,8 @@ import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
-import com.adp.unicorn.store.DataStore
-import com.adp.unicorn.store.DataSet
+import com.adp.unicorn.store.Database
+import com.adp.unicorn.store.Dataset
 import com.adp.unicorn.Document
 import org.apache.hadoop.hbase.util.Bytes
 
@@ -21,15 +21,13 @@ import org.apache.hadoop.hbase.util.Bytes
  *
  * @author Haifeng Li (293050)
  */
-class HBaseServer(config: Configuration) extends DataStore {
+class HBaseServer(config: Configuration) extends Database {
   lazy val connection = ConnectionFactory.createConnection(config)
   lazy val admin = connection.getAdmin
   
-  def dataset(name: String): DataSet = dataset(name, "")
-  
-  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
+  override def dataset(name: String, visibility: Option[String], authorizations: Option[Seq[String]]): Dataset = {
     val table = connection.getTable(TableName.valueOf(name))
-    new HBaseTable(table, visibility, authorizations: _*)
+    new HBaseTable(table, visibility, authorizations)
   }
   
   override def createDataSet(name: String): Unit = {
@@ -65,10 +63,7 @@ object HBaseServer {
     val config = HBaseConfiguration.create
     new HBaseServer(config)
   }
-  
-  // Configuration config =  HBaseConfiguration.create
-  // config.set("hbase.zookeeper.quorum", "cdldvtitavap015:2181,cdldvtitavap016:2181,cdldvtitavap017:2181")
-  // config.set("hbase.zookeeper.property.clientPort", "2181")
+
   def apply(config: Configuration): HBaseServer = {
     new HBaseServer(config)
   }

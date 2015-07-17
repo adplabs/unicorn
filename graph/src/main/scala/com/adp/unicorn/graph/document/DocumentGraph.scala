@@ -45,9 +45,9 @@ object DocumentGraph {
       if (!nodes.contains(node)) nodes(node) = nodes.size
       if (edge != null) {
         val weight = edge.data match {
-          case Some((label: String, data: JsonIntValue)) => data.value
-          case Some((label: String, data: JsonLongValue)) => data.value
-          case Some((label: String, data: JsonDoubleValue)) => data.value
+          case Some((label: String, data: JsonInt)) => data.value
+          case Some((label: String, data: JsonLong)) => data.value
+          case Some((label: String, data: JsonDouble)) => data.value
           case _ => 1.0
         }
         edges((nodes(edge.source), nodes(edge.target))) = weight

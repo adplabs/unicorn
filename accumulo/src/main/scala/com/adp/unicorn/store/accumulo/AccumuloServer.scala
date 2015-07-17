@@ -5,20 +5,18 @@
 
 package com.adp.unicorn.store.accumulo
 
-
+import com.adp.unicorn.store._
 import org.apache.accumulo.core.client.{Connector, ZooKeeperInstance}
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
-import com.adp.unicorn.store.DataStore
-import com.adp.unicorn.store.DataSet
 
 /**
  * Accumulo server adapter.
  * 
  * @author Haifeng Li (293050)
  */
-class AccumuloServer(conn: Connector) extends DataStore {
-  override def dataset(name: String, visibility: String, authorizations: String*): DataSet = {
-    new AccumuloTable(conn, name, visibility, authorizations: _*)
+class AccumuloServer(conn: Connector) extends Database {
+  override def dataset(name: String, visibility: Option[String], authorizations: Option[Seq[String]]): Dataset = {
+    new AccumuloTable(conn, name, visibility, authorizations)
   }
   
   override def createDataSet(name: String): Unit = {

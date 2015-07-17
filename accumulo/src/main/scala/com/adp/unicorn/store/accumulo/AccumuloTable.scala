@@ -6,27 +6,32 @@
 package com.adp.unicorn.store.accumulo
 
 import scala.collection.JavaConversions._
-import scala.collection.convert.WrapAsScala.enumerationAsScalaIterator
+import com.adp.unicorn.store.Dataset
 import org.apache.hadoop.io.Text
-import org.apache.accumulo.core.client.{BatchWriter, Scanner}
 import org.apache.accumulo.core.data.{Range, Key, Value}
-import org.apache.accumulo.core.client.{Connector, Scanner, ZooKeeperInstance}
-import org.apache.accumulo.core.client.{BatchWriter, BatchWriterConfig}
-import org.apache.accumulo.core.security.Authorizations
+import org.apache.accumulo.core.client.Connector
+import org.apache.accumulo.core.client.BatchWriterConfig
+import org.apache.accumulo.core.security.{Authorizations, ColumnVisibility}
 import org.apache.accumulo.core.data.Mutation
-import org.apache.accumulo.core.security.ColumnVisibility
-import com.adp.unicorn.store.DataSet
-import com.adp.unicorn.Document
 
 /**
  * Accumulo table adapter.
  * 
  * @author Haifeng Li (293050)
  */
-class AccumuloTable(conn: Connector, table: String, visibility: String, authorizations: String*) extends DataSet {
+class AccumuloTable(conn: Connector, table: String, visibility: Option[String], authorizations: Option[Seq[String]]) extends Dataset {
   
-  val columnVisibility = new ColumnVisibility(visibility)
-  val scanner = conn.createScanner(table, new Authorizations(authorizations: _*))
+  val columnVisibility = visibility match {
+    case None => new ColumnVisibility()
+    case Some(vis) => new ColumnVisibility(vis)
+  }
+
+  val auth = authorizations match {
+    case None => new Authorizations()
+    case Some(a) => new Authorizations(a: _*)
+  }
+
+  val scanner = conn.createScanner(table, auth)
   
   lazy val writer = {
     val config = new BatchWriterConfig()
