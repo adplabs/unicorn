@@ -44,7 +44,11 @@ trait SearchDemoService extends HttpService {
 
   val staticRoute = {
     get {
-      getFromResourceDirectory("web")
+      path("") {
+        getFromResource("web/index.html")
+      } ~ {
+        getFromResourceDirectory("web")
+      }
     }
   }
 
@@ -55,15 +59,18 @@ trait SearchDemoService extends HttpService {
     path("link" / Segment) { id =>
       getLink(id)
     } ~
-    path("search" / Segment) { query =>
-      search(query)
+    path("search") {
+      parameter('q) { q =>
+        search(q)
+      }
     }
   }
 
   def getDocument(id: String) = {
     val doc = db.get(id)
+    val links = doc.links.map(_._1._2).toSeq
     respondWithMediaType(`text/html`) {
-        complete(html.doc(doc).toString)
+        complete(html.doc(id, doc.json.prettyPrint, links).toString)
     }
   }
 
@@ -118,9 +125,13 @@ trait SearchDemoService extends HttpService {
   }
 
   def search(query: String) = {
-    val hits = index.search(query.split("\\s+"): _*).map(_._1._1)
+    val hits = index.search(query.split("\\s+"): _*).map { hit =>
+      val doc = hit._1._1
+      doc.select("title")
+      (doc.id, doc("title").toString)
+    }
     respondWithMediaType(`text/html`) {
-      complete(html.search(hits).toString)
+      complete(html.search(query, hits).toString)
     }
   }
 }

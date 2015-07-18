@@ -1,6 +1,5 @@
-@import com.adp.unicorn.Document
-@(doc: Document)
-
+@(id: String, doc: String, links: Seq[String])
+<!DOCTYPE HTML>
 <html>
     <head>
         <title>Unicorn Full Text Search</title>
@@ -30,7 +29,7 @@
 	          script.src = "http://d3js.org/d3.v3.min.js";
               script.addEventListener('load', plot_graph, false);
               script.onload = "plot_graph();";
-              script.node = '$d3Node'
+              script.node = '@id'
 	          head.appendChild(script);
             }
           }
@@ -39,17 +38,15 @@
     <body onload="loadD3();">
         <div id="content" style="margin-top:10px;">
             <form method="get" action="/search">
-                <input type="text" id="search" name="q" value="$query" size="60"></input>
+                <input type="text" id="search" name="q" size="60"></input>
                 <input type="submit" value="Search" style="width:100px"></input>
             </form>
             <hr></hr>
-            <div id="doc" style="clear:both;"><pre><code class="javascript">
-            @doc.prettyPrint
-            </code></pre></div>
+            <div id="doc" style="clear:both;"><pre><code class="javascript">@doc</code></pre></div>
 
             <div id="link" style="width:30%; float:left;"><ul>
-            @doc.foreachRelationship { case ((label, target), value) =>
-                <li><a href="/doc/?id=$target">$target</a>
+            @for(link <- links) {
+                <li><a href="/doc/@link">@link</a>
             }
             </ul></div>
 

@@ -24,7 +24,6 @@ abstract class JsonValue {
 
   def compactPrint = CompactPrinter(this)
   def prettyPrint = PrettyPrinter(this)
-  override def toString = compactPrint
 
   /**
    * Helper function convert ByteBuffer to Array[Byte]
@@ -106,14 +105,17 @@ object JsonValueImplicits {
 }
 
 case object JsonNull extends JsonValue {
+  override def toString = "null"
   override def bytes = throw new UnsupportedOperationException
 }
 
 case object JsonUndefined extends JsonValue {
+  override def toString = "undefined"
   override def bytes = throw new UnsupportedOperationException
 }
 
 case class JsonBool(value: Boolean) extends JsonValue {
+  override def toString = value.toString
   override def bytes: Array[Byte] = {
     val buffer = ByteBuffer.allocate(10)
     buffer.put(JsonBool.prefix)
@@ -135,6 +137,7 @@ object JsonBool {
 }
 
 case class JsonInt(value: Int) extends JsonValue {
+  override def toString = value.toString
   override def bytes: Array[Byte] = {
     val buffer = ByteBuffer.allocate(10)
     buffer.put(JsonInt.prefix)
@@ -152,6 +155,7 @@ object JsonInt {
 }
 
 case class JsonLong(value: Long) extends JsonValue {
+  override def toString = value.toString
   override def bytes: Array[Byte] = {
     val buffer = ByteBuffer.allocate(10)
     buffer.put(JsonLong.prefix)
@@ -169,6 +173,7 @@ object JsonLong {
 }
 
 case class JsonDouble(value: Double) extends JsonValue {
+  override def toString = value.toString
   override def bytes: Array[Byte] = {
     val buffer = ByteBuffer.allocate(10)
     buffer.put(JsonDouble.prefix)
@@ -186,6 +191,7 @@ object JsonDouble {
 }
 
 case class JsonString(value: String) extends JsonValue {
+  override def toString = value.toString
   override def bytes = {
     val buffer = ByteBuffer.allocate(2 + 2 * value.length)
     buffer.put(JsonString.prefix)
@@ -203,6 +209,7 @@ object JsonString {
 }
 
 case class JsonBlob(value: Array[Byte]) extends JsonValue {
+  override def toString = value.map("%02X" format _).mkString
   override def bytes = value
 }
 
@@ -216,6 +223,7 @@ object JsonBlob {
 }
 
 case class JsonObject(fields: collection.mutable.Map[String, JsonValue]) extends JsonValue {
+  override def toString = compactPrint
   override def bytes = {
     val keys = fields.keySet.mkString(",")
     val buffer = ByteBuffer.allocate(2 + 2 * keys.length)
@@ -283,6 +291,7 @@ object JsonObject {
 }
 
 case class JsonArray(elements: collection.mutable.ArrayBuffer[JsonValue]) extends JsonValue {
+  override def toString = compactPrint
   override def bytes = {
     val buffer = ByteBuffer.allocate(10)
     buffer.put(JsonArray.prefix)
@@ -327,6 +336,40 @@ case class JsonArray(elements: collection.mutable.ArrayBuffer[JsonValue]) extend
       case null | None => remove(index)
       case _ => throw new IllegalArgumentException("Unsupport JSON value type")
     }
+  }
+
+  /**
+   * Appends a single element to this array and returns
+   * the identity of the array. It takes constant amortized time.
+   *
+   * @param elem  the element to append.
+   * @return      the updated array.
+   */
+  def +=(value: Any): JsonArray = {
+    import JsonValueImplicits._
+    value match {
+      case value: String => elements += value
+      case value: Int => elements += value
+      case value: Double => elements += value
+      case value: Boolean => elements += value
+      case value: Long => elements += value
+      case value: JsonValue => elements += value
+      case value: Array[String] => elements += value
+      case value: Array[Int] => elements += value
+      case value: Array[Double] => elements += value
+      case value: Array[Boolean] => elements += value
+      case value: Array[Long] => elements += value
+      case value: Array[JsonValue] => elements += value
+      case Some(value: String) => elements += value
+      case Some(value: Int) => elements += value
+      case Some(value: Double) => elements += value
+      case Some(value: Boolean) => elements += value
+      case Some(value: Long) => elements += value
+      case Some(value: JsonValue) => elements += value
+      case null => elements += JsonNull
+      case _ => throw new IllegalArgumentException("Unsupport JSON value type")
+    }
+    this
   }
 }
 

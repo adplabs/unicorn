@@ -26,7 +26,7 @@ function plot_graph(evt) {
         directed:           true,
         label_always_on:    true,
         label_on_threshold: 2.5,
-        uri:                "/link?id="
+        uri:                "/link/"
     };
     
     function merge(obj1, obj2) {

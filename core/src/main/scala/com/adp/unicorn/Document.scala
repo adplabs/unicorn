@@ -58,7 +58,7 @@ class Document(val id: String,
   override def toString = {
     val s = id + " = " + JsonObject(attributes).prettyPrint
     if (links.isEmpty) s
-    else s + "\nrelationships = " +
+    else s + " with relationships " +
       JsonObject(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).prettyPrint
   }
  

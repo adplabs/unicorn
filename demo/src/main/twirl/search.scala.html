@@ -1,6 +1,5 @@
-@import com.adp.unicorn.Document
-@(docs: Seq[Document])
-<!DOCTYPE html>
+@(query: String, docs: Seq[(String, String)])
+<!DOCTYPE HTML>
 <html>
     <head>
         <title>Unicorn Full Text Search</title>
@@ -9,14 +8,13 @@
     <body>
         <div id="content" style="margin-top:10px;">
             <form method="get" action="/search">
-                <input type="text" id="search" name="q" value="$query" size="60"></input>
+                <input type="text" id="search" name="q" value="@query" size="60"></input>
                 <input type="submit" value="Search" style="width:100px"></input>
             </form>
             <hr></hr>
             <dl>
               @for(doc <- docs) {
-                @(doc.select("title"))
-                <dt><a href={"/doc/"+doc.id}>@doc("title")</a></dt>
+                <dt><a href="doc/@(doc._1)">@(doc._2)</a></dt>
               }
             </dl>
         </div>

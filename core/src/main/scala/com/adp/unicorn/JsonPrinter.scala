@@ -33,7 +33,7 @@ trait JsonPrinter extends (JsonValue => String) {
       case JsonInt(x)      => sb.append(x)
       case JsonLong(x)     => sb.append(x)
       case JsonDouble(x)   => sb.append(x)
-      case JsonBlob(x)     => sb.append(x.map("%02X" format _).mkString)
+      case JsonBlob(x)     => sb.append('"').append(x.map("%02X" format _).mkString).append('"')
       case JsonString(x)   => printString(x, sb)
       case _               => throw new IllegalStateException
     }
