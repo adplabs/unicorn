@@ -1,4 +1,4 @@
-name := "search"
+name := "unicorn-search"
 
 libraryDependencies += "com.github.haifengl" % "smile-nlp" % "1.0.3"
 

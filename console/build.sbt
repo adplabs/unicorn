@@ -1,10 +1,10 @@
-name := "console"
+name := "unicorn-console"
 
 enablePlugins(JavaAppPackaging)
 
 maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
-packageName := "adp-unicorn-console"
+packageName := "unicorn"
 
 packageSummary := "ADP Unicorn Console"
 

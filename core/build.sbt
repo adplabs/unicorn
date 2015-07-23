@@ -1,1 +1,1 @@
-name := "core"
+name := "unicorn-core"
