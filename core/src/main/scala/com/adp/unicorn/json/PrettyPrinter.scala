@@ -1,7 +1,7 @@
-package com.adp.unicorn
+package com.adp.unicorn.json
 
 import java.lang.StringBuilder
-import annotation.tailrec
+import scala.annotation.tailrec
 
 /**
  * A JsonPrinter that produces a nicely readable JSON source.
@@ -10,19 +10,19 @@ import annotation.tailrec
 trait PrettyPrinter extends JsonPrinter {
   val Indent = 2
 
-  def print(x: JsonValue, sb: StringBuilder) {
+  def print(x: JsValue, sb: StringBuilder) {
     print(x, sb, 0)
   }
 
-  protected def print(x: JsonValue, sb: StringBuilder, indent: Int) {
+  protected def print(x: JsValue, sb: StringBuilder, indent: Int) {
     x match {
-      case JsonObject(x) => printObject(x, sb, indent)
-      case JsonArray(x)  => printArray(x, sb, indent)
+      case JsObject(x) => printObject(x, sb, indent)
+      case JsArray(x)  => printArray(x, sb, indent)
       case _ => printLeaf(x, sb)
     }
   }
 
-  protected def printObject(members: Iterable[(String, JsonValue)], sb: StringBuilder, indent: Int) {
+  protected def printObject(members: Iterable[(String, JsValue)], sb: StringBuilder, indent: Int) {
     sb.append("{\n")
     printSeq(members, sb.append(",\n")) { m =>
       printIndent(sb, indent + Indent)
@@ -35,7 +35,7 @@ trait PrettyPrinter extends JsonPrinter {
     sb.append("}")
   }
 
-  protected def printArray(elements: Seq[JsonValue], sb: StringBuilder, indent: Int) {
+  protected def printArray(elements: Seq[JsValue], sb: StringBuilder, indent: Int) {
     sb.append('[')
     printSeq(elements, sb.append(", "))(print(_, sb, indent))
     sb.append(']')

@@ -4,10 +4,9 @@ import akka.actor.Actor
 import spray.routing._
 import spray.http._
 import spray.http.HttpHeaders.RawHeader
-import spray.json._
 import MediaTypes._
 
-import com.adp.unicorn._
+import com.adp.unicorn._, json._
 import com.adp.unicorn.store.cassandra.CassandraServer
 import com.adp.unicorn.search.TextSearch
 
@@ -77,16 +76,16 @@ trait SearchDemoService extends HttpService {
   def getLink(id: String) = {
     respondWithMediaType(`application/json`) {
       complete {
-        import com.adp.unicorn.JsonValueImplicits._
+        import com.adp.unicorn.json.JsValueImplicits._
         val doc = db.get(id)
         pagerank.select((doc.links.map { case ((_, target), _) => target + suffix }.toArray :+ (id + suffix)): _*)
 
         var idx = 0
         val rank = pagerank(id + suffix) match {
-          case JsonDouble(value) => math.log(value)
+          case JsDouble(value) => math.log(value)
           case _ => pr
         }
-        val center = JsonObject(
+        val center = JsObject(
           "id" -> id,
           "index" -> 0,
           "rank" -> rank
@@ -95,10 +94,10 @@ trait SearchDemoService extends HttpService {
         val nodes = center +: doc.links.map{ case ((_, target), value) =>
           idx += 1
           val rank = pagerank(target + suffix) match {
-            case JsonDouble(value) => math.log(value)
+            case JsDouble(value) => math.log(value)
             case _ => pr
           }
-          JsonObject(
+          JsObject(
             "id" -> target,
             "index" -> idx,
             "rank" -> rank
@@ -109,16 +108,16 @@ trait SearchDemoService extends HttpService {
         val links = doc.links.map { case ((_, target), value) =>
           val weight: Double = value
           idx += 1
-          JsonObject(
+          JsObject(
             "source" -> 0,
             "target" -> idx,
             "weight" -> weight
           )
         }.toArray
 
-        JsonObject(
-          "nodes" -> JsonArray(nodes: _*),
-          "links" -> JsonArray(links: _*)
+        JsObject(
+          "nodes" -> JsArray(nodes: _*),
+          "links" -> JsArray(links: _*)
         ).prettyPrint
       }
     }

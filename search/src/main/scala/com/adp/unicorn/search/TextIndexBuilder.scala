@@ -1,9 +1,7 @@
 package com.adp.unicorn.search
 
-import com.adp.unicorn._
-import com.adp.unicorn.JsonValueImplicits._
+import com.adp.unicorn._, json._
 import com.adp.unicorn.store.Dataset
-import smile.nlp.stemmer.Stemmer
 import smile.nlp.tokenizer.SimpleTokenizer
 import smile.nlp.tokenizer.SimpleSentenceSplitter
 import smile.nlp.dictionary.EnglishStopWords
@@ -81,10 +79,10 @@ class TextIndexBuilder(storage: Dataset) extends TextIndex {
       
     val key = doc + DocFieldSeparator + field.replace(Document.FieldSeparator, DocFieldSeparator)
 
-    sizeDoc(key) = size    
+    sizeDoc(key) = JsInt(size)
     
     termFreq.foreach { case (word, freq) =>
-      storage.put(word + indexKeySuffix, TextIndexFamily, key, JsonInt(freq).bytes)
+      storage.put(word + indexKeySuffix, TextIndexFamily, key, JsInt(freq).bytes)
     }
 
     /*

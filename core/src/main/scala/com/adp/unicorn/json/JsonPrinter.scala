@@ -1,17 +1,17 @@
-package com.adp.unicorn
+package com.adp.unicorn.json
 
-import annotation.tailrec
 import java.lang.{StringBuilder => JStringBuilder}
+import scala.annotation.tailrec
 
 /**
  * A JsonPrinter serializes a JSON AST to a String.
  * Adopt from spray-json.
  */
-trait JsonPrinter extends (JsonValue => String) {
+trait JsonPrinter extends (JsValue => String) {
 
-  def apply(x: JsonValue): String = apply(x, None)
+  def apply(x: JsValue): String = apply(x, None)
 
-  def apply(x: JsonValue, jsonpCallback: Option[String] = None, sb: JStringBuilder = new JStringBuilder(256)): String = {
+  def apply(x: JsValue, jsonpCallback: Option[String] = None, sb: JStringBuilder = new JStringBuilder(256)): String = {
     jsonpCallback match {
       case Some(callback) =>
         sb.append(callback).append('(')
@@ -22,19 +22,19 @@ trait JsonPrinter extends (JsonValue => String) {
     sb.toString
   }
 
-  def print(x: JsonValue, sb: JStringBuilder)
+  def print(x: JsValue, sb: JStringBuilder)
 
-  protected def printLeaf(x: JsonValue, sb: JStringBuilder) {
+  protected def printLeaf(x: JsValue, sb: JStringBuilder) {
     x match {
-      case JsonNull        => sb.append("null")
-      case JsonUndefined   => sb.append("undefined")
-      case JsonBool(true)  => sb.append("true")
-      case JsonBool(false) => sb.append("false")
-      case JsonInt(x)      => sb.append(x)
-      case JsonLong(x)     => sb.append(x)
-      case JsonDouble(x)   => sb.append(x)
-      case JsonBlob(x)     => sb.append('"').append(x.map("%02X" format _).mkString).append('"')
-      case JsonString(x)   => printString(x, sb)
+      case JsNull        => sb.append("null")
+      case JsUndefined   => sb.append("undefined")
+      case JsBool(true)  => sb.append("true")
+      case JsBool(false) => sb.append("false")
+      case JsInt(x)      => sb.append(x)
+      case JsLong(x)     => sb.append(x)
+      case JsDouble(x)   => sb.append(x)
+      case JsBinary(x)   => sb.append('"').append(x.map("%02X" format _).mkString).append('"')
+      case JsString(x)   => printString(x, sb)
       case _               => throw new IllegalStateException
     }
   }

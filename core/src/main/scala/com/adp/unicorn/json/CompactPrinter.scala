@@ -1,4 +1,4 @@
-package com.adp.unicorn
+package com.adp.unicorn.json
 
 import java.lang.StringBuilder
 
@@ -8,15 +8,15 @@ import java.lang.StringBuilder
  */
 trait CompactPrinter extends JsonPrinter {
 
-  def print(x: JsonValue, sb: StringBuilder) {
+  def print(x: JsValue, sb: StringBuilder) {
     x match {
-      case JsonObject(x) => printObject(x, sb)
-      case JsonArray(x)  => printArray(x, sb)
+      case JsObject(x) => printObject(x, sb)
+      case JsArray(x)  => printArray(x, sb)
       case _ => printLeaf(x, sb)
     }
   }
 
-  protected def printObject(members: Iterable[(String, JsonValue)], sb: StringBuilder) {
+  protected def printObject(members: Iterable[(String, JsValue)], sb: StringBuilder) {
     sb.append('{')
     printSeq(members, sb.append(',')) { m =>
       printString(m._1, sb)
@@ -26,7 +26,7 @@ trait CompactPrinter extends JsonPrinter {
     sb.append('}')
   }
 
-  protected def printArray(elements: Seq[JsonValue], sb: StringBuilder) {
+  protected def printArray(elements: Seq[JsValue], sb: StringBuilder) {
     sb.append('[')
     printSeq(elements, sb.append(','))(print(_, sb))
     sb.append(']')

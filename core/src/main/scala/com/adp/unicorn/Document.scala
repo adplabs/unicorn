@@ -8,7 +8,7 @@ package com.adp.unicorn
 import scala.language.dynamics
 import scala.language.implicitConversions
 import com.adp.unicorn.store.Dataset
-import com.adp.unicorn.JsonValueImplicits._
+import com.adp.unicorn.json._
 
 /**
  * A document can be regarded as a JSON object with a unique key.
@@ -20,7 +20,7 @@ class Document(val id: String,
     relationshipFamily: String = Document.RelationshipFamily,
     fieldSeparator: String = Document.FieldSeparator,
     relationshipKeySeparator: String = Document.RelationshipKeySeparator
-  ) extends Dynamic with Traversable[(String, JsonValue)] {
+  ) extends Dynamic with Traversable[(String, JsValue)] {
   
   /**
    * The database that this document binds to.
@@ -30,17 +30,17 @@ class Document(val id: String,
   /**
    * Document attributes.
    */
-  lazy val attributes = collection.mutable.Map[String, JsonValue]()
+  lazy val attributes = collection.mutable.Map[String, JsValue]()
   /**
    * The relationships to other documents.
    * The key is the (relationship, doc). The value is any JSON object
    * associated with the relationship.
    */
-  lazy val links = collection.mutable.Map[(String, String), JsonValue]()
+  lazy val links = collection.mutable.Map[(String, String), JsValue]()
   /**
    * Updates to commit into database.
    */
-  private lazy val updates = collection.mutable.Map[(String, String), Option[JsonValue]]()
+  private lazy val updates = collection.mutable.Map[(String, String), Option[JsValue]]()
 
   /**
    * Document equality is purely based on ID rather than values.
@@ -56,17 +56,17 @@ class Document(val id: String,
   override def hashCode = id.hashCode
   
   override def toString = {
-    val s = id + " = " + JsonObject(attributes).prettyPrint
+    val s = id + " = " + JsObject(attributes).prettyPrint
     if (links.isEmpty) s
     else s + " with relationships " +
-      JsonObject(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).prettyPrint
+      JsObject(links.map { case (key, value) => (relationshipColumnQualifier(key._1, key._2), value) }).prettyPrint
   }
  
   /**
    * Returns a copy of this document with a new ID.
    */
   def copy(id: String): Document = {
-    val doc = Document(id);
+    val doc = Document(id)
     foreach { case (attr, value) => doc(attr) = value }
     foreachRelationship { case ((label, target), value) => doc(label, target) = value }
     doc
@@ -75,29 +75,29 @@ class Document(val id: String,
   /**
    * For each loop over attributes.
    */
-  def foreach[U](f: ((String, JsonValue)) => U): Unit = attributes.foreach(f)
+  def foreach[U](f: ((String, JsValue)) => U): Unit = attributes.foreach(f)
   
   /**
    * For each loop over relationships.
    */
-  def foreachRelationship[U](f: (((String, String), JsonValue)) => U): Unit = links.foreach(f)
+  def foreachRelationship[U](f: (((String, String), JsValue)) => U): Unit = links.foreach(f)
   
   /**
    * Returns all attributes as a JSON object.
    */
-  def json = JsonObject(attributes)
+  def json = JsObject(attributes)
 
   /**
-   * Returns the value of a field if it exists or JsonUndefinedValue.
+   * Returns the value of a field if it exists or JsUndefinedValue.
    */
-  def apply(key: String): JsonValue = {
+  def apply(key: String): JsValue = {
     if (attributes.contains(key))
       attributes(key)
     else
-      JsonUndefined
+      JsUndefined
   }
   
-  def selectDynamic(key: String): JsonValue = {
+  def selectDynamic(key: String): JsValue = {
     apply(key)
   }
   
@@ -132,7 +132,7 @@ class Document(val id: String,
   /**
    * Removes a field.
    */
-  def remove(key: String): Option[JsonValue] = {
+  def remove(key: String): Option[JsValue] = {
     val value = attributes.remove(key)
     if (value.isDefined) remove(attributeFamily, key, value.get)
     value
@@ -141,14 +141,14 @@ class Document(val id: String,
   /**
    * Recursively removes the key-value pairs.
    */
-  private def remove(columnFamily: String, key: String, value: JsonValue): Unit = {
+  private def remove(columnFamily: String, key: String, value: JsValue): Unit = {
     updates((columnFamily, key)) = None
     
     value match {
-      case JsonObject(obj) =>
+      case JsObject(obj) =>
         obj.foreach {case (k, v) => remove(columnFamily, key + fieldSeparator + k, v)}
         
-      case JsonArray(array) =>
+      case JsArray(array) =>
         array.zipWithIndex foreach {case (e, i) => remove(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
@@ -158,7 +158,7 @@ class Document(val id: String,
   /**
    * Update a field.
    */
-  def update(key: String, value: JsonValue): Document = {
+  def update(key: String, value: JsValue): Document = {
     attributes(key) = value
     logUpdate(attributeFamily, key, value)
     this
@@ -167,17 +167,17 @@ class Document(val id: String,
   /**
    * Recursively records the mutations.
    */
-  private def logUpdate(columnFamily: String, key: String, value: JsonValue): Unit = {
+  private def logUpdate(columnFamily: String, key: String, value: JsValue): Unit = {
     value match {
-      case JsonUndefined => remove(key)
+      case JsUndefined => remove(key)
       case _ => updates((columnFamily, key)) = Some(value)
     }
     
     value match {
-      case JsonObject(obj) =>
+      case JsObject(obj) =>
         obj.foreach {case (k, v) => logUpdate(columnFamily, key + fieldSeparator + k, v)}
         
-      case JsonArray(array) =>
+      case JsArray(array) =>
         array.zipWithIndex foreach {case (e, i) => logUpdate(columnFamily, key + fieldSeparator + i, e)}
         
       case _ => ()
@@ -196,24 +196,25 @@ class Document(val id: String,
    */
   def update(key: String, values: Seq[Document]) {
     val array = values.map(_.json)
-    update(key, JsonArray(array: _*))
+    update(key, JsArray(array: _*))
   }
     
   def updateDynamic(key: String)(value: Any) {
+    import JsValueImplicits._
     value match {
       case value: String => update(key, value)
       case value: Int => update(key, value)
       case value: Double => update(key, value)
       case value: Boolean => update(key, value)
       case value: Long => update(key, value)
-      case value: JsonValue => update(key, value)
+      case value: JsValue => update(key, value)
       case value: Document => update(key, value)
       case value: Array[String] => update(key, value)
       case value: Array[Int] => update(key, value)
       case value: Array[Double] => update(key, value)
       case value: Array[Boolean] => update(key, value)
       case value: Array[Long] => update(key, value)
-      case value: Array[JsonValue] => update(key, value)
+      case value: Array[JsValue] => update(key, value)
       case value: Array[Document] => update(key, value)
       case Some(value: String) => update(key, value)
       case Some(value: Int) => update(key, value)
@@ -221,7 +222,7 @@ class Document(val id: String,
       case Some(value: Boolean) => update(key, value)
       case Some(value: Long) => update(key, value)
       case Some(value: Document) => update(key, value)
-      case Some(value: JsonValue) => update(key, value)
+      case Some(value: JsValue) => update(key, value)
       case null | None => remove(key) 
       case _ => throw new IllegalArgumentException("Unsupport JSON value type")
     }
@@ -262,41 +263,41 @@ class Document(val id: String,
   /**
    * Parses the byte array to a JSON value.
    */
-  private def parse(key: String, value: Array[Byte], kv: collection.mutable.Map[String, Array[Byte]]): JsonValue = {
-    if (value.startsWith(JsonString.prefix)) JsonString(value)
-    else if (value.startsWith(JsonInt.prefix)) JsonInt(value)
-    else if (value.startsWith(JsonDouble.prefix)) JsonDouble(value)
-    else if (value.startsWith(JsonBool.prefix)) JsonBool(value)
-    else if (value.startsWith(JsonLong.prefix)) JsonLong(value)
-    else if (value.startsWith(JsonString.prefix)) JsonString(value)
-    else if (value.startsWith(JsonObject.prefix)) {
-      val child = collection.mutable.Map[String, JsonValue]()
+  private def parse(key: String, value: Array[Byte], kv: collection.mutable.Map[String, Array[Byte]]): JsValue = {
+    if (value.startsWith(JsString.prefix)) JsString(value)
+    else if (value.startsWith(JsInt.prefix)) JsInt(value)
+    else if (value.startsWith(JsDouble.prefix)) JsDouble(value)
+    else if (value.startsWith(JsBool.prefix)) JsBool(value)
+    else if (value.startsWith(JsLong.prefix)) JsLong(value)
+    else if (value.startsWith(JsString.prefix)) JsString(value)
+    else if (value.startsWith(JsObject.prefix)) {
+      val child = collection.mutable.Map[String, JsValue]()
        
-      val fields = JsonObject(value)
+      val fields = JsObject(value)
       fields.foreach { field =>
         val fieldkey = key + fieldSeparator + field
         child(field) = parse(fieldkey, kv(fieldkey), kv)
       }
       
-      new JsonObject(child)
-    } else if (value.startsWith(JsonArray.prefix)) {
-      val size = JsonArray(value)
-      val array = new Array[JsonValue](size)
+      new JsObject(child)
+    } else if (value.startsWith(JsArray.prefix)) {
+      val size = JsArray(value)
+      val array = new Array[JsValue](size)
         
       for (i <- 0 until size) {
         val fieldkey = key + fieldSeparator + i
         array(i) = parse(fieldkey, kv(fieldkey), kv)
       }
         
-      JsonArray(array: _*)
+      JsArray(array: _*)
     }
-    else JsonBlob(value)
+    else JsBinary(value)
   }
   
   /**
    * Parses the JSON object/map into this document.
    */
-  private def parseObject(context: Dataset, columnFamily: String, map: collection.mutable.Map[String, JsonValue]): Unit = {
+  private def parseObject(context: Dataset, columnFamily: String, map: collection.mutable.Map[String, JsValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
       if (!key.contains(fieldSeparator))
@@ -307,7 +308,7 @@ class Document(val id: String,
   /**
    * Parses the JSON object/map into this document.
    */
-  private def parseRelationships(context: Dataset, columnFamily: String, map: collection.mutable.Map[(String, String), JsonValue]): Unit = {
+  private def parseRelationships(context: Dataset, columnFamily: String, map: collection.mutable.Map[(String, String), JsValue]): Unit = {
     val kv = context.get(id, columnFamily)
     kv.foreach { case(key, value) =>
       val token = key.split(relationshipKeySeparator)
@@ -341,9 +342,9 @@ class Document(val id: String,
   }
   
   /**
-   * Commits changes to data set.
+   * Flush changes to database backend.
    */
-  def commit {
+  def flush {
     if (updates.isEmpty) return
     
     dataset match {
@@ -366,7 +367,7 @@ class Document(val id: String,
    */
   def into(context: Dataset) {
     dataset = Some(context)
-    commit
+    flush
   }
 
   /**
@@ -378,8 +379,8 @@ class Document(val id: String,
   /**
    * Returns all neighbors of given types of relationship.
    */
-  def neighbors(relationships: String*): Map[Document, (String, JsonValue)] = {
-    var nodes = List[(Document, (String, JsonValue))]()
+  def neighbors(relationships: String*): Map[Document, (String, JsValue)] = {
+    var nodes = List[(Document, (String, JsValue))]()
     
     links.foreach { case ((relationship, id), value) =>
       if (relationships.contains(relationship)) {
@@ -398,8 +399,8 @@ class Document(val id: String,
   /**
    * Returns all relationships to a given neighbor.
    */
-  def relationships(doc: String): Map[String, JsonValue] = {
-    var edges = List[(String, JsonValue)]()
+  def relationships(doc: String): Map[String, JsValue] = {
+    var edges = List[(String, JsValue)]()
 
     links.foreach { case ((relation, id), value) =>
       if (id == doc) 
@@ -412,17 +413,17 @@ class Document(val id: String,
   /**
    * Returns the value of a relationship if it exists or None.
    */
-  def apply(relationship: String, doc: String): JsonValue = {
+  def apply(relationship: String, doc: String): JsValue = {
     if (links.contains((relationship, doc)))
       links((relationship, doc))
     else
-      JsonUndefined
+      JsUndefined
   }
   
   /**
    * Update a relationship.
    */
-  def update(relationship: String, doc: String, value: JsonValue): Document = {
+  def update(relationship: String, doc: String, value: JsValue): Document = {
     if (value == null) {
       remove(relationship, doc)
     } else {

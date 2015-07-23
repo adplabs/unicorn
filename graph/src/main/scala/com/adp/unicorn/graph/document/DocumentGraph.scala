@@ -5,8 +5,7 @@
 
 package com.adp.unicorn.graph.document
 
-import com.adp.unicorn._
-import com.adp.unicorn.graph._
+import com.adp.unicorn._, json._, graph._
 import smile.graph._
 
 /**
@@ -26,7 +25,7 @@ class DocumentGraph(val nodes: Array[Document], graph: Graph) {
 }
 
 object DocumentGraph {
-  val graphOps = new GraphOps[Document, (String, JsonValue)]()
+  val graphOps = new GraphOps[Document, (String, JsValue)]()
   
   class Builder(maxHops: Int, relationships: Seq[String]) extends AbstractDocumentVisitor(maxHops, relationships) {
     val nodes = scala.collection.mutable.Map[Document, Int]()
@@ -40,14 +39,14 @@ object DocumentGraph {
       graphOps.dfs(doc, this)
     }
 
-    def visit(node: Document, edge: Edge[Document, (String, JsonValue)], hops: Int) {
+    def visit(node: Document, edge: Edge[Document, (String, JsValue)], hops: Int) {
       if (hops < maxHops) node.refreshRelationships
       if (!nodes.contains(node)) nodes(node) = nodes.size
       if (edge != null) {
         val weight = edge.data match {
-          case Some((label: String, data: JsonInt)) => data.value
-          case Some((label: String, data: JsonLong)) => data.value
-          case Some((label: String, data: JsonDouble)) => data.value
+          case Some((label: String, data: JsInt)) => data.value
+          case Some((label: String, data: JsLong)) => data.value
+          case Some((label: String, data: JsDouble)) => data.value
           case _ => 1.0
         }
         edges((nodes(edge.source), nodes(edge.target))) = weight
