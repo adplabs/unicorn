@@ -28,6 +28,13 @@ val table = server.dataset("small")
 // Read a non-existing row. It is the pure time of round trip.
 val doc = time { table get "row1" }
 
+// Create a JsObject
+val person = JsObject(
+  "name" -> "Haifeng",
+  "gender" -> "Male",
+  "salary" -> 1.0,
+  "zip" -> 10011
+)
 // Create a document 
 val person = Document("293050")
 person("name") = "Haifeng"

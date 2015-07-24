@@ -54,7 +54,7 @@ package object json {
     case JsString(x) => !x.isEmpty
     case JsNull => false
     case JsUndefined => false
-    case _ => throw new UnsupportedOperationException("convert JsValue to int")
+    case _ => throw new UnsupportedOperationException("convert JsValue to boolean")
   }
 
   implicit def json2Int(json: JsValue): Int = json match {
