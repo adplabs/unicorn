@@ -5,6 +5,8 @@
 
 package com.adp.unicorn.json
 
+import java.text.{DateFormat, SimpleDateFormat}
+import java.util.Date
 import scala.language.dynamics
 import scala.language.implicitConversions
 
@@ -90,6 +92,14 @@ case class JsLong(value: Long) extends JsValue {
 
 object JsLong {
   val zero = JsLong(0L)
+}
+
+case class JsDate(value: Date, format: DateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")) extends JsValue {
+  override def toString = format.format(value)
+}
+
+object JsDate {
+  def apply(date: Long) = new JsDate(new Date(date))
 }
 
 case class JsDouble(value: Double) extends JsValue {

@@ -104,6 +104,10 @@ class BsonSerializer extends JsonSerializer {
         buffer.put(TYPE_INT64)
         putCString(buffer, field)
         buffer.putLong(x)
+      case JsDate(x, _) =>
+        buffer.put(TYPE_DATETIME)
+        putCString(buffer, field)
+        buffer.putLong(x.getTime)
       case JsDouble(x) =>
         buffer.put(TYPE_DOUBLE)
         putCString(buffer, field)
