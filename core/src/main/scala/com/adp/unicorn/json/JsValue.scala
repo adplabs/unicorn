@@ -133,58 +133,7 @@ case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsV
     value
   }
 
-  def updateDynamic(key: String)(value: Int): JsValue = update(key, value)
-  def updateDynamic(key: String)(value: Long): JsValue = update(key, value)
-  def updateDynamic(key: String)(value: String): JsValue = update(key, value)
-  /*override def updateDynamic(key: String)(value: JsValue): JsValue = update(key, value) value match {
-    case null => update(key, JsNull)
-    case JsUndefined | None => remove(key).getOrElse(JsUndefined)
-
-    case value: String => update(key, value)
-    case value: Int => update(key, value)
-    case value: Double => update(key, value)
-    case value: Boolean => update(key, value)
-    case value: Long => update(key, value)
-    case value: JsValue => update(key, value)
-
-    case value: Array[String] => update(key, value)
-    case value: Array[Int] => update(key, value)
-    case value: Array[Double] => update(key, value)
-    case value: Array[Boolean] => update(key, value)
-    case value: Array[Long] => update(key, value)
-    case value: Array[JsValue] => update(key, value)
-/*
-    case value: Seq[String] => update(key, value)
-    case value: Seq[Int] => update(key, value)
-    case value: Seq[Double] => update(key, value)
-    case value: Seq[Boolean] => update(key, value)
-    case value: Seq[Long] => update(key, value)
-    case value: Seq[JsValue] => update(key, value)
-*/
-    case Some(value: String) => update(key, value)
-    case Some(value: Int) => update(key, value)
-    case Some(value: Double) => update(key, value)
-    case Some(value: Boolean) => update(key, value)
-    case Some(value: Long) => update(key, value)
-    case Some(value: JsValue) => update(key, value)
-
-    case Some(value: Array[String]) => update(key, value)
-    case Some(value: Array[Int]) => update(key, value)
-    case Some(value: Array[Double]) => update(key, value)
-    case Some(value: Array[Boolean]) => update(key, value)
-    case Some(value: Array[Long]) => update(key, value)
-    case Some(value: Array[JsValue]) => update(key, value)
-/*
-    case Some(value: Seq[String]) => update(key, value)
-    case Some(value: Seq[Int]) => update(key, value)
-    case Some(value: Seq[Double]) => update(key, value)
-    case Some(value: Seq[Boolean]) => update(key, value)
-    case Some(value: Seq[Long]) => update(key, value)
-    case Some(value: Seq[JsValue]) => update(key, value)
-*/
-    case _ => throw new IllegalArgumentException("Unsupport JSON value type")
-  }
-  */
+  override def updateDynamic(key: String)(value: JsValue): JsValue = update(key, value)
 }
 
 object JsObject {
@@ -207,55 +156,7 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
     value
   }
 
-  override def updateDynamic(index: Int)(value: JsValue): JsValue = value match {
-    case null => update(index, JsNull)
-    case JsUndefined | None => remove(index)
-
-    case value: String => update(index, value)
-    case value: Int => update(index, value)
-    case value: Double => update(index, value)
-    case value: Boolean => update(index, value)
-    case value: Long => update(index, value)
-    case value: JsValue => update(index, value)
-
-    case value: Array[String] => update(index, value)
-    case value: Array[Int] => update(index, value)
-    case value: Array[Double] => update(index, value)
-    case value: Array[Boolean] => update(index, value)
-    case value: Array[Long] => update(index, value)
-    case value: Array[JsValue] => update(index, value)
-    /*
-        case value: Seq[String] => update(key, value)
-        case value: Seq[Int] => update(key, value)
-        case value: Seq[Double] => update(key, value)
-        case value: Seq[Boolean] => update(key, value)
-        case value: Seq[Long] => update(key, value)
-        case value: Seq[JsValue] => update(key, value)
-    */
-    case Some(value: String) => update(index, value)
-    case Some(value: Int) => update(index, value)
-    case Some(value: Double) => update(index, value)
-    case Some(value: Boolean) => update(index, value)
-    case Some(value: Long) => update(index, value)
-    case Some(value: JsValue) => update(index, value)
-
-    case Some(value: Array[String]) => update(index, value)
-    case Some(value: Array[Int]) => update(index, value)
-    case Some(value: Array[Double]) => update(index, value)
-    case Some(value: Array[Boolean]) => update(index, value)
-    case Some(value: Array[Long]) => update(index, value)
-    case Some(value: Array[JsValue]) => update(index, value)
-    /*
-        case Some(value: Seq[String]) => update(key, value)
-        case Some(value: Seq[Int]) => update(key, value)
-        case Some(value: Seq[Double]) => update(key, value)
-        case Some(value: Seq[Boolean]) => update(key, value)
-        case Some(value: Seq[Long]) => update(key, value)
-        case Some(value: Seq[JsValue]) => update(key, value)
-    */
-    case _ => throw new IllegalArgumentException("Unsupport JSON value type")
-  }
-
+  override def updateDynamic(index: Int)(value: JsValue): JsValue = update(index, value)
   /**
    * Appends a single element to this array and returns
    * the identity of the array. It takes constant amortized time.
