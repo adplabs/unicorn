@@ -200,7 +200,6 @@ class Document(val id: String,
   }
     
   def updateDynamic(key: String)(value: Any) {
-    import JsValueImplicits._
     value match {
       case value: String => update(key, value)
       case value: Int => update(key, value)
@@ -264,10 +263,12 @@ class Document(val id: String,
    * Parses the byte array to a JSON value.
    */
   private def parse(key: String, value: Array[Byte], kv: collection.mutable.Map[String, Array[Byte]]): JsValue = {
+    JsUndefined
+    /*
     if (value.startsWith(JsString.prefix)) JsString(value)
     else if (value.startsWith(JsInt.prefix)) JsInt(value)
     else if (value.startsWith(JsDouble.prefix)) JsDouble(value)
-    else if (value.startsWith(JsBool.prefix)) JsBool(value)
+    else if (value.startsWith(JsBoolean.prefix)) JsBoolean(value)
     else if (value.startsWith(JsLong.prefix)) JsLong(value)
     else if (value.startsWith(JsString.prefix)) JsString(value)
     else if (value.startsWith(JsObject.prefix)) {
@@ -292,6 +293,7 @@ class Document(val id: String,
       JsArray(array: _*)
     }
     else JsBinary(value)
+    */
   }
   
   /**
@@ -353,7 +355,7 @@ class Document(val id: String,
         updates.foreach { case(familyCol, value) =>
           value match {
             case None => context.remove(id, familyCol._1, familyCol._2)
-            case Some(value) => context.put(id, familyCol._1, familyCol._2, value.bytes)
+            case Some(value) => ()//TODO context.put(id, familyCol._1, familyCol._2, value.bytes)
           }
         }
         context.commit

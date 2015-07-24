@@ -28,8 +28,8 @@ trait JsonPrinter extends (JsValue => String) {
     x match {
       case JsNull        => sb.append("null")
       case JsUndefined   => sb.append("undefined")
-      case JsBool(true)  => sb.append("true")
-      case JsBool(false) => sb.append("false")
+      case JsBoolean(true)  => sb.append("true")
+      case JsBoolean(false) => sb.append("false")
       case JsInt(x)      => sb.append(x)
       case JsLong(x)     => sb.append(x)
       case JsDouble(x)   => sb.append(x)

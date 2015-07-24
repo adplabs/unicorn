@@ -82,7 +82,7 @@ class TextIndexBuilder(storage: Dataset) extends TextIndex {
     sizeDoc(key) = JsInt(size)
     
     termFreq.foreach { case (word, freq) =>
-      storage.put(word + indexKeySuffix, TextIndexFamily, key, JsInt(freq).bytes)
+      //TODO storage.put(word + indexKeySuffix, TextIndexFamily, key, freq)
     }
 
     /*

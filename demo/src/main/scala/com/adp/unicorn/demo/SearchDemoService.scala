@@ -76,7 +76,6 @@ trait SearchDemoService extends HttpService {
   def getLink(id: String) = {
     respondWithMediaType(`application/json`) {
       complete {
-        import com.adp.unicorn.json.JsValueImplicits._
         val doc = db.get(id)
         pagerank.select((doc.links.map { case ((_, target), _) => target + suffix }.toArray :+ (id + suffix)): _*)
 
