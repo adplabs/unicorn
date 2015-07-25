@@ -78,7 +78,7 @@ package object json {
     case JsBoolean(x) => if (x) 1L else 0L
     case JsInt(x) => x
     case JsLong(x) => x
-    case JsDate(x, _) => x.getTime
+    case JsDate(x) => x.getTime
     case JsDouble(x) => x.toLong
     case JsString(x) => x.toLong
     case JsNull => 0L

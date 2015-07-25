@@ -94,12 +94,13 @@ object JsLong {
   val zero = JsLong(0L)
 }
 
-case class JsDate(value: Date, format: DateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")) extends JsValue {
-  override def toString = format.format(value)
+case class JsDate(value: Date) extends JsValue {
+  override def toString = JsDate.format.format(value)
 }
 
 object JsDate {
   def apply(date: Long) = new JsDate(new Date(date))
+  val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 }
 
 case class JsDouble(value: Double) extends JsValue {

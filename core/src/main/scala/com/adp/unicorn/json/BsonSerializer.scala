@@ -104,7 +104,7 @@ class BsonSerializer extends JsonSerializer {
         buffer.put(TYPE_INT64)
         putCString(buffer, field)
         buffer.putLong(x)
-      case JsDate(x, _) =>
+      case JsDate(x) =>
         buffer.put(TYPE_DATETIME)
         putCString(buffer, field)
         buffer.putLong(x.getTime)
@@ -144,6 +144,10 @@ class BsonSerializer extends JsonSerializer {
     val json = JsObject()
     val size = buffer.getInt // document size
     deserialize(buffer, json)
+    /*
+    if (buffer.position != size)
+      log.warn(s"BSON size $size but deserialize finishs at ${buffer.position}")
+      */
     json
   }
 
