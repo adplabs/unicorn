@@ -45,7 +45,7 @@ class JsonParser(input: ParserInput) {
       case '{' => advance(); `object`()
       case '[' => advance(); `array`()
       case '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' => `number`()
-      case '"' => `string`(); jsValue = if (sb.length == 0) JsString.empty else JsString(sb.toString)
+      case '"' => `string`(); jsValue = if (sb.length == 0) JsString.empty else dateOrString(sb.toString)
       case _ => fail("JSON Value")
     }
   }
@@ -53,6 +53,11 @@ class JsonParser(input: ParserInput) {
   private def `false`() = advance() && ch('a') && ch('l') && ch('s') && ws('e')
   private def `null`() = advance() && ch('u') && ch('l') && ws('l')
   private def `true`() = advance() && ch('r') && ch('u') && ws('e')
+  private def dateOrString(s: String): JsValue = {
+    if (s.length == JsDate.format.toPattern.length) {
+      try {JsDate(JsDate.format.parse(s))} catch { case _: Throwable => JsString(s)}
+    } else JsString(s)
+  }
 
   // http://tools.ietf.org/html/rfc4627#section-2.2
   private def `object`(): Unit = {
