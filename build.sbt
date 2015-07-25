@@ -7,9 +7,13 @@ lazy val commonSettings = Seq(
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8")
 )
 
-lazy val root = project.in(file(".")).aggregate(core, hbase, cassandra, accumulo, console, graph, search, demo)
+lazy val root = project.in(file(".")).aggregate(util, json, core, hbase, cassandra, accumulo, console, graph, search, demo)
 
-lazy val core = project.in(file("core")).settings(commonSettings: _*)
+lazy val util = project.in(file("util")).settings(commonSettings: _*)
+
+lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(util)
+
+lazy val core = project.in(file("core")).settings(commonSettings: _*).dependsOn(json)
 
 lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(core)
 

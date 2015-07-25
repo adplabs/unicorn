@@ -1,8 +1,8 @@
-import com.adp.unicorn._
-import com.adp.unicorn.DocumentImplicits._
-import com.adp.unicorn.store._
-import com.adp.unicorn.store.accumulo._
-import com.adp.unicorn.store.hbase._
+import unicorn._
+import unicorn.json._
+import unicorn.store._
+import unicorn.store.accumulo._
+import unicorn.store.hbase._
 
 // measure running time of a function/block 
 def time[A](f: => A) = {
