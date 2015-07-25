@@ -33,6 +33,7 @@ trait JsonPrinter extends (JsValue => String) {
       case JsInt(x)      => sb.append(x)
       case JsLong(x)     => sb.append(x)
       case JsDouble(x)   => sb.append(x)
+      case JsDate(_)     => sb.append('"').append(x.toString).append('"')
       case JsBinary(x)   => sb.append('"').append(x.map("%02X" format _).mkString).append('"')
       case JsString(x)   => printString(x, sb)
       case _               => throw new IllegalStateException
