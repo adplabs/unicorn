@@ -4,6 +4,8 @@ package unicorn.json
  * @author Haifeng Li
  */
 trait JsonSerializer {
-  def serialize(value: JsTopLevel): Array[Byte]
-  def deserialize(bytes: Array[Byte]): JsTopLevel
+  /** Serializes a JSON value to a list of key/value pairs, where key is the JSONPath of element. */
+  def serialize(value: JsValue, jsonPath: String = "$"): List[(String, Array[Byte])]
+  /** Deserialize a JSON value from the given root JSONPath. */
+  def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String = "$"): JsValue
 }
