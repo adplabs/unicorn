@@ -24,6 +24,10 @@ sealed abstract class JsValue extends Dynamic {
     throw new UnsupportedOperationException
   }
 
+  def applyDynamic(key: String): JsValue = {
+    throw new UnsupportedOperationException
+  }
+
   def apply(index: Int): JsValue = {
     throw new UnsupportedOperationException
   }
@@ -55,10 +59,11 @@ sealed abstract class JsValue extends Dynamic {
   def updateDynamic(index: Int)(value: JsValue): JsValue = {
     throw new UnsupportedOperationException
   }
-
+/*
   def +=(value: JsValue): JsArray = {
     throw new UnsupportedOperationException
   }
+  */
 }
 
 case object JsNull extends JsValue {
@@ -131,6 +136,10 @@ case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsV
       JsUndefined
   }
 
+  override def applyDynamic(key: String): JsValue = {
+    apply(key)
+  }
+
   override def selectDynamic(key: String): JsValue = {
     apply(key)
   }
@@ -175,10 +184,12 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
    * @param value  the element to append.
    * @return      the updated array.
    */
+  /*
   override def +=(value: JsValue): JsArray = {
     elements += value
     this
   }
+  */
 }
 
 object JsArray {

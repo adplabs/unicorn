@@ -110,12 +110,13 @@ class JsonParser(input: ParserInput) {
     val startChar = cursorChar
     ch('-')
     `int`()
-    val isDouble = `frac`() || `exp`()
+    val hasFrac = `frac`()
+    val hasExp = `exp`()
     jsValue =
       if (startChar == '0' && input.cursor - start == 1) JsInt.zero
       else {
         val s = String.valueOf(input.sliceCharArray(start, input.cursor))
-        if (isDouble) {
+        if (hasFrac || hasExp) {
           val n = s.toDouble
           if (n == 0.0) JsDouble.zero else JsDouble(n)
         } else {

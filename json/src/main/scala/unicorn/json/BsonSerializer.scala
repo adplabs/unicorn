@@ -174,22 +174,22 @@ class BsonSerializer extends JsonSerializer with Logging {
     buffer.putInt(start, buffer.position - start) // update document size
   }
 
-  override def serialize(json: JsValue, jsonPath: String): List[(Array[Byte], Array[Byte])] = {
+  override def serialize(json: JsValue, jsonPath: String): List[(String, Array[Byte])] = {
     buffer.position(0)
     json match {
-      case x: JsBoolean => serialize(x, None)
-      case x: JsInt     => serialize(x, None)
-      case x: JsLong    => serialize(x, None)
-      case x: JsDouble  => serialize(x, None)
-      case x: JsDate    => serialize(x, None)
-      case x: JsString  => serialize(x, None)
-      case x: JsBinary  => serialize(x, None)
-      case x: JsObject  => serialize(x, None)
-      case x: JsArray   => serialize(x, None)
+      case x: JsBoolean => serialize(x, None)(buffer)
+      case x: JsInt     => serialize(x, None)(buffer)
+      case x: JsLong    => serialize(x, None)(buffer)
+      case x: JsDouble  => serialize(x, None)(buffer)
+      case x: JsDate    => serialize(x, None)(buffer)
+      case x: JsString  => serialize(x, None)(buffer)
+      case x: JsBinary  => serialize(x, None)(buffer)
+      case x: JsObject  => serialize(x, None)(buffer)
+      case x: JsArray   => serialize(x, None)(buffer)
       case JsNull       => buffer.put(TYPE_NULL)
       case JsUndefined  => ()
     }
-    List((jsonPath.getBytes, buffer2Bytes(buffer)))
+    List((jsonPath, buffer2Bytes(buffer)))
   }
 
   protected def string()(implicit buffer: ByteBuffer): String = {
