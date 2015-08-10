@@ -153,20 +153,21 @@ class BsonSerializer extends JsonSerializer with Logging {
   protected def serialize(json: JsArray, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_ARRAY)
     if (ename.isDefined) cstring(ename.get)
+
     val start = buffer.position
     buffer.putInt(0) // placeholder for document size
 
     json.elements.zipWithIndex.foreach { case (value, index) => value match {
-      case x: JsBoolean => serialize(x, Some(ename.toString))
-      case x: JsInt     => serialize(x, Some(ename.toString))
-      case x: JsLong    => serialize(x, Some(ename.toString))
-      case x: JsDouble  => serialize(x, Some(ename.toString))
-      case x: JsDate    => serialize(x, Some(ename.toString))
-      case x: JsString  => serialize(x, Some(ename.toString))
-      case x: JsBinary  => serialize(x, Some(ename.toString))
-      case x: JsObject  => serialize(x, Some(ename.toString))
-      case x: JsArray   => serialize(x, Some(ename.toString))
-      case JsNull       => buffer.put(TYPE_NULL); cstring(ename.toString)
+      case x: JsBoolean => serialize(x, Some(index.toString))
+      case x: JsInt     => serialize(x, Some(index.toString))
+      case x: JsLong    => serialize(x, Some(index.toString))
+      case x: JsDouble  => serialize(x, Some(index.toString))
+      case x: JsDate    => serialize(x, Some(index.toString))
+      case x: JsString  => serialize(x, Some(index.toString))
+      case x: JsBinary  => serialize(x, Some(index.toString))
+      case x: JsObject  => serialize(x, Some(index.toString))
+      case x: JsArray   => serialize(x, Some(index.toString))
+      case JsNull       => buffer.put(TYPE_NULL); cstring(index.toString)
       case JsUndefined  => () // impossible
     }}
 
@@ -193,10 +194,10 @@ class BsonSerializer extends JsonSerializer with Logging {
   }
 
   protected def string()(implicit buffer: ByteBuffer): String = {
-    val length = buffer.getInt - 1 // length includes the trailing '\X00'
+    val length = buffer.getInt //- 1 // length includes the trailing '\X00'
     val dst = new Array[Byte](length)
     buffer.get(dst)
-    buffer.get // the trailing '\X00'
+    //buffer.get // the trailing '\X00'
     new String(dst)
   }
 
@@ -234,33 +235,39 @@ class BsonSerializer extends JsonSerializer with Logging {
       case TYPE_NULL      => JsNull
       case TYPE_UNDEFINED => JsUndefined // should not happen
       case TYPE_DOCUMENT  => val doc = JsObject(); deserialize(doc)
-      case TYPE_ARRAY     => val doc = JsObject(); deserialize(doc); JsArray(doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2))
+      case TYPE_ARRAY     => val doc = JsObject(); deserialize(doc); doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2)
       case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
     }
   }
 
   protected def deserialize(json: JsObject)(implicit buffer: ByteBuffer): JsObject = {
+    val start = buffer.position
     val size = buffer.getInt // document size
 
-    match {
-      case END_OF_DOCUMENT => ()
-      case TYPE_BOOLEAN => json(ename) = JsBoolean(buffer.get)
-      case TYPE_INT32 => json(ename) = JsInt(buffer.getInt)
-      case TYPE_INT64 => json(ename) = JsLong(buffer.getLong)
-      case TYPE_DOUBLE => json(ename) = JsDouble(buffer.getDouble)
-      case TYPE_DATETIME => json(ename) = JsDate(buffer.getLong)
-      case TYPE_TIMESTAMP => json(ename) = JsDate(buffer.getLong)
-      case TYPE_STRING => json(ename) = JsString(string)
-      case TYPE_BINARY => buffer.get; json(cstring) = binary
-      case TYPE_NULL => json(ename) = JsNull
-      case TYPE_UNDEFINED => ename()
-      case TYPE_DOCUMENT => val doc = JsObject(); json(ename) = deserialize(doc)
-      case TYPE_ARRAY => val doc = JsObject(); val field = ename(); deserialize(doc); json(field) = JsArray(doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2))
-      case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
+    val loop = new scala.util.control.Breaks
+    loop.breakable {
+      while (true) {
+        buffer.get match {
+          case END_OF_DOCUMENT => loop.break
+          case TYPE_BOOLEAN => json(ename) = JsBoolean(buffer.get)
+          case TYPE_INT32 => json(ename) = JsInt(buffer.getInt)
+          case TYPE_INT64 => json(ename) = JsLong(buffer.getLong)
+          case TYPE_DOUBLE => json(ename) = JsDouble(buffer.getDouble)
+          case TYPE_DATETIME => json(ename) = JsDate(buffer.getLong)
+          case TYPE_TIMESTAMP => json(ename) = JsDate(buffer.getLong)
+          case TYPE_STRING => json(ename) = JsString(string)
+          case TYPE_BINARY => buffer.get; json(ename) = binary
+          case TYPE_NULL => json(ename) = JsNull
+          case TYPE_UNDEFINED => ename()
+          case TYPE_DOCUMENT => val doc = JsObject(); json(ename) = deserialize(doc)
+          case TYPE_ARRAY => val doc = JsObject(); val field = ename(); deserialize(doc); json(field) = doc.fields.map { case (k, v) => (k.toInt, v) }.toSeq.sortBy(_._1).map(_._2)
+          case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
+        }
+      }
     }
 
-    if (buffer.position != size)
-      log.warn(s"BSON size $size but deserialize finishs at ${buffer.position}")
+    if (buffer.position - start != size)
+      log.warn(s"BSON size $size but deserialize finishes at ${buffer.position}, starts at $start")
 
     json
   }

@@ -92,7 +92,7 @@ class JsonParserSpec extends Specification {
           |""".stripMargin
     }
 
-    "parse JsonPath example" in {
+    "parse store.json" in {
       val json = JsObject(
         "store" -> JsObject(
           "book" -> JsArray(
