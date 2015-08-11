@@ -5,7 +5,7 @@
 
 package unicorn.json
 
-import java.text.{DateFormat, SimpleDateFormat}
+import java.text.SimpleDateFormat
 import java.util.Date
 import scala.language.dynamics
 import scala.language.implicitConversions
@@ -74,8 +74,8 @@ case class JsBoolean(value: Boolean) extends JsValue {
 }
 
 object JsBoolean {
-  def apply(b: Byte) = new JsBoolean(b != 0)
-  def apply(b: Int)  = new JsBoolean(b != 0)
+  def apply(b: Byte) = if (b != 0) JsTrue else JsFalse
+  def apply(b: Int)  = if (b != 0) JsTrue else JsFalse
 }
 
 case class JsInt(value: Int) extends JsValue {
@@ -99,8 +99,10 @@ case class JsDate(value: Date) extends JsValue {
 }
 
 object JsDate {
-  def apply(date: Long) = new JsDate(new Date(date))
   val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  val formatLength = "yyyy-MM-ddTHH:mm:ss.SSSZ".length
+  def apply(date: Long) = new JsDate(new Date(date))
+  def apply(date: String) = new JsDate(format.parse(date))
 }
 
 case class JsDouble(value: Double) extends JsValue {

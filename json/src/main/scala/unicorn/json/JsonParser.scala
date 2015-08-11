@@ -54,8 +54,8 @@ class JsonParser(input: ParserInput) {
   private def `null`() = advance() && ch('u') && ch('l') && ws('l')
   private def `true`() = advance() && ch('r') && ch('u') && ws('e')
   private def dateOrString(s: String): JsValue = {
-    if (s.length == JsDate.format.toPattern.length) {
-      try {JsDate(JsDate.format.parse(s))} catch { case _: Throwable => JsString(s)}
+    if (s.length == JsDate.formatLength) {
+      try {JsDate(JsDate.format.parse(s))} catch { case _: java.text.ParseException => JsString(s)}
     } else JsString(s)
   }
 
@@ -120,7 +120,11 @@ class JsonParser(input: ParserInput) {
           val n = s.toDouble
           if (n == 0.0) JsDouble.zero else JsDouble(n)
         } else {
-          JsInt(s.toInt)
+          try {
+            JsInt(s.toInt)
+          } catch {
+            case _: NumberFormatException => JsLong(s.toLong)
+          }
         }
       }
     ws()

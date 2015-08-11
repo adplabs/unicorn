@@ -33,6 +33,12 @@ class JsonParserSpec extends Specification {
       JsonParser(""""\"\\/\b\f\n\r\t"""") === JsString("\"\\/\b\f\n\r\t")
       JsonParser("\"L\\" + "u00e4nder\"") === JsString("Länder")
     }
+    "parse '1302806349000' to JsLong" in {
+      JsonParser("1302806349000") === JsLong(1302806349000L)
+    }
+    "parse '2015-08-10T10:00:00.123Z' to JsDate" in {
+      JsonParser("\"2015-08-10T10:00:00.123Z\"") === JsDate("2015-08-10T10:00:00.123Z")
+    }
     "parse all representations of the slash (SOLIDUS) character in a JsString" in {
       JsonParser( "\"" + "/\\/\\u002f" + "\"") === JsString("///")
     }

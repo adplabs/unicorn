@@ -8,8 +8,8 @@ import java.util.Date
 package object json {
   type JsTopLevel = Either[JsObject, JsArray]
 
-  val JsTrue = JsBoolean(true)
-  val JsFalse = JsBoolean(false)
+  val JsTrue = new JsBoolean(true)
+  val JsFalse = new JsBoolean(false)
 
   implicit def jsObjectTopLevel(x: JsObject) = Left(x)
   implicit def jsArrayTopLevel(x: JsArray) = Right(x)
