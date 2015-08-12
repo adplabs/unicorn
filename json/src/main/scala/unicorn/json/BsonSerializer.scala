@@ -66,8 +66,8 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
     buffer.putInt(start, buffer.position - start) // update document size
   }
 
-  override def serialize(json: JsValue, jsonPath: String): List[(String, Array[Byte])] = {
-    buffer.position(0)
+  override def serialize(json: JsValue, jsonPath: String): Map[String, Array[Byte]] = {
+    buffer.clear
     json match {
       case x: JsBoolean => serialize(x, None)(buffer)
       case x: JsInt     => serialize(x, None)(buffer)
@@ -81,12 +81,12 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case JsNull       => buffer.put(TYPE_NULL)
       case JsUndefined  => ()
     }
-    List((jsonPath, buffer2Bytes(buffer)))
+    Map(jsonPath -> buffer2Bytes(buffer))
   }
 
   override def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String): JsValue = {
     val bytes = values.get(rootJsonPath)
-    if (bytes.isEmpty) throw new IllegalArgumentException("root value doesn't exist")
+    if (bytes.isEmpty) throw new IllegalArgumentException(s"""root $rootJsonPath doesn't exist""")
 
     implicit val buffer = ByteBuffer.wrap(bytes.get)
     buffer.get match { // data type
