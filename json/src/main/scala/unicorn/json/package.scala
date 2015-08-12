@@ -1,6 +1,6 @@
 package unicorn
 
-import java.util.Date
+import java.util.{Date, UUID}
 
 /**
  * Created by lihb on 7/23/15.
@@ -18,9 +18,10 @@ package object json {
   implicit def boolean2JsValue(x: Boolean) = JsBoolean(x)
   implicit def int2JsValue(x: Int) = JsInt(x)
   implicit def long2JsValue(x: Long) = JsLong(x)
-  implicit def date2JsValue(x: Date) = JsDate(x)
   implicit def double2JsValue(x: Double) = JsDouble(x)
   implicit def string2JsValue(x: String) = JsString(x)
+  implicit def date2JsValue(x: Date) = JsDate(x)
+  implicit def uuid2JsValue(x: UUID) = JsUUID(x)
   implicit def byteArray2JsValue(x: Array[Byte]) = JsBinary(x)
 
   implicit def array2JsValue(x: Array[JsValue]) = JsArray(x: _*)
@@ -32,25 +33,31 @@ package object json {
   implicit def booleanArray2JsValue(x: Array[Boolean]): JsArray = JsArray(x.map {e => JsBoolean(e)}: _*)
   implicit def intArray2JsValue(x: Array[Int]): JsArray = JsArray(x.map {e => JsInt(e)}: _*)
   implicit def longArray2JsValue(x: Array[Long]): JsArray = JsArray(x.map {e => JsLong(e)}: _*)
-  implicit def dateArray2JsValue(x: Array[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
   implicit def doubleArray2JsValue(x: Array[Double]): JsArray = JsArray(x.map {e => JsDouble(e)}: _*)
   implicit def stringArray2JsValue(x: Array[String]): JsArray = JsArray(x.map {e => JsString(e)}: _*)
+  implicit def dateArray2JsValue(x: Array[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
+  implicit def uuidArray2JsValue(x: Array[UUID]): JsArray = JsArray(x.map {e => JsUUID(e)}: _*)
+  implicit def binaryArray2JsValue(x: Array[Array[Byte]]): JsArray = JsArray(x.map {e => JsBinary(e)}: _*)
 
   // Implicit conversion applies only once. Since Array has an implicit conversion to Seq, we duplicate
   // the definition for Seq again.
   implicit def booleanSeq2JsValue(x: Seq[Boolean]): JsArray = JsArray(x.map {e => JsBoolean(e)}: _*)
   implicit def intSeq2JsValue(x: Seq[Int]): JsArray = JsArray(x.map {e => JsInt(e)}: _*)
   implicit def longSeq2JsValue(x: Seq[Long]): JsArray = JsArray(x.map {e => JsLong(e)}: _*)
-  implicit def dateSeq2JsValue(x: Seq[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
   implicit def doubleSeq2JsValue(x: Seq[Double]): JsArray = JsArray(x.map {e => JsDouble(e)}: _*)
   implicit def stringSeq2JsValue(x: Seq[String]): JsArray = JsArray(x.map {e => JsString(e)}: _*)
+  implicit def dateSeq2JsValue(x: Seq[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
+  implicit def uuidSeq2JsValue(x: Seq[UUID]): JsArray = JsArray(x.map {e => JsUUID(e)}: _*)
+  implicit def binarySeq2JsValue(x: Seq[Array[Byte]]): JsArray = JsArray(x.map {e => JsBinary(e)}: _*)
 
   implicit def json2Boolean(x: JsBoolean) = x.value
   implicit def json2Int(x: JsInt) = x.value
   implicit def json2Long(x: JsLong) = x.value
-  implicit def json2Date(x: JsDate) = x.value
   implicit def json2Double(x: JsDouble) = x.value
   implicit def json2String(x: JsString) = x.value
+  implicit def json2Date(x: JsDate) = x.value
+  implicit def json2UUID(x: JsUUID) = x.value
+  implicit def json2Binary(x: JsBinary) = x.value
 
   implicit def json2Boolean(json: JsValue): Boolean = json match {
     case JsBoolean(x) => x

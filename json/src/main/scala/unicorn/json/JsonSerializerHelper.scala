@@ -39,7 +39,8 @@ trait JsonSerializerHelper {
   val BINARY_SUBTYPE_GENERIC      : Byte = 0x00
   val BINARY_SUBTYPE_FUNCTION     : Byte = 0x01
   val BINARY_SUBTYPE_BINARY_OLD   : Byte = 0x02
-  val BINARY_SUBTYPE_UUID         : Byte = 0x03
+  val BINARY_SUBTYPE_UUID_OLD     : Byte = 0x03
+  val BINARY_SUBTYPE_UUID         : Byte = 0x04
   val BINARY_SUBTYPE_MD5          : Byte = 0x05
   val BINARY_SUBTYPE_USER_DEFINED : Byte = 0x80.toByte
 
@@ -89,18 +90,27 @@ trait JsonSerializerHelper {
     buffer.putDouble(json.value)
   }
 
-  def serialize(json: JsDate, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
-    buffer.put(TYPE_DATETIME)
-    if (ename.isDefined) cstring(ename.get)
-    buffer.putLong(json.value.getTime)
-  }
-
   def serialize(json: JsString, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_STRING)
     if (ename.isDefined) cstring(ename.get)
     val bytes = json.value.getBytes(charset)
     buffer.putInt(bytes.length)
     buffer.put(bytes)
+  }
+
+  def serialize(json: JsDate, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+    buffer.put(TYPE_DATETIME)
+    if (ename.isDefined) cstring(ename.get)
+    buffer.putLong(json.value.getTime)
+  }
+
+  def serialize(json: JsUUID, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+    buffer.put(TYPE_BINARY)
+    if (ename.isDefined) cstring(ename.get)
+    buffer.putInt(16)
+    buffer.put(BINARY_SUBTYPE_UUID)
+    buffer.putLong(json.value.getMostSignificantBits)
+    buffer.putLong(json.value.getLeastSignificantBits)
   }
 
   def serialize(json: JsBinary, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
@@ -151,11 +161,15 @@ trait JsonSerializerHelper {
     JsString(new String(dst, charset))
   }
 
-  def binary()(implicit buffer: ByteBuffer): JsBinary = {
+  def binary()(implicit buffer: ByteBuffer): JsValue = {
     val length = buffer.getInt
     val subtype = buffer.get
-    val dst = new Array[Byte](length)
-    buffer.get(dst)
-    JsBinary(dst)
+    if (subtype == BINARY_SUBTYPE_UUID) {
+      JsUUID(buffer.getLong, buffer.getLong)
+    } else {
+      val dst = new Array[Byte](length)
+      buffer.get(dst)
+      JsBinary(dst)
+    }
   }
 }

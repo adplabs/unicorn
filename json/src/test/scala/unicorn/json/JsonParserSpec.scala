@@ -14,16 +14,16 @@ class JsonParserSpec extends Specification {
     "parse 'false' to JsFalse" in {
       JsonParser("false") === JsFalse
     }
-    "parse '0' to JsNumber" in {
+    "parse '0' to JsInt" in {
       JsonParser("0") === JsInt(0)
     }
-    "parse '1.23' to JsNumber" in {
+    "parse '1.23' to JsDouble" in {
       JsonParser("1.23") === JsDouble(1.23)
     }
-    "parse '-1E10' to JsNumber" in {
+    "parse '-1E10' to JsDouble" in {
       JsonParser("-1E10") === JsDouble(-1E+10)
     }
-    "parse '12.34e-10' to JsNumber" in {
+    "parse '12.34e-10' to JsDouble" in {
       JsonParser("12.34e-10") === JsDouble(1.234E-9)
     }
     "parse \"xyz\" to JsString" in {
@@ -38,6 +38,9 @@ class JsonParserSpec extends Specification {
     }
     "parse '2015-08-10T10:00:00.123Z' to JsDate" in {
       JsonParser("\"2015-08-10T10:00:00.123Z\"") === JsDate("2015-08-10T10:00:00.123Z")
+    }
+    "parse 'CA761232-ED42-11CE-BACD-00AA0057B223' to JsUUID" in {
+      JsonParser("\"CA761232-ED42-11CE-BACD-00AA0057B223\"") === JsUUID("CA761232-ED42-11CE-BACD-00AA0057B223")
     }
     "parse all representations of the slash (SOLIDUS) character in a JsString" in {
       JsonParser( "\"" + "/\\/\\u002f" + "\"") === JsString("///")

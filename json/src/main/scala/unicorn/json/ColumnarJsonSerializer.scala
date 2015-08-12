@@ -24,8 +24,9 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsInt => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsLong => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsDouble => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsString => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsUUID => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsBinary => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsObject => serialize(x, Some(jsonPath(ename.get, field)), map)
         case x: JsArray => serialize(x, Some(jsonPath(ename.get, field)), map)
@@ -49,8 +50,9 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsInt => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsLong => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsDouble => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsString => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsUUID => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsBinary => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsObject => serialize(x, Some(jsonPath(ename.get, index)), map)
         case x: JsArray => serialize(x, Some(jsonPath(ename.get, index)), map)
@@ -68,8 +70,9 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case x: JsInt => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsLong => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsDouble => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsDate => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsString => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsDate => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsUUID => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsBinary => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsObject => serialize(x, Some(jsonPath), map)(buffer)
       case x: JsArray => serialize(x, Some(jsonPath), map)(buffer)

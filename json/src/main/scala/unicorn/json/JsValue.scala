@@ -6,7 +6,7 @@
 package unicorn.json
 
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{Date, UUID}
 import scala.language.dynamics
 import scala.language.implicitConversions
 
@@ -94,17 +94,6 @@ object JsLong {
   val zero = JsLong(0L)
 }
 
-case class JsDate(value: Date) extends JsValue {
-  override def toString = JsDate.format.format(value)
-}
-
-object JsDate {
-  val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-  val formatLength = "yyyy-MM-ddTHH:mm:ss.SSSZ".length
-  def apply(date: Long) = new JsDate(new Date(date))
-  def apply(date: String) = new JsDate(format.parse(date))
-}
-
 case class JsDouble(value: Double) extends JsValue {
   override def toString = value.toString
 }
@@ -119,6 +108,30 @@ case class JsString(value: String) extends JsValue {
 
 object JsString {
   val empty = JsString("")
+}
+
+case class JsDate(value: Date) extends JsValue {
+  override def toString = JsDate.format.format(value)
+}
+
+object JsDate {
+  val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  val formatLength = "yyyy-MM-ddTHH:mm:ss.SSSZ".length
+  def apply(date: Long) = new JsDate(new Date(date))
+  def apply(date: String) = new JsDate(format.parse(date))
+}
+
+case class JsUUID(value: UUID) extends JsValue {
+  override def toString = value.toString
+}
+
+object JsUUID {
+  val regex = """[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}""".r
+  val formatLength = 36
+  def apply() = new JsUUID(UUID.randomUUID)
+  def apply(mostSigBits: Long, leastSigBits: Long) = new JsUUID(new UUID(mostSigBits, leastSigBits))
+  def apply(uuid: String) = new JsUUID(UUID.fromString(uuid))
+  def apply(uuid: Array[Byte]) = new JsUUID(UUID.nameUUIDFromBytes(uuid))
 }
 
 case class JsBinary(value: Array[Byte]) extends JsValue {
