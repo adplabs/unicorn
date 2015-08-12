@@ -95,8 +95,8 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case TYPE_BINARY => binary
       case TYPE_NULL => JsNull
       case TYPE_UNDEFINED => JsUndefined // should not happen
-      case TYPE_DOCUMENT => val keys = fields(buffer); val kvs = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kvs: _*)
-      case TYPE_ARRAY => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements)
+      case TYPE_DOCUMENT => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kv: _*)
+      case TYPE_ARRAY => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
       case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
     }
   }
