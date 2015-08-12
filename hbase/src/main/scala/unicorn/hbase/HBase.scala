@@ -3,7 +3,7 @@
  *          (c) Copyright ADP 2014, All Rights Reserved                       *
  ******************************************************************************/
 
-package unicorn.store.hbase
+package unicorn.hbase
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
@@ -11,42 +11,38 @@ import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
-import unicorn.store.Database
-import unicorn.store.Dataset
-import unicorn.Document
-import org.apache.hadoop.hbase.util.Bytes
 
 /**
  * HBase server adapter.
  *
  * @author Haifeng Li (293050)
  */
-class HBaseServer(config: Configuration) extends Database {
+class HBase(config: Configuration) extends unicorn.bigtable.Database {
   lazy val connection = ConnectionFactory.createConnection(config)
   lazy val admin = connection.getAdmin
   
-  override def dataset(name: String, visibility: Option[String], authorizations: Option[Seq[String]]): Dataset = {
+  override def getTable(name: String): unicorn.bigtable.Table = {
     val table = connection.getTable(TableName.valueOf(name))
-    new HBaseTable(table, visibility, authorizations)
+    new HBaseTable(table)
   }
   
-  override def createDataSet(name: String): Unit = {
-    createDataSet(name, "", 1, Document.AttributeFamily, Document.RelationshipFamily)
-  }
-  
-  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
+  override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
     if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
     val tableDesc = new HTableDescriptor(TableName.valueOf(name))
-    columnFamilies.foreach { columnFamily =>
-      val meta = new HColumnDescriptor(Bytes.toBytes(columnFamily))
-      tableDesc.addFamily(meta)
+    families.foreach { family =>
+      val desc = new HColumnDescriptor(family)
+      desc.setCompressionType(org.apache.hadoop.hbase.io.compress.Compression.Algorithm.SNAPPY)
+      desc.setDataBlockEncoding(org.apache.hadoop.hbase.io.encoding.DataBlockEncoding.FAST_DIFF)
+      //will be available in 2.0
+      //desc.setMobEnabled(true)
+      tableDesc.addFamily(desc)
     }
     admin.createTable(tableDesc)
   }
   
-  override def dropDataSet(name: String): Unit = {
+  override def dropTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
     if (!admin.tableExists(tableName))
       throw new IllegalStateException(s"Drop Table $name, which does not exists")
@@ -56,15 +52,14 @@ class HBaseServer(config: Configuration) extends Database {
   }
 }
 
-object HBaseServer {
-  def apply(): HBaseServer = {
-    // HBaseConfiguration reads in hbase-site.xml and in hbase-default.xml that
-    // can be found on the CLASSPATH
+object HBase {
+  /* Uses hbase-site.xml and in hbase-default.xml that can be found on the CLASSPATH */
+  def apply(): HBase = {
     val config = HBaseConfiguration.create
-    new HBaseServer(config)
+    new HBase(config)
   }
 
-  def apply(config: Configuration): HBaseServer = {
-    new HBaseServer(config)
+  def apply(config: Configuration): HBase = {
+    new HBase(config)
   }
 }

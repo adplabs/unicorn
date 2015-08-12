@@ -2,7 +2,6 @@ import unicorn._
 import unicorn.json._
 import unicorn.store._
 import unicorn.store.accumulo._
-import unicorn.store.hbase._
 
 // measure running time of a function/block 
 def time[A](f: => A) = {

@@ -9,25 +9,27 @@ lazy val commonSettings = Seq(
   scalacOptions in Test ++= Seq("-Yrangepos")
 )
 
-lazy val root = project.in(file(".")).aggregate(util, json, core, hbase, cassandra, accumulo, console, graph, search, demo)
+lazy val root = project.in(file(".")).aggregate(util, json, bigtable, hbase, cassandra, accumulo, doc, console, graph, search, demo)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
 lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(util)
 
-lazy val core = project.in(file("core")).settings(commonSettings: _*).dependsOn(json)
+lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*)
 
-lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(core)
+lazy val doc = project.in(file("doc")).settings(commonSettings: _*).dependsOn(json)
 
-lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(core)
+lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable)
 
-lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(core)
+lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(bigtable)
 
-lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(core)
+lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable)
 
-lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
+lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(doc)
 
-lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, cassandra, accumulo)
+lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(doc)
 
-lazy val demo = project.in(file("demo")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
+lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(doc, graph, search, hbase, cassandra, accumulo)
+
+lazy val demo = project.in(file("demo")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(doc, graph, search, cassandra)
 
