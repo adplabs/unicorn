@@ -1,7 +1,6 @@
-package unicorn.store.cassandra
+package unicorn.cassandra
 
-import unicorn._, store._
-import org.apache.cassandra.thrift.Cassandra
+import org.apache.cassandra.thrift.Cassandra.Client
 import org.apache.cassandra.thrift.KsDef
 import org.apache.cassandra.thrift.CfDef
 import org.apache.thrift.transport.TFramedTransport
@@ -12,22 +11,18 @@ import org.apache.thrift.protocol.TBinaryProtocol
 /**
  * Cassandra server adapter.
  *
- * @author Haifeng Li (293050)
+ * @author Haifeng Li
  */
-class CassandraServer(protocol: TProtocol) extends Database {
-  val admin = new Cassandra.Client(protocol)
+class Cassandra(protocol: TProtocol) extends unicorn.bigtable.Database {
+  val admin = new Client(protocol)
   
-  override def dataset(name: String, visibility: Option[String], authorizations: Option[Seq[String]]): Dataset = {
-    val client = new Cassandra.Client(protocol)
+  override def getTable(name: String): unicorn.bigtable.Table = {
+    val client = new Client(protocol)
     client.set_keyspace(name)
-    new CassandraKeyspace(client)
+    new CassandraTable(client)
   }
   
-  override def createDataSet(name: String): Unit = {
-    createDataSet(name, "org.apache.cassandra.locator.SimpleStrategy", 1, Document.AttributeFamily, Document.RelationshipFamily)
-  }
-  
-  override def createDataSet(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit = {
+  override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
     val options = new java.util.HashMap[String, String]
     options.put("replication_factor", replication.toString)
     
@@ -36,9 +31,9 @@ class CassandraServer(protocol: TProtocol) extends Database {
     keyspace.setStrategy_class(strategy)
     keyspace.setStrategy_options(options)
     
-    columnFamilies.foreach { columnFamily =>
+    families.foreach { family =>
       val cf = new CfDef
-      cf.setName(columnFamily)
+      cf.setName(family)
       cf.setKeyspace(name)
       keyspace.addToCf_defs(cf)
     }
@@ -46,13 +41,13 @@ class CassandraServer(protocol: TProtocol) extends Database {
     admin.system_add_keyspace(keyspace)
   }
   
-  override def dropDataSet(name: String): Unit = {
+  override def dropTable(name: String): Unit = {
     admin.system_drop_keyspace(name)
   }
 }
 
-object CassandraServer {
-  def apply(host: String, port: Int): CassandraServer = {
+object Cassandra {
+  def apply(host: String, port: Int): Cassandra = {
     // For ultra-wide row, we set the maxLength to 1G.
     // Note that we also need to set the server side configuration
     // thrift_framed_transport_size_in_mb in cassandra.yaml
@@ -60,6 +55,6 @@ object CassandraServer {
     transport.open
     
     val protocol = new TBinaryProtocol(transport)
-    new CassandraServer(protocol)
+    new Cassandra(protocol)
   }
 }

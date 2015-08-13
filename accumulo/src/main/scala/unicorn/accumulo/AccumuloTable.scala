@@ -64,8 +64,14 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     getResults(scanner)
   }
 
+  /** Unsupported */
   override def get(keys: Key*): Map[Key, Value] = {
-    throw new UnsupportedOperationException
+    keys.foldLeft(Map.empty[Key, Value]) { case (acc, (row, family, column)) =>
+      val scanner = newScanner
+      scanner.setRange(new Range(new Text(row)))
+      scanner.fetchColumn(new Text(family), new Text(column))
+      acc ++ getResults(scanner)
+    }
   }
 
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner = {
@@ -100,10 +106,7 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
   val batchWriterConfig = new BatchWriterConfig
   // bytes available to batchwriter for buffering mutations
   batchWriterConfig.setMaxMemory(10000000L)
-
-  private def newWriter = {
-    conn.createBatchWriter(table, batchWriterConfig)
-  }
+  val writer = conn.createBatchWriter(table, batchWriterConfig)
 
   override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
     require(!columns.isEmpty)
@@ -113,13 +116,22 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     else
       columns.foreach { case (column, value) => mutation.put(family, column, value) }
 
-    val writer = newWriter
     writer.addMutation(mutation)
-    writer.close
+    writer.flush
   }
 
   override def put(values: (Key, Array[Byte])*): Unit = {
-    throw new UnsupportedOperationException
+    require(!values.isEmpty)
+    values.foreach { case (key, value) =>
+      val mutation = new Mutation(key._1)
+      if (cellVisibility.isDefined)
+        mutation.put(key._2, key._3, cellVisibility.get, value)
+      else
+        mutation.put(key._2, key._3, value)
+
+      writer.addMutation(mutation)
+    }
+    writer.flush
   }
 
   override def delete(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
@@ -130,31 +142,56 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     else
       columns.foreach { column => mutation.putDelete(family, column) }
 
-    val writer = newWriter
     writer.addMutation(mutation)
-    writer.close
+    writer.flush
   }
 
   override def delete(keys: Key*): Unit = {
-    throw new UnsupportedOperationException
+    require(!keys.isEmpty)
+    keys.foreach { key =>
+      val mutation = new Mutation(key._1)
+      if (cellVisibility.isDefined)
+        mutation.putDelete(key._2, key._3, cellVisibility.get)
+      else
+        mutation.putDelete(key._2, key._3)
+
+      writer.addMutation(mutation)
+    }
+    writer.flush
   }
 
   override def delete(row: Array[Byte]): Unit = {
-    throw new UnsupportedOperationException
+    val scanner = newScanner
+    scanner.setRange(new Range(new Text(row)))
+
+    val mutation = new Mutation(row)
+    // iterate through the keys
+    scanner.foreach { case cell =>
+      if (cellVisibility.isDefined)
+        mutation.putDelete(cell.getKey.getColumnFamily, cell.getKey.getColumnQualifier, cellVisibility.get)
+      else
+        mutation.putDelete(cell.getKey.getColumnFamily, cell.getKey.getColumnQualifier)
+      writer.addMutation(mutation)
+    }
+    writer.flush
   }
 
+  /** Unsupported */
   override def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
     throw new UnsupportedOperationException
   }
 
+  /** Unsupported */
   override def rollback(keys: Key*): Unit = {
     throw new UnsupportedOperationException
   }
 
+  /** Unsupported */
   override def append(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
     throw new UnsupportedOperationException
   }
 
+  /** Unsupported */
   override def increment(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
     throw new UnsupportedOperationException
   }

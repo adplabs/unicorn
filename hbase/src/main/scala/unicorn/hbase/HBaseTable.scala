@@ -76,12 +76,14 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
   }
 
   override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
+    require(!columns.isEmpty)
     val put = newPut(row)
     columns.foreach { case (column, value) => put.addColumn(family, column, value) }
     table.put(put)
   }
 
   override def put(values: (Key, Array[Byte])*): Unit = {
+    require(!values.isEmpty)
     val puts = values.map { case ((row, family, column), value) =>
       val put = newPut(row)
       put.addColumn(family, column, value)
@@ -98,17 +100,18 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
   }
 
   override def delete(keys: Key*): Unit = {
+    require(!keys.isEmpty)
     val deletes = keys.map { case (row, family, column) =>
-      val del = newDelete(row)
-      del.addColumns(family, column)
-      del
+      val deleter = newDelete(row)
+      deleter.addColumns(family, column)
+      deleter
     }
     table.delete(deletes)
   }
 
   override def delete(row: Array[Byte]): Unit = {
-    val del = newDelete(row)
-    table.delete(del)
+    val deleter = newDelete(row)
+    table.delete(deleter)
   }
 
   override def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
@@ -119,6 +122,7 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
   }
 
   override def rollback(keys: Key*): Unit = {
+    require(!keys.isEmpty)
     val deletes = keys.map { case (row, family, column) =>
       val del = newDelete(row)
       del.addColumn(family, column)

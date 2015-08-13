@@ -7,7 +7,7 @@ import spray.http.HttpHeaders.RawHeader
 import MediaTypes._
 
 import unicorn._, json._
-import unicorn.store.cassandra.CassandraServer
+import unicorn.cassandra.CassandraServer
 import unicorn.search.TextSearch
 
 
