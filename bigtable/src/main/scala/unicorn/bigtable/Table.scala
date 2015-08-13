@@ -43,6 +43,11 @@ trait Table {
   def get(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Map[Key, Value]
 
   /**
+   * Batch get multiple rows.
+   */
+  def get(keys: Key*): Map[Key, Value]
+
+  /**
    * Scan all columns in one ore more column families. If family is empty, get all column families.
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
@@ -66,14 +71,29 @@ trait Table {
   def put(values: (Key, Array[Byte])*): Unit
 
   /**
-   * Delete the columns of a row.
+   * Delete the columns of a row. If columns is empty, delete all columns in the family.
    */
-  def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]*): Unit
+  def delete(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit
 
   /**
-   * Update the values of one or more rows.
+   * Delete the whole row.
+   */
+  def delete(row: Array[Byte]): Unit
+
+  /**
+   * Delete the values of one or more rows.
    */
   def delete(keys: Key*): Unit
+
+  /**
+   * Rollback to the previous version for the given columns of a row. Columns must not be empty.
+   */
+  def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit
+
+  /**
+   * Rollback to the previous version for one or more rows.
+   */
+  def rollback(keys: Key*): Unit
 
   /**
    * Append the value of a column.

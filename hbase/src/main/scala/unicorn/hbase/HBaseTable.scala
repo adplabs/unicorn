@@ -15,10 +15,6 @@ import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibili
  * @author Haifeng Li
  */
 class HBaseTable(table: Table) extends unicorn.bigtable.Table {
-  var updates = List[Row]()
-  var cellVisibility: Option[CellVisibility] = None
-  var authorizations: Option[Authorizations] = None
-
   class HBaseScanner(scanner: ResultScanner) extends Scanner {
     val iter = scanner.iterator
     def close: Unit = scanner.close
@@ -27,6 +23,9 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
       getResults(iter.next)
     }
   }
+
+  var cellVisibility: Option[CellVisibility] = None
+  var authorizations: Option[Authorizations] = None
 
   override def setCellVisibility(expression: String): Unit = {
     cellVisibility = Some(new CellVisibility(expression))
@@ -50,6 +49,18 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
     val get = newGet(row)
     columns.foreach { column => get.addColumn(family, column) }
     getResults(table.get(get))
+  }
+
+  override def get(keys: Key*): Map[Key, Value] = {
+    val gets = keys.map { case (row, family, column) =>
+      val get = newGet(row)
+      get.addColumn(family, column)
+      get
+    }
+
+    table.get(gets).foldLeft(Map.empty[Key, Value]) { case (acc, result) =>
+      acc ++ getResults(result)
+    }
   }
 
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner = {
@@ -81,11 +92,33 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   override def delete(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
     val del = newDelete(row)
-    columns.foreach { column => del.addColumn(family, column) }
+    if (columns.isEmpty) del.addFamily(family)
+    else columns.foreach { column => del.addColumns(family, column) }
     table.delete(del)
   }
 
   override def delete(keys: Key*): Unit = {
+    val deletes = keys.map { case (row, family, column) =>
+      val del = newDelete(row)
+      del.addColumns(family, column)
+      del
+    }
+    table.delete(deletes)
+  }
+
+  override def delete(row: Array[Byte]): Unit = {
+    val del = newDelete(row)
+    table.delete(del)
+  }
+
+  override def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
+    require(!columns.isEmpty)
+    val del = newDelete(row)
+    columns.foreach { column => del.addColumn(family, column) }
+    table.delete(del)
+  }
+
+  override def rollback(keys: Key*): Unit = {
     val deletes = keys.map { case (row, family, column) =>
       val del = newDelete(row)
       del.addColumn(family, column)
