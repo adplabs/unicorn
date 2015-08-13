@@ -103,10 +103,10 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     }.toMap
   }
 
-  val batchWriterConfig = new BatchWriterConfig
+  private val batchWriterConfig = new BatchWriterConfig
   // bytes available to batchwriter for buffering mutations
   batchWriterConfig.setMaxMemory(10000000L)
-  val writer = conn.createBatchWriter(table, batchWriterConfig)
+  private val writer = conn.createBatchWriter(table, batchWriterConfig)
 
   override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
     require(!columns.isEmpty)

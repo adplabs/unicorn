@@ -20,9 +20,26 @@ sealed abstract class JsValue extends Dynamic {
   def compactPrint = CompactPrinter(this)
   def prettyPrint = PrettyPrinter(this)
 
+  /**
+   * Look up field in the current object.
+   *
+   * @return the field or JsUndefined
+   */
+  def \(key: String): JsValue = apply(key)
+  def \(key: Symbol): JsValue = apply(key.name)
+
+  /**
+   * Look up fieldName in the current object and all descendants.
+   *
+   * @return the list of matching nodes
+   */
+  def \\(key: String): Seq[JsValue] = Seq.empty
+
   def apply(key: String): JsValue = {
     throw new UnsupportedOperationException
   }
+
+  def apply(key: Symbol): JsValue = apply(key.name)
 
   def apply(index: Int): JsValue = {
     throw new UnsupportedOperationException
@@ -139,6 +156,13 @@ case class JsBinary(value: Array[Byte]) extends JsValue {
 }
 
 case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsValue {
+  override def \\(key: String): Seq[JsValue] = {
+    fields.foldLeft(Seq[JsValue]())((o, pair) => pair match {
+      case (field, value) if key == field => o ++ (value +: (value \\ key))
+      case (_, value) => o ++ (value \\ key)
+    })
+  }
+
   override def apply(key: String): JsValue = {
     if (fields.contains(key))
       fields(key)
@@ -179,6 +203,12 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
   override def toIterator: Iterator[JsValue] = elements.toIterator
   override def toStream: Stream[JsValue] = elements.toStream
   override def toTraversable: Traversable[JsValue] = elements.toTraversable
+
+  override def size: Int = elements.size
+
+  override def \\(fieldName: String): Seq[JsValue] = {
+    elements.flatMap(_ \\ fieldName)
+  }
 
   override def apply(index: Int): JsValue = elements(index)
 

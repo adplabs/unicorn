@@ -13,7 +13,7 @@ import unicorn.json._
 /**
  * A document can be regarded as a JSON object with a unique key.
  * 
- * @author Haifeng Li (293050)
+ * @author Haifeng Li
  */
 class Document(val id: String,
     attributeFamily: String = Document.AttributeFamily,

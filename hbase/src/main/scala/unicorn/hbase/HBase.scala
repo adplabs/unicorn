@@ -18,8 +18,8 @@ import org.apache.hadoop.hbase.TableName
  * @author Haifeng Li (293050)
  */
 class HBase(config: Configuration) extends unicorn.bigtable.Database {
-  lazy val connection = ConnectionFactory.createConnection(config)
-  lazy val admin = connection.getAdmin
+  private val connection = ConnectionFactory.createConnection(config)
+  private val admin = connection.getAdmin
   
   override def getTable(name: String): unicorn.bigtable.Table = {
     val table = connection.getTable(TableName.valueOf(name))

@@ -33,7 +33,7 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
 
   override def getAuthorizations: Option[Seq[String]] = None
 
-  val null_range = ByteBuffer.wrap(Array[Byte]())
+  private val null_range = ByteBuffer.wrap(Array[Byte]())
   override def get(row: Array[Byte], families: Array[Byte]*): Map[Key, Value] = {
     require(families.size == 1)
     val key = ByteBuffer.wrap(row)
@@ -80,7 +80,7 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
     }.toMap
   }
 
-  val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
+  private val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
 
   override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
     val key = ByteBuffer.wrap(row)

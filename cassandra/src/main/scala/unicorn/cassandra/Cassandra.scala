@@ -14,7 +14,7 @@ import org.apache.thrift.protocol.TBinaryProtocol
  * @author Haifeng Li
  */
 class Cassandra(protocol: TProtocol) extends unicorn.bigtable.Database {
-  val admin = new Client(protocol)
+  private val admin = new Client(protocol)
   
   override def getTable(name: String): unicorn.bigtable.Table = {
     val client = new Client(protocol)
