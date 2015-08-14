@@ -6,68 +6,74 @@ class JsonPathSpec extends Specification {
   "JsonPath" should {
 
     "field" in {
-      JsonPath.query("$.id", json) === JsInt(1)
-      JsonPath.query("$['id']", json) === JsInt(1)
+      val jp = JsonPath(json)
+      jp("$.id") === JsInt(1)
+      jp("$['id']") === JsInt(1)
     }
 
     "recursive field" in {
-      JsonPath.query("$..id", json) === JsArray(2, 3, 4, 1)
+      JsonPath(json)("$..id") === JsArray(2, 3, 4, 1)
     }
 
     "multi fields" in {
-      JsonPath.query("$['id', 'name']", json) === JsArray("Joe", 1)
+      JsonPath(json)("$['id', 'name']") === JsArray("Joe", 1)
     }
 
     "any field" in {
-      JsonPath.query("$.*", json) === JsArray(json.fields.map(_._2).toArray: _*)
-      JsonPath.query("$.tags.*", json) === JsArray(tags.map(JsString(_)): _*)
-      JsonPath.query("$['tags'].*", json) === JsArray(tags.map(JsString(_)): _*)
+      val jp = JsonPath(json)
+      jp("$.*") === JsArray(json.fields.map(_._2).toArray: _*)
+      jp("$.tags.*") === JsArray(tags.map(JsString(_)): _*)
+      jp("$['tags'].*") === JsArray(tags.map(JsString(_)): _*)
     }
 
     "recursive any" in {
-      JsonPath.query("$..*", json) === json
+      JsonPath(json)("$..*") === json
     }
 
     "array slices" in {
+      val jp = JsonPath(json)
       tags.indices.foreach{ i =>
-        JsonPath.query("$.tags[" + i + ":]", json) === JsArray(tags.drop(i).map(JsString(_)): _*)
+        jp("$.tags[" + i + ":]") === JsArray(tags.drop(i).map(JsString(_)): _*)
       }
-      JsonPath.query("$.tags[2]", json) === JsString("father")
-      JsonPath.query("$.tags[0:3:2]", json) === JsArray(JsString(tags(0)), JsString(tags(2)))
-      JsonPath.query("$.tags[-2:]", json) === JsArray(tags.takeRight(2).map(JsString(_)): _*)
-      JsonPath.query("$.tags[:-2]", json) === JsArray(tags.dropRight(2).map(JsString(_)): _*)
+      jp("$.tags[2]") === JsString("father")
+      jp("$.tags[0:3:2]") === JsArray(JsString(tags(0)), JsString(tags(2)))
+      jp("$.tags[-2:]") === JsArray(tags.takeRight(2).map(JsString(_)): _*)
+      jp("$.tags[:-2]") === JsArray(tags.dropRight(2).map(JsString(_)): _*)
     }
 
     "array random" in {
-      JsonPath.query("$.tags[0,2]", json) === JsArray(JsString(tags(0)), JsString(tags(2)))
-      JsonPath.query("$.tags[-1]", json) === JsString(tags.last)
+      val jp = JsonPath(json)
+      jp("$.tags[0,2]") === JsArray(JsString(tags(0)), JsString(tags(2)))
+      jp("$.tags[-1]") === JsString(tags.last)
     }
 
     "array recursive" in {
-      JsonPath.query("$.address[*].city", json).asInstanceOf[JsArray].size === 3
+      JsonPath(json)("$.address[*].city").asInstanceOf[JsArray].size === 3
     }
 
     "has filter" in {
-      JsonPath.query("$.address[?(@.work)]", json).asInstanceOf[JsArray].size === 1
+      JsonPath(json)("$.address[?(@.work)]").asInstanceOf[JsArray].size === 1
     }
 
     "comparison filter" in {
-      JsonPath.query("$.address[?(@.id < 3)]", json).asInstanceOf[JsArray].size === 1
-      JsonPath.query("$.address[?(@.id <= 3)]", json).asInstanceOf[JsArray].size === 2
+      val jp = JsonPath(json)
+      jp("$.address[?(@.id < 3)]").asInstanceOf[JsArray].size === 1
+      jp("$.address[?(@.id <= 3)]").asInstanceOf[JsArray].size === 2
 
-      JsonPath.query("$.address[?(@.id > 2)]", json).asInstanceOf[JsArray].size === 2
-      JsonPath.query("$.address[?(@.id >= 2)]", json).asInstanceOf[JsArray].size === 3
+      jp("$.address[?(@.id > 2)]").asInstanceOf[JsArray].size === 2
+      jp("$.address[?(@.id >= 2)]").asInstanceOf[JsArray].size === 3
 
-      JsonPath.query("$.address[?(@.state == 'PA')]", json).asInstanceOf[JsArray].size === 2
-      JsonPath.query("$.address[?(@.city == 'Springfield')]", json).asInstanceOf[JsArray].size === 1
-      JsonPath.query("$.address[?(@.city != 'Devon')]", json).asInstanceOf[JsArray].size === 2
+      jp("$.address[?(@.state == 'PA')]").asInstanceOf[JsArray].size === 2
+      jp("$.address[?(@.city == 'Springfield')]").asInstanceOf[JsArray].size === 1
+      jp("$.address[?(@.city != 'Devon')]").asInstanceOf[JsArray].size === 2
     }
 
     "boolean filter" in {
-      JsonPath.query("$.address[?(@.id > 1 && @.state != 'PA')]", json).asInstanceOf[JsArray].size === 1
-      JsonPath.query("$.address[?(@.id < 4 && @.state == 'PA')]", json).asInstanceOf[JsArray].size === 2
-      JsonPath.query("$.address[?(@.id == 4 || @.state == 'PA')]", json).asInstanceOf[JsArray].size === 3
-      JsonPath.query("$.address[?(@.id == 4 || @.state == 'NJ')]", json).asInstanceOf[JsArray].size === 1
+      val jp = JsonPath(json)
+      jp("$.address[?(@.id > 1 && @.state != 'PA')]").asInstanceOf[JsArray].size === 1
+      jp("$.address[?(@.id < 4 && @.state == 'PA')]").asInstanceOf[JsArray].size === 2
+      jp("$.address[?(@.id == 4 || @.state == 'PA')]").asInstanceOf[JsArray].size === 3
+      jp("$.address[?(@.id == 4 || @.state == 'NJ')]").asInstanceOf[JsArray].size === 1
     }
   }
 

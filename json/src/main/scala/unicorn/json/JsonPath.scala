@@ -21,19 +21,17 @@ import scala.util.Try
  * which assumes that the $..book result has been flattened. In order to make recursion easier and the code simpler,
  * we always flatten the result of recursive queries regardless of the context.
  */
-object JsonPath {
+case class JsonPath(json: JsValue) {
   val parser = new Parser
-
-  def compile(q: String) = Try(parser.compile(q)).isSuccess
 
   private def error(msg: Option[String] = None) = throw new Exception("Bad JsonPath query" + msg.map(" :" + _).getOrElse(""))
 
-  def query(q: String, js: JsValue): JsValue = {
+  def apply(q: String): JsValue = {
     val tokens = parser.compile(q).getOrElse(error(Some(q)))
-    parse(tokens, js)
+    parse(tokens, json)
   }
 
-  def parse(tokens: List[PathToken], js: JsValue): JsValue = tokens.foldLeft[JsValue](js)( (js, token) => token match {
+  private def parse(tokens: List[PathToken], js: JsValue): JsValue = tokens.foldLeft[JsValue](js)( (js, token) => token match {
     case Field(name) => js match {
       case JsObject(fields) => js(name)
       case JsArray(arr) => JsArray(arr.map(_(name)): _*)
@@ -84,7 +82,7 @@ object JsonPath {
     case _ => js
   })
 
-  def parseFilterToken(ft: FilterToken, js: JsValue): Seq[JsValue] = ft match {
+  private def parseFilterToken(ft: FilterToken, js: JsValue): Seq[JsValue] = ft match {
     case HasFilter(SubQuery(tokens)) =>
       (for {
         arr <- Try(js.asInstanceOf[JsArray]).toOption
@@ -115,9 +113,9 @@ object JsonPath {
     }
   }
 
-  def parseFilterValue(fv: FilterValue, js: JsValue): Any = fv match {
+  private def parseFilterValue(fv: FilterValue, js: JsValue): Any = fv match {
     case SubQuery(tokens) => Try{
-      JsonPath.primitive(parse(tokens, js)) match {
+      primitive(parse(tokens, js)) match {
         case n:Number => n.doubleValue()
         case a @ _ => a
       }
@@ -125,7 +123,7 @@ object JsonPath {
     case dv: FilterDirectValue => dv.value
   }
 
-  def primitive(js: JsValue): Any = js match {
+  private def primitive(js: JsValue): Any = js match {
     case JsBoolean(b) => b
     case JsInt(n) => n
     case JsLong(n) => n
@@ -134,6 +132,6 @@ object JsonPath {
     case JsDate(t) => t
     case JsUUID(uuid) => uuid
     case JsBinary(b) => b
-    case _ => throw new Exception("Not a JsPrimitive: " + js)
+    case _ => throw new Exception("Not a primitive: " + js)
   }
 }
