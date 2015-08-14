@@ -23,7 +23,7 @@ class HBase(config: Configuration) extends unicorn.bigtable.Database {
 
   override def close: Unit = connection.close
 
-  override def getTable(name: String): unicorn.bigtable.Table = {
+  override def apply(name: String): unicorn.bigtable.Table = {
     val table = connection.getTable(TableName.valueOf(name))
     new HBaseTable(table)
   }

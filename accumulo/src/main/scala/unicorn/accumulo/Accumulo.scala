@@ -18,7 +18,7 @@ import org.apache.accumulo.core.client.security.tokens.PasswordToken
 class Accumulo(conn: Connector) extends unicorn.bigtable.Database {
   override def close: Unit = () // Connector has no close method
 
-  override def getTable(name: String): unicorn.bigtable.Table = {
+  override def apply(name: String): unicorn.bigtable.Table = {
     new AccumuloTable(conn, name)
   }
   

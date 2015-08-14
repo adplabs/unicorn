@@ -13,16 +13,16 @@ package unicorn.bigtable
  */
 trait Database extends AutoCloseable {
   /**
-   * Returns a data set connection.
-   * @param name the name of data set.
+   * Returns a table.
+   * @param name the name of table.
    */
-  def getTable(name: String): Table
+  def apply(name: String): Table
   /**
-   * Creates a data set.
-   * @param name the name of data set.
+   * Creates a table.
+   * @param name the name of table.
    * @param strategy the replica placement strategy.
    * @param replication the replication factor.
-   * @param columnFamilies the column families in the data set.
+   * @param columnFamilies the column families in the table.
    *   In some NoSQL solutions (e.g. HBase), column families are static
    *   and should be created when creating the table.
    */

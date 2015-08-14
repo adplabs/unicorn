@@ -19,7 +19,7 @@ class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
 
   override def close: Unit = transport.close
 
-  override def getTable(name: String): unicorn.bigtable.Table = {
+  override def apply(name: String): unicorn.bigtable.Table = {
     val client = new Client(protocol)
     client.set_keyspace(name)
     new CassandraTable(client)
