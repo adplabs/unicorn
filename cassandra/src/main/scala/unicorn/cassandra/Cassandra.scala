@@ -13,9 +13,12 @@ import org.apache.thrift.protocol.TBinaryProtocol
  *
  * @author Haifeng Li
  */
-class Cassandra(protocol: TProtocol) extends unicorn.bigtable.Database {
-  private val admin = new Client(protocol)
-  
+class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
+  val protocol = new TBinaryProtocol(transport)
+  val admin = new Client(protocol)
+
+  override def close: Unit = transport.close
+
   override def getTable(name: String): unicorn.bigtable.Table = {
     val client = new Client(protocol)
     client.set_keyspace(name)
@@ -53,8 +56,7 @@ object Cassandra {
     // thrift_framed_transport_size_in_mb in cassandra.yaml
     val transport = new TFramedTransport(new TSocket(host, port), 1024 * 1024 * 1024)
     transport.open
-    
-    val protocol = new TBinaryProtocol(transport)
-    new Cassandra(protocol)
+
+    new Cassandra(transport)
   }
 }

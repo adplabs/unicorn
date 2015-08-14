@@ -31,6 +31,8 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     }
   }
 
+  override def close: Unit = () // Connector has no close method
+
   var expression: Option[String] = None
   var labels: Option[Seq[String]] = None
   var cellVisibility: Option[CellVisibility] = None
@@ -64,7 +66,6 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     getResults(scanner)
   }
 
-  /** Unsupported */
   override def get(keys: Key*): Map[Key, Value] = {
     keys.foldLeft(Map.empty[Key, Value]) { case (acc, (row, family, column)) =>
       val scanner = newScanner

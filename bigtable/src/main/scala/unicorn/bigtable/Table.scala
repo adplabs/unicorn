@@ -10,7 +10,7 @@ package unicorn.bigtable
  * 
  * @author Haifeng Li (293050)
  */
-trait Table {
+trait Table extends AutoCloseable {
   type Key = (Array[Byte], Array[Byte], Array[Byte]) // (row, family, column)
   type Value = (Array[Byte], Long) // (value, timestamp)
 

@@ -26,9 +26,14 @@ case class JsonPath(json: JsValue) {
 
   private def error(msg: String) = throw new Exception("Bad JsonPath: " + msg)
 
-  def apply(q: String): JsValue = {
-    val tokens = parser.compile(q).getOrElse(error(q))
+  def apply(path: String): JsValue = {
+    val tokens = parser.compile(path).getOrElse(error(path))
     parse(tokens, json)
+  }
+
+  def update(path: String, value: JsValue): JsValue = {
+    val tokens = parser.compile(path).getOrElse(error(path))
+    json
   }
 
   private def parse(tokens: List[PathToken], js: JsValue): JsValue = tokens.foldLeft[JsValue](js)( (js, token) => token match {

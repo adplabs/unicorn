@@ -19,6 +19,8 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
  * @author Haifeng Li
  */
 class CassandraTable(client: Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends unicorn.bigtable.Table {
+  override def close: Unit = () // Client has no close method
+
   /** Unsupported */
   override def setCellVisibility(expression: String): Unit = {
     throw new UnsupportedOperationException

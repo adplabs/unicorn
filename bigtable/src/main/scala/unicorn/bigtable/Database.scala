@@ -11,7 +11,7 @@ package unicorn.bigtable
  * 
  * @author Haifeng Li
  */
-trait Database {
+trait Database extends AutoCloseable {
   /**
    * Returns a data set connection.
    * @param name the name of data set.

@@ -20,7 +20,9 @@ import org.apache.hadoop.hbase.TableName
 class HBase(config: Configuration) extends unicorn.bigtable.Database {
   private val connection = ConnectionFactory.createConnection(config)
   private val admin = connection.getAdmin
-  
+
+  override def close: Unit = connection.close
+
   override def getTable(name: String): unicorn.bigtable.Table = {
     val table = connection.getTable(TableName.valueOf(name))
     new HBaseTable(table)

@@ -24,6 +24,8 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
     }
   }
 
+  override def close: Unit = table.close
+
   var cellVisibility: Option[CellVisibility] = None
   var authorizations: Option[Authorizations] = None
 
