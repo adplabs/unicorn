@@ -11,16 +11,11 @@ import unicorn.store.Dataset
 import unicorn.json._
 
 /**
- * A document can be regarded as a JSON object with a unique key.
+ * A document can be regarded as a JSON value with a unique key.
  * 
  * @author Haifeng Li
  */
-class Document(val id: String,
-    attributeFamily: String = Document.AttributeFamily,
-    relationshipFamily: String = Document.RelationshipFamily,
-    fieldSeparator: String = Document.FieldSeparator,
-    relationshipKeySeparator: String = Document.RelationshipKeySeparator
-  ) extends Dynamic with Traversable[(String, JsValue)] {
+class Document(val id: String, value: JsValue) {
   
   /**
    * The database that this document binds to.
@@ -447,12 +442,6 @@ class Document(val id: String,
 }
 
 object Document {
-  val AttributeFamily     = "doc"
-  val RelationshipFamily  = "graph"
-    
-  val FieldSeparator            = "."
-  val RelationshipKeySeparator  = "-->"
-
   def apply(id: String): Document = new Document(id)
   def apply(id: Int): Document = new Document(id.toString)
   def apply(id: Long): Document = new Document(id.toString)

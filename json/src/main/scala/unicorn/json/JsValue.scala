@@ -26,14 +26,15 @@ sealed abstract class JsValue extends Dynamic {
    * @return the field or JsUndefined
    */
   def \(key: String): JsValue = apply(key)
-  def \(key: Symbol): JsValue = apply(key.name)
+  def \(key: Symbol): JsValue = \(key.name)
 
   /**
-   * Look up fieldName in the current object and all descendants.
+   * Look up field in the current object and all descendants.
    *
-   * @return the list of matching nodes
+   * @return the JsArray of matching nodes
    */
-  def \\(key: String): Seq[JsValue] = Seq.empty
+  def \\(key: String): JsArray = JsArray()
+  def \\(key: Symbol): JsArray = \\(key.name)
 
   def apply(key: String): JsValue = {
     throw new UnsupportedOperationException
@@ -156,9 +157,9 @@ case class JsBinary(value: Array[Byte]) extends JsValue {
 }
 
 case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsValue {
-  override def \\(key: String): Seq[JsValue] = {
-    fields.foldLeft(Seq[JsValue]())((o, pair) => pair match {
-      case (field, value) if key == field => o ++ (value +: (value \\ key))
+  override def \\(key: String): JsArray = {
+    fields.foldLeft(collection.mutable.ArrayBuffer[JsValue]())((o, pair) => pair match {
+      case (field, value) if key == field => o += value; o++= (value \\ key).elements
       case (_, value) => o ++ (value \\ key)
     })
   }
@@ -206,8 +207,12 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
 
   override def size: Int = elements.size
 
-  override def \\(fieldName: String): Seq[JsValue] = {
-    elements.flatMap(_ \\ fieldName)
+  override def \(key: String): JsArray = {
+    JsArray(elements.map(_ \ key): _*)
+  }
+
+  override def \\(key: String): JsArray = {
+    JsArray(elements.flatMap(_ \\ key): _*)
   }
 
   override def apply(index: Int): JsValue = elements(index)

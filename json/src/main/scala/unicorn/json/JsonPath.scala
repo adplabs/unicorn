@@ -22,14 +22,14 @@ import scala.util.Try
  * we always flatten the result of recursive queries regardless of the context.
  */
 object JsonPath {
-  lazy val parser = new Parser
+  val parser = new Parser
 
   def compile(q: String) = Try(parser.compile(q)).isSuccess
 
-  def error(msg: Option[String] = None) = throw new Exception("Bad JsonPath query" + msg.map(" :" + _).getOrElse(""))
+  private def error(msg: Option[String] = None) = throw new Exception("Bad JsonPath query" + msg.map(" :" + _).getOrElse(""))
 
   def query(q: String, js: JsValue): JsValue = {
-    val tokens = parser.compile(q).getOrElse(error())
+    val tokens = parser.compile(q).getOrElse(error(Some(q)))
     parse(tokens, js)
   }
 
@@ -42,10 +42,10 @@ object JsonPath {
     case RecursiveField(name) => js match {
       case JsObject(fields) => {
         var value = js \\ name
-        if(value.head.isInstanceOf[JsArray]){
-          value = value.flatMap(_.asInstanceOf[JsArray].elements)
+        if(value.size > 0 && value.elements.head.isInstanceOf[JsArray]){
+          value = value.elements.flatMap(_.asInstanceOf[JsArray].elements)
         }
-        JsArray(value: _*)
+        value
       }
       case JsArray(arr) => {
         var value = arr.flatMap(_ \\ name)

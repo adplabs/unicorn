@@ -48,7 +48,6 @@ class JsonPathSpec extends Specification {
     }
 
     "has filter" in {
-      println(JsonPath.query("$.address[?(@.work)]", json))
       JsonPath.query("$.address[?(@.work)]", json).asInstanceOf[JsArray].size === 1
     }
 

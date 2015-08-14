@@ -123,5 +123,21 @@ class JsValueSpec extends Specification {
 
       (obj \ "level1" \\ "tags") must equalTo(Seq(JsArray("alpha2", "beta2", "gamma2"), JsArray("alpha1", "beta1", "gamma1")))
     }
+    
+    "retrieve 2-level middle recursive path" in {
+      val obj = JsObject(
+        "level1" -> JsObject(
+          "key1" -> JsObject(
+            "key11" -> JsObject("tags" -> JsObject("sub" -> JsString("alpha1")))
+          ),
+          "key2" -> JsObject(
+            "key21" -> JsObject("tags" -> JsObject("sub" -> JsString("beta2")))
+          )
+        ),
+        "level2" -> 5
+      )
+
+      (obj \\ "tags" \ "sub") === JsArray("beta2", "alpha1")
+    }
   }
 }
