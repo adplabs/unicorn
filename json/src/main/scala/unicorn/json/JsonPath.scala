@@ -31,8 +31,12 @@ case class JsonPath(json: JsValue) {
     parse(tokens, json)
   }
 
+  /**
+   * Update the JsValue. Support only child and array slice operators.
+   */
   def update(path: String, value: JsValue): JsValue = {
     val tokens = parser.compile(path).getOrElse(error(path))
+    update(tokens.tail, json, value)
     json
   }
 
@@ -44,18 +48,18 @@ case class JsonPath(json: JsValue) {
     }
     case RecursiveField(name) => js match {
       case JsObject(fields) => {
-        var value = js \\ name
-        if(value.size > 0 && value.elements.head.isInstanceOf[JsArray]){
-          value = value.elements.flatMap(_.asInstanceOf[JsArray].elements)
+        var children = js \\ name
+        if (children.size > 0 && children.elements.head.isInstanceOf[JsArray]) {
+          children = children.elements.flatMap(_.asInstanceOf[JsArray].elements)
         }
-        value
+        children
       }
       case JsArray(arr) => {
-        var value = arr.flatMap(_ \\ name)
-        if(value.head.isInstanceOf[JsArray]){
-          value = value.flatMap(_.asInstanceOf[JsArray].elements)
+        var children = arr.flatMap(_ \\ name)
+        if (children.head.isInstanceOf[JsArray]) {
+          children = children.flatMap(_.asInstanceOf[JsArray].elements)
         }
-        JsArray(value: _*)
+        JsArray(children: _*)
       }
       case _ => error(s"Recursive field $token's parent is not JsObject or JsArray")
     }
@@ -74,14 +78,14 @@ case class JsonPath(json: JsValue) {
       var sliced = if (start.getOrElse(0) >= 0) arr.elements.drop(start.getOrElse(0)) else arr.elements.takeRight(Math.abs(start.get))
       sliced = if(stop.getOrElse(arr.elements.size) >= 0) sliced.slice(0, stop.getOrElse(arr.elements.size)) else sliced.dropRight(Math.abs(stop.get))
 
-      if(step < 0) sliced = sliced.reverse
+      if (step < 0) sliced = sliced.reverse
 
       JsArray(sliced.zipWithIndex.filter(_._2 % Math.abs(step) == 0).map(_._1): _*)
     case ArrayRandomAccess(indices) => {
       val arr = js.asInstanceOf[JsArray].elements
-      val selectedIndices = indices.map(i => if(i >= 0) i else arr.size + i).toSet.toSeq
+      val selectedIndices = indices.map(i => if (i >= 0) i else arr.size + i).toSet.toSeq
 
-      if(selectedIndices.size == 1) arr(selectedIndices.head) else JsArray(selectedIndices.map(arr(_)): _*)
+      if (selectedIndices.size == 1) arr(selectedIndices.head) else JsArray(selectedIndices.map(arr(_)): _*)
     }
     case ft: FilterToken => JsArray(parseFilterToken(ft, js): _*)
     case _ => js
@@ -138,5 +142,69 @@ case class JsonPath(json: JsValue) {
     case JsUUID(uuid) => uuid
     case JsBinary(b) => b
     case _ => throw new Exception("Not a primitive: " + js)
+  }
+
+  private def update(tokens: List[PathToken], js: JsValue, value: JsValue): Unit = tokens match {
+    case token :: Nil =>
+      token match {
+        case Field(name) => js match {
+          case JsObject(_) => js(name) = value
+          case JsArray(arr) => arr.foreach { e => e(name) = value }
+          case _ => error(s"Field $token's parent is not JsObject or JsArray")
+        }
+
+        case MultiField(names) => js match {
+          case JsObject(_) => names.foreach { name => js(name) = value}
+          case _ => error(s"Multiple fields ($token)'s parent is not JsObject")
+        }
+
+        case ArraySlice(start, stop, step) =>
+          if (step == 0) error("ArrySlice with step 0")
+          val arr = js.asInstanceOf[JsArray]
+          val from = if (start.getOrElse(0) >= 0) start.getOrElse(0) else Math.abs(start.get)
+          val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
+
+          if(step < 0)
+            (to until from by step).foreach { i => arr(i) = value }
+          else
+            (from until to by step).foreach { i => arr(i) = value }
+
+        case ArrayRandomAccess(indices) =>
+          val size = js.asInstanceOf[JsArray].size
+          indices.foreach { i => js(if (i >= 0) i else size + i) = value }
+
+        case _ => error(s"Unsupported token $token")
+      }
+    case token :: tl =>
+      token match {
+        case Field(name) => js match {
+          case JsObject(_) => update(tl, js(name), value)
+          case JsArray(arr) => arr.foreach { e => update(tl, e(name), value) }
+          case _ => error(s"Field $token's parent is not JsObject or JsArray")
+        }
+
+        case MultiField(names) => js match {
+          case JsObject(_) => names.foreach { name => update(tl, js(name), value) }
+          case _ => error(s"Multiple fields ($token)'s parent is not JsObject")
+        }
+
+        case ArraySlice(start, stop, step) =>
+          if (step == 0) error("ArrySlice with step 0")
+          val arr = js.asInstanceOf[JsArray]
+          val from = if (start.getOrElse(0) >= 0) start.getOrElse(0) else Math.abs(start.get)
+          val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
+
+          if(step < 0)
+            (to until from by step).foreach { i => update(tl, arr(i), value) }
+          else
+            (from until to by step).foreach { i => update(tl, arr(i), value) }
+
+        case ArrayRandomAccess(indices) =>
+          val size = js.asInstanceOf[JsArray].size
+          indices.foreach { i => update(tl, js(if (i >= 0) i else size + i), value) }
+
+        case _ => error(s"Unsupported token $token")
+      }
+    case Nil => throw new IllegalStateException("empty JsonPath")
   }
 }

@@ -75,11 +75,45 @@ class JsonPathSpec extends Specification {
       jp("$.address[?(@.id == 4 || @.state == 'PA')]").asInstanceOf[JsArray].size === 3
       jp("$.address[?(@.id == 4 || @.state == 'NJ')]").asInstanceOf[JsArray].size === 1
     }
+
+    "update field" in {
+      val jp = JsonPath(json)
+      jp("$.id") = 10
+      jp("$.id") === JsInt(10)
+      jp("$['id']") = 20
+      jp("$['id']") === JsInt(20)
+    }
+
+    "update multi fields" in {
+      val jp = JsonPath(json)
+      jp("$['id', 'name']") = 30
+      jp("$['id', 'name']") === JsArray(30, 30)
+    }
+
+    "update array slices" in {
+      val jp = JsonPath(json)
+      jp("$.tags[2]") = "father"
+      jp("$.tags[2]") === JsString("father")
+      jp("$.tags[0:3:2]") = "coder"
+      jp("$.tags") === JsArray("coder", "husband", "coder", "golfer")
+      jp("$.tags[-2:]") = "player"
+      jp("$.tags") === JsArray("coder", "husband", "player", "player")
+      jp("$.tags[:-2]") = "eater"
+      jp("$.tags") === JsArray("eater", "eater", "player", "player")
+    }
+
+    "update array random" in {
+      val jp = JsonPath(json)
+      jp("$.tags[0,2]") = "coder"
+      jp("$.tags") === JsArray("coder", "husband", "coder", "golfer")
+      jp("$.tags[-1]") = "player"
+      jp("$.tags") === JsArray("coder", "husband", "coder", "player")
+    }
+
   }
 
-  lazy val ids = Seq(1,2,3,4)
-  lazy val tags = Seq("programmer", "husband", "father", "golfer")
-  lazy val json = JsonParser(testJsonStr).asInstanceOf[JsObject]
+  val tags = Seq("programmer", "husband", "father", "golfer")
+  def json = JsonParser(testJsonStr).asInstanceOf[JsObject]
   val testJsonStr =
     """
       |{
