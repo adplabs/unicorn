@@ -24,10 +24,10 @@ import scala.util.Try
 case class JsonPath(json: JsValue) {
   val parser = new Parser
 
-  private def error(msg: Option[String] = None) = throw new Exception("Bad JsonPath query" + msg.map(" :" + _).getOrElse(""))
+  private def error(msg: String) = throw new Exception("Bad JsonPath: " + msg)
 
   def apply(q: String): JsValue = {
-    val tokens = parser.compile(q).getOrElse(error(Some(q)))
+    val tokens = parser.compile(q).getOrElse(error(q))
     parse(tokens, json)
   }
 
@@ -35,7 +35,7 @@ case class JsonPath(json: JsValue) {
     case Field(name) => js match {
       case JsObject(fields) => js(name)
       case JsArray(arr) => JsArray(arr.map(_(name)): _*)
-      case _ => error()
+      case _ => error(s"Field $token's parent is not JsObject or JsArray")
     }
     case RecursiveField(name) => js match {
       case JsObject(fields) => {
@@ -52,16 +52,16 @@ case class JsonPath(json: JsValue) {
         }
         JsArray(value: _*)
       }
-      case _ => error()
+      case _ => error(s"Recursive field $token's parent is not JsObject or JsArray")
     }
     case MultiField(names) => js match {
       case JsObject(fields) => JsArray(fields.filter(f => names.contains(f._1)).map(_._2).toArray: _*)
-      case _ => error()
+      case _ => error(s"Multiple fields ($token)'s parent is not JsObject")
     }
     case AnyField => js match {
       case JsObject(fields) => JsArray(fields.map(_._2).toArray: _*)
       case JsArray(arr) => js
-      case _ => error()
+      case _ => error(s"AnyField's parent is not JsObject or JsArray")
     }
     case RecursiveAnyField => js
     case ArraySlice(start, stop, step) =>
@@ -91,9 +91,9 @@ case class JsonPath(json: JsValue) {
           tokens.last match {
             case Field(name) => children.filter(_.fields.keySet.contains(name))
             case MultiField(names) => children.filter(_.fields.keySet.intersect(names.toSet) == names.toSet)
-            case _ => error()
+            case _ => error(s"Invalid filter token $ft")
           }
-        }).getOrElse(error())
+        }).getOrElse(error(s"Invalid filter $ft"))
     case ComparisonFilter(op, lhv, rhv) => {
       val arr = js.asInstanceOf[JsArray]
       arr.elements.filter { obj =>
@@ -119,7 +119,7 @@ case class JsonPath(json: JsValue) {
         case n:Number => n.doubleValue()
         case a @ _ => a
       }
-    }.getOrElse(error())
+    }.getOrElse(error(s"Invalid filter value $fv"))
     case dv: FilterDirectValue => dv.value
   }
 
