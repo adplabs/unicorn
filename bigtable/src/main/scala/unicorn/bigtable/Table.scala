@@ -34,9 +34,13 @@ trait Table extends AutoCloseable {
   def getAuthorizations: Option[Seq[String]]
 
   /**
+   * Get the entire row.
+   */
+  def get(row: Array[Byte]): Map[Key, Value]
+  /**
    * Get all columns in one or more column families. If family is empty, get all column families.
    */
-  def get(row: Array[Byte], families: Array[Byte]*): Map[Key, Value]
+  def get(row: Array[Byte], families: Array[Byte]): Map[Key, Value]
   /**
    * Get one or more columns. If columns is empty, get all columns in the column family.
    */

@@ -36,15 +36,20 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
   override def getAuthorizations: Option[Seq[String]] = None
 
   private val null_range = ByteBuffer.wrap(Array[Byte]())
-  override def get(row: Array[Byte], families: Array[Byte]*): Map[Key, Value] = {
-    require(families.size == 1)
+
+  /** Unsupported */
+  override def get(row: Array[Byte]): Map[Key, Value] = {
+    throw new UnsupportedOperationException
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte]): Map[Key, Value] = {
     val key = ByteBuffer.wrap(row)
-    val parent = new ColumnParent(new String(families(0)))
+    val parent = new ColumnParent(new String(family))
     val predicate = new SlicePredicate
     predicate.setSlice_range(new SliceRange(null_range, null_range, false, Int.MaxValue))
 
     val result = client.get_slice(key, parent, predicate, consistency)
-    getResults(row, families(0), result)
+    getResults(row, family, result)
   }
   
   override def get(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Map[Key, Value] = {
@@ -59,9 +64,10 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
     getResults(row, family, result)
   }
 
-  /** Unsupported */
   override def get(keys: Key*): Map[Key, Value] = {
-    throw new UnsupportedOperationException
+    keys.foldLeft(Map.empty[Key, Value]) { case (acc, (row, family, column)) =>
+      acc ++ get(row, family, column)
+    }
   }
 
   /** Unsupported */

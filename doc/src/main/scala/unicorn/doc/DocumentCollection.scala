@@ -6,20 +6,21 @@ import unicorn.json._
  * @author Haifeng Li
  */
 class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
-  val bsonSerializer = new BsonSerializer
-  val columnarSerializer = new ColumnarJsonSerializer
+  val serializer = new ColumnarJsonSerializer
   val columnFamily = family.getBytes
 
-  def apply(id: JsValue): Document = {
-    val row = bsonSerializer.serialize(id)
-    val map = table.get(row, columnFamily)
-    new Document(id, columnarSerializer.deserialize(map))
+  def apply(id: Array[Byte]): Document = {
+    val map = table.get(id, columnFamily).map { case (key, value) =>
+      (new String(key._3), value._1)
+    }
+    new Document(id, serializer.deserialize(map))
   }
 
   def insert(doc: Document): Unit = {
-    val row = bsonSerializer.serialize(doc.id)
-    val value = columnarSerializer.serialize(doc.value)
-    table.put(row, columnFamily, value.toSeq: _*)
+    val columns = serializer.serialize(doc.value).map { case (path, value) =>
+      (path.getBytes, value)
+    }
+    table.put(doc.id, columnFamily, columns.toSeq: _*)
   }
 
   def insert(json: JsValue): Document = {
@@ -28,10 +29,11 @@ class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
     doc
   }
 
-  def update(doc: Document): Unit
+  def update(doc: Document): Unit = {
 
-  def delete(id: JsValue): Unit = {
-    val row = bsonSerializer.serialize(id)
-    table.delete(row, columnFamily)
+  }
+
+  def delete(id: Array[Byte]): Unit = {
+    table.delete(id, columnFamily)
   }
 }

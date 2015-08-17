@@ -41,9 +41,14 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   override def getAuthorizations: Option[Seq[String]] = authorizations.map(_.getLabels)
 
-  override def get(row: Array[Byte], families: Array[Byte]*): Map[Key, Value] = {
+  override def get(row: Array[Byte]): Map[Key, Value] = {
     val get = newGet(row)
-    families.foreach { family => get.addFamily(family) }
+    getResults(table.get(get))
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte]): Map[Key, Value] = {
+    val get = newGet(row)
+    get.addFamily(family)
     getResults(table.get(get))
   }
 

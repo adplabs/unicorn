@@ -5,6 +5,7 @@
 
 package unicorn.doc
 
+import java.nio._
 import java.util.UUID
 import unicorn.json._
 
@@ -13,12 +14,29 @@ import unicorn.json._
  * 
  * @author Haifeng Li
  */
-case class Document(val id: JsValue, value: JsValue)
+case class Document(val id: Array[Byte], value: JsValue)
 
 object Document {
   def apply(json: JsValue): Document = apply(UUID.randomUUID, json)
-  def apply(id: String, json: JsValue): Document = new Document(JsString(id), json)
-  def apply(id: Int, json: JsValue): Document = new Document(JsInt(id), json)
-  def apply(id: Long, json: JsValue): Document = new Document(JsLong(id), json)
-  def apply(id: UUID, json: JsValue): Document = new Document(JsUUID(id), json)
+
+  def apply(id: String, json: JsValue): Document = new Document(id.getBytes, json)
+
+  def apply(id: Int, json: JsValue): Document = {
+    val buffer = new Array[Byte](4)
+    ByteBuffer.wrap(buffer).putInt(id)
+    new Document(buffer, json)
+  }
+
+  def apply(id: Long, json: JsValue): Document = {
+    val buffer = new Array[Byte](8)
+    ByteBuffer.wrap(buffer).putLong(id)
+    new Document(buffer, json)
+  }
+
+  def apply(id: UUID, json: JsValue): Document = {
+    val buffer = new Array[Byte](16)
+    ByteBuffer.wrap(buffer).putLong(id.getMostSignificantBits)
+    ByteBuffer.wrap(buffer).putLong(id.getLeastSignificantBits)
+    new Document(buffer, json)
+  }
 }

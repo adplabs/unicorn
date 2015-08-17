@@ -52,10 +52,16 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
 
   override def getAuthorizations: Option[Seq[String]] = labels
 
-  override def get(row: Array[Byte], families: Array[Byte]*): Map[Key, Value] = {
+  override def get(row: Array[Byte]): Map[Key, Value] = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(row)))
-    families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
+    getResults(scanner)
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte]): Map[Key, Value] = {
+    val scanner = newScanner
+    scanner.setRange(new Range(new Text(row)))
+    scanner.fetchColumnFamily(new Text(family))
     getResults(scanner)
   }
   
