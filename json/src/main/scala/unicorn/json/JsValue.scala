@@ -15,7 +15,7 @@ import scala.language.implicitConversions
  *
  * @author Haifeng Li
  */
-sealed abstract class JsValue extends Dynamic {
+sealed trait JsValue extends Dynamic {
   override def toString = compactPrint
   def compactPrint = CompactPrinter(this)
   def prettyPrint = PrettyPrinter(this)
