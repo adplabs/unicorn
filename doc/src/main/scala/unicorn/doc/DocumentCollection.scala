@@ -7,7 +7,11 @@ import unicorn.json._
  */
 class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
   val serializer = new ColumnarJsonSerializer
-  val columnFamily = family.getBytes
+  val columnFamily = family.getBytes("UTF-8")
+
+  def apply(id: String): Document = {
+    apply(id.getBytes("UTF-8"))
+  }
 
   def apply(id: Array[Byte]): Document = {
     val map = table.get(id, columnFamily).map { case (key, value) =>
@@ -18,7 +22,7 @@ class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
 
   def insert(doc: Document): Unit = {
     val columns = serializer.serialize(doc.value).map { case (path, value) =>
-      (path.getBytes, value)
+      (path.getBytes("UTF-8"), value)
     }
     table.put(doc.id, columnFamily, columns.toSeq: _*)
   }
@@ -29,11 +33,15 @@ class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
     doc
   }
 
-  def update(doc: Document): Unit = {
-
+  def remove(id: String): Unit = {
+    table.delete(id.getBytes("UTF-8"))
   }
 
-  def delete(id: Array[Byte]): Unit = {
+  def remove(id: Array[Byte]): Unit = {
     table.delete(id, columnFamily)
+  }
+
+  def update(doc: Document): Unit = {
+
   }
 }

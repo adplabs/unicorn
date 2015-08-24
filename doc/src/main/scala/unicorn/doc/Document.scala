@@ -19,7 +19,7 @@ case class Document(val id: Array[Byte], value: JsValue)
 object Document {
   def apply(json: JsValue): Document = apply(UUID.randomUUID, json)
 
-  def apply(id: String, json: JsValue): Document = new Document(id.getBytes, json)
+  def apply(id: String, json: JsValue): Document = new Document(id.getBytes("UTF-8"), json)
 
   def apply(id: Int, json: JsValue): Document = {
     val buffer = new Array[Byte](4)

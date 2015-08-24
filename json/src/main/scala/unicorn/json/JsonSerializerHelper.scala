@@ -1,7 +1,7 @@
 package unicorn.json
 
 import java.nio.charset.Charset
-import java.nio.{CharBuffer, ByteBuffer}
+import java.nio.ByteBuffer
 
 /**
  * Created by lihb on 8/11/15.
