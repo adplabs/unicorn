@@ -5,8 +5,8 @@ import org.apache.cassandra.thrift.KsDef
 import org.apache.cassandra.thrift.CfDef
 import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.transport.TSocket
-import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TBinaryProtocol
+import unicorn.bigtable.BigTable
 
 /**
  * Cassandra server adapter.
@@ -19,10 +19,8 @@ class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
 
   override def close: Unit = transport.close
 
-  override def apply(name: String): unicorn.bigtable.Table = {
-    val client = new Client(protocol)
-    client.set_keyspace(name)
-    new CassandraTable(client)
+  override def apply(name: String): BigTable = {
+    new CassandraTable(this, name)
   }
   
   override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {

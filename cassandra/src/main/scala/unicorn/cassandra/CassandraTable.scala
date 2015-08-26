@@ -11,6 +11,7 @@ import org.apache.cassandra.thrift.Deletion
 import org.apache.cassandra.thrift.SlicePredicate
 import org.apache.cassandra.thrift.SliceRange
 import org.apache.cassandra.thrift.ColumnOrSuperColumn
+import unicorn.bigtable._
 
 /**
  * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
@@ -18,7 +19,10 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
  * 
  * @author Haifeng Li
  */
-class CassandraTable(client: Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends unicorn.bigtable.Table {
+class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable {
+  val client = new Client(db.protocol)
+  client.set_keyspace(name)
+
   override def close: Unit = () // Client has no close method
 
   /** Unsupported */
@@ -65,13 +69,13 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
   }
 
   override def get(keys: Key*): Map[Key, Value] = {
-    keys.foldLeft(Map.empty[Key, Value]) { case (acc, (row, family, column)) =>
+    keys.foldLeft(Map.empty[Key, Value]) { case (acc, Key(row, family, column)) =>
       acc ++ get(row, family, column)
     }
   }
 
   /** Unsupported */
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
     throw new UnsupportedOperationException
   }
 
@@ -82,8 +86,8 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
 
   private def getResults(row: Array[Byte], family: Array[Byte], result: java.util.List[ColumnOrSuperColumn]): Map[Key, Value] = {
     result.map { column =>
-      val key = (row, family, column.getColumn.getName)
-      val value = (column.getColumn.getValue, column.getColumn.getTimestamp)
+      val key = Key(row, family, column.getColumn.getName)
+      val value = Value(column.getColumn.getValue, column.getColumn.getTimestamp)
       (key, value)
     }.toMap
   }
@@ -111,7 +115,7 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
 
   override def put(values: (Key, Array[Byte])*): Unit = {
     require(!values.isEmpty)
-    values.foreach { case ((row, family, column), value) =>
+    values.foreach { case (Key(row, family, column), value) =>
       val key = ByteBuffer.wrap(row)
       val parent = new String(family)
       createMutationMapEntry(key, parent)
@@ -151,7 +155,7 @@ class CassandraTable(client: Client, consistency: ConsistencyLevel = Consistency
 
   override def delete(keys: Key*): Unit = {
     require(!keys.isEmpty)
-    keys.foreach { case (row, family, column) =>
+    keys.foreach { case Key(row, family, column) =>
       val key = ByteBuffer.wrap(row)
       val parent = new String(family)
       createMutationMapEntry(key, parent)

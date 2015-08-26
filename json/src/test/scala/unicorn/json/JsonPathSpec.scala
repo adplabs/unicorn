@@ -110,6 +110,31 @@ class JsonPathSpec extends Specification {
       jp("$.tags") === JsArray("coder", "husband", "coder", "player")
     }
 
+    "update field of nonexistent object" in {
+      val jp = JsonPath(json)
+      jp("$.person.id") = 10
+      jp("$.person") !== JsUndefined
+      jp("$.person.id") === JsInt(10)
+    }
+
+    "update multi fields of nonexistent object" in {
+      val jp = JsonPath(json)
+      jp("$['person']['id', 'name']") = 30
+      jp("$.person") !== JsUndefined
+      jp("$['person']['id', 'name']") === JsArray(30, 30)
+    }
+
+    "update array slices of nonexistent object" in {
+      val jp = JsonPath(json)
+      jp("$.person.tags[1:3]") = "father"
+      jp("$.person.tags") === JsArray(JsUndefined, "father", "father")
+    }
+
+    "update array random of nonexistent object" in {
+      val jp = JsonPath(json)
+      jp("$.person.tags[2]") = "father"
+      jp("$.person.tags") === JsArray(JsUndefined, JsUndefined, "father")
+    }
   }
 
   val tags = Seq("programmer", "husband", "father", "golfer")

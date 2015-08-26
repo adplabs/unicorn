@@ -16,19 +16,19 @@ trait Database extends AutoCloseable {
    * Returns a table.
    * @param name the name of table.
    */
-  def apply(name: String): Table
+  def apply(name: String): BigTable
   /**
    * Creates a table.
    * @param name the name of table.
    * @param strategy the replica placement strategy.
    * @param replication the replication factor.
-   * @param columnFamilies the column families in the table.
+   * @param families the column families in the table.
    *   In some NoSQL solutions (e.g. HBase), column families are static
    *   and should be created when creating the table.
    */
-  def createTable(name: String, strategy: String, replication: Int, columnFamilies: String*): Unit
+  def createTable(name: String, strategy: String, replication: Int, families: String*): Unit
   /**
-   * Drops a data set.
+   * Drops a table.
    */
   def dropTable(name: String): Unit
 }

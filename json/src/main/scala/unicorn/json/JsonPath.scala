@@ -165,26 +165,26 @@ case class JsonPath(json: JsValue) {
           val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
 
           if(step < 0)
-            (to until from by step).foreach { i => arr(i) = value }
+            (to until from by step).foreach { i => while (i >= arr.size) arr += JsUndefined; arr(i) = value }
           else
-            (from until to by step).foreach { i => arr(i) = value }
+            (from until to by step).foreach { i => while (i >= arr.size) arr += JsUndefined; arr(i) = value }
 
         case ArrayRandomAccess(indices) =>
-          val size = js.asInstanceOf[JsArray].size
-          indices.foreach { i => js(if (i >= 0) i else size + i) = value }
+          val arr = js.asInstanceOf[JsArray]
+          indices.foreach { idx => val i = if (idx >= 0) idx else arr.size + idx; while (i >= arr.size) arr += JsUndefined; js(i) = value }
 
         case _ => error(s"Unsupported token $token")
       }
     case token :: tl =>
       token match {
         case Field(name) => js match {
-          case JsObject(_) => update(tl, js(name), value)
+          case JsObject(_) => if (js(name) == JsUndefined) js(name) = newChild(tl); update(tl, js(name), value)
           case JsArray(arr) => arr.foreach { e => update(tl, e(name), value) }
           case _ => error(s"Field $token's parent is not JsObject or JsArray")
         }
 
         case MultiField(names) => js match {
-          case JsObject(_) => names.foreach { name => update(tl, js(name), value) }
+          case JsObject(_) => names.foreach { name =>if (js(name) == JsUndefined) js(name) = newChild(tl); update(tl, js(name), value) }
           case _ => error(s"Multiple fields ($token)'s parent is not JsObject")
         }
 
@@ -195,16 +195,24 @@ case class JsonPath(json: JsValue) {
           val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
 
           if(step < 0)
-            (to until from by step).foreach { i => update(tl, arr(i), value) }
+            (to until from by step).foreach { i => while (i >= arr.size) arr += newChild(tl); update(tl, arr(i), value) }
           else
-            (from until to by step).foreach { i => update(tl, arr(i), value) }
+            (from until to by step).foreach { i => while (i >= arr.size) arr += newChild(tl); update(tl, arr(i), value) }
 
         case ArrayRandomAccess(indices) =>
-          val size = js.asInstanceOf[JsArray].size
-          indices.foreach { i => update(tl, js(if (i >= 0) i else size + i), value) }
+          val arr = js.asInstanceOf[JsArray]
+          indices.foreach { idx => val i = if (idx >= 0) idx else arr.size + idx; while (i >= arr.size) arr += newChild(tl); update(tl, arr(i), value) }
 
         case _ => error(s"Unsupported token $token")
       }
     case Nil => throw new IllegalStateException("empty JsonPath")
+  }
+
+  private def newChild(tl: List[PathToken]): JsValue = tl.head match {
+    case Field(_) | MultiField(_) => JsObject()
+
+    case ArraySlice(_, _, _) | ArrayRandomAccess(_) => JsArray()
+
+    case _ => error(s"Unsupported token ${tl.head}")
   }
 }

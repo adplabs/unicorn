@@ -11,6 +11,7 @@ import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
+import unicorn.bigtable.BigTable
 
 /**
  * HBase server adapter.
@@ -18,14 +19,13 @@ import org.apache.hadoop.hbase.TableName
  * @author Haifeng Li (293050)
  */
 class HBase(config: Configuration) extends unicorn.bigtable.Database {
-  private val connection = ConnectionFactory.createConnection(config)
-  private val admin = connection.getAdmin
+  val connection = ConnectionFactory.createConnection(config)
+  val admin = connection.getAdmin
 
   override def close: Unit = connection.close
 
-  override def apply(name: String): unicorn.bigtable.Table = {
-    val table = connection.getTable(TableName.valueOf(name))
-    new HBaseTable(table)
+  override def apply(name: String): BigTable = {
+    new HBaseTable(this, name)
   }
   
   override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {

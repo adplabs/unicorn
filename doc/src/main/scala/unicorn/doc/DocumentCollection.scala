@@ -1,11 +1,12 @@
 package unicorn.doc
 
 import unicorn.json._
+import unicorn.bigtable._
 
 /**
  * @author Haifeng Li
  */
-class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
+class DocumentCollection(table: BigTable, family: String) {
   val serializer = new ColumnarJsonSerializer
   val columnFamily = family.getBytes("UTF-8")
 
@@ -15,7 +16,7 @@ class DocumentCollection(table: unicorn.bigtable.Table, family: String) {
 
   def apply(id: Array[Byte]): Document = {
     val map = table.get(id, columnFamily).map { case (key, value) =>
-      (new String(key._3), value._1)
+      (new String(key.column), value.value)
     }
     new Document(id, serializer.deserialize(map))
   }

@@ -9,24 +9,25 @@ import scala.collection.JavaConversions._
 import org.apache.hadoop.io.Text
 import org.apache.accumulo.core.client.{Connector, ZooKeeperInstance}
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
+import unicorn.bigtable.BigTable
 
 /**
  * Accumulo server adapter.
  * 
  * @author Haifeng Li
  */
-class Accumulo(conn: Connector) extends unicorn.bigtable.Database {
+class Accumulo(val connector: Connector) extends unicorn.bigtable.Database {
   override def close: Unit = () // Connector has no close method
 
-  override def apply(name: String): unicorn.bigtable.Table = {
-    new AccumuloTable(conn, name)
+  override def apply(name: String): BigTable = {
+    new AccumuloTable(this, name)
   }
   
   override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
-    if (conn.tableOperations.exists(name))
+    if (connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 
-    conn.tableOperations.create(name)
+    connector.tableOperations.create(name)
 
     val localityGroups = families.map { family =>
       val set = new java.util.TreeSet[Text]()
@@ -34,14 +35,14 @@ class Accumulo(conn: Connector) extends unicorn.bigtable.Database {
       (family, set)
     }.toMap
 
-    conn.tableOperations().setLocalityGroups(name, localityGroups)
+    connector.tableOperations().setLocalityGroups(name, localityGroups)
   }
   
   override def dropTable(name: String): Unit = {
-    if (!conn.tableOperations.exists(name))
+    if (!connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Drop Table $name, which does not exists")
 
-    conn.tableOperations.delete(name)
+    connector.tableOperations.delete(name)
   }
 }
 

@@ -7,27 +7,33 @@ package unicorn.accumulo
 
 import scala.collection.JavaConversions._
 import org.apache.hadoop.io.Text
-import org.apache.accumulo.core.data.{Range, Key => AccumuloKey, Value => AccumuloValue}
-import org.apache.accumulo.core.client.Connector
-import org.apache.accumulo.core.client.BatchWriterConfig
+import org.apache.accumulo.core.client.{BatchWriterConfig, Durability}
+import org.apache.accumulo.core.data.{Mutation, Range}
 import org.apache.accumulo.core.security.{Authorizations, ColumnVisibility => CellVisibility}
-import org.apache.accumulo.core.data.Mutation
+import unicorn.bigtable._
 
 /**
  * Accumulo table adapter.
  * 
  * @author Haifeng Li (293050)
  */
-class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Table {
+class AccumuloTable(val db: Accumulo, val name: String) extends BigTable {
   class AccumuloScanner(scanner: org.apache.accumulo.core.client.Scanner) extends Scanner {
     val iter = scanner.iterator
+    private var cell = if (iter.hasNext) iter.next else null
     def close: Unit = scanner.close
-    def hasNext: Boolean = iter.hasNext
+    def hasNext: Boolean = cell != null
     def next: Map[Key, Value] = {
-      val cell = iter.next
-      val key = (cell.getKey.getRow.copyBytes, cell.getKey.getColumnFamily.copyBytes, cell.getKey.getColumnQualifier.copyBytes())
-      val value = (cell.getValue.get, cell.getKey.getTimestamp)
-      Map(key -> value)
+      if (cell == null) throw new NoSuchElementException
+      val rowKey = cell.getKey.getRow
+      val row = new collection.mutable.ArrayBuffer[(Key, Value)]
+      do {
+        val key = Key(cell.getKey.getRow.copyBytes, cell.getKey.getColumnFamily.copyBytes, cell.getKey.getColumnQualifier.copyBytes)
+        val value = Value(cell.getValue.get, cell.getKey.getTimestamp)
+        row.append((key, value))
+        if (iter.hasNext) cell = iter.next else cell = null
+      } while (cell != null && cell.getKey.getRow.equals(rowKey))
+      row.toMap
     }
   }
 
@@ -73,7 +79,7 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
   }
 
   override def get(keys: Key*): Map[Key, Value] = {
-    keys.foldLeft(Map.empty[Key, Value]) { case (acc, (row, family, column)) =>
+    keys.foldLeft(Map.empty[Key, Value]) { case (acc, Key(row, family, column)) =>
       val scanner = newScanner
       scanner.setRange(new Range(new Text(row)))
       scanner.fetchColumn(new Text(family), new Text(column))
@@ -81,10 +87,11 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     }
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
     val scanner = newScanner
-    scanner.setRange(new Range(new Text(startRow), new Text(stopRow)))
-    families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
+    // from startRow inclusive to endRow exclusive.
+    scanner.setRange(new Range(new Text(startRow), true, new Text(stopRow), false))
+    scanner.fetchColumnFamily(new Text(family))
     new AccumuloScanner(scanner)
   }
 
@@ -95,17 +102,15 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     new AccumuloScanner(scanner)
   }
 
-  private def newScanner: org.apache.accumulo.core.client.Scanner = {
-    authorizations match {
-      case None => throw new IllegalStateException("Authorizations not set yet")
-      case Some(auth) => conn.createScanner(table, auth)
-    }
+  private def newScanner = authorizations match {
+    case None => throw new IllegalStateException("Authorizations not set yet")
+    case Some(auth) => db.connector.createScanner(name, auth)
   }
 
   private def getResults(scanner: org.apache.accumulo.core.client.Scanner): Map[Key, Value] = {
     scanner.map { cell =>
-      val key = (cell.getKey.getRow.copyBytes, cell.getKey.getColumnFamily.copyBytes, cell.getKey.getColumnQualifier.copyBytes())
-      val value = (cell.getValue.get, cell.getKey.getTimestamp)
+      val key = Key(cell.getKey.getRow.copyBytes, cell.getKey.getColumnFamily.copyBytes, cell.getKey.getColumnQualifier.copyBytes())
+      val value = Value(cell.getValue.get, cell.getKey.getTimestamp)
       (key, value)
     }.toMap
   }
@@ -113,7 +118,8 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
   private val batchWriterConfig = new BatchWriterConfig
   // bytes available to batchwriter for buffering mutations
   batchWriterConfig.setMaxMemory(10000000L)
-  private val writer = conn.createBatchWriter(table, batchWriterConfig)
+  batchWriterConfig.setDurability(Durability.FLUSH)
+  private def newWriter = db.connector.createBatchWriter(name, batchWriterConfig)
 
   override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
     require(!columns.isEmpty)
@@ -123,18 +129,20 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
     else
       columns.foreach { case (column, value) => mutation.put(family, column, value) }
 
+    val writer = newWriter
     writer.addMutation(mutation)
     writer.flush
   }
 
   override def put(values: (Key, Array[Byte])*): Unit = {
     require(!values.isEmpty)
+    val writer = newWriter
     values.foreach { case (key, value) =>
-      val mutation = new Mutation(key._1)
+      val mutation = new Mutation(key.row)
       if (cellVisibility.isDefined)
-        mutation.put(key._2, key._3, cellVisibility.get, value)
+        mutation.put(key.family, key.column, cellVisibility.get, value)
       else
-        mutation.put(key._2, key._3, value)
+        mutation.put(key.family, key.column, value)
 
       writer.addMutation(mutation)
     }
@@ -143,6 +151,7 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
 
   override def delete(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
     require(!columns.isEmpty)
+    val writer = newWriter
     val mutation = new Mutation(row)
     if (cellVisibility.isDefined)
       columns.foreach { column => mutation.putDelete(family, column, cellVisibility.get) }
@@ -155,12 +164,13 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
 
   override def delete(keys: Key*): Unit = {
     require(!keys.isEmpty)
+    val writer = newWriter
     keys.foreach { key =>
-      val mutation = new Mutation(key._1)
+      val mutation = new Mutation(key.row)
       if (cellVisibility.isDefined)
-        mutation.putDelete(key._2, key._3, cellVisibility.get)
+        mutation.putDelete(key.family, key.column, cellVisibility.get)
       else
-        mutation.putDelete(key._2, key._3)
+        mutation.putDelete(key.family, key.column)
 
       writer.addMutation(mutation)
     }
@@ -170,7 +180,7 @@ class AccumuloTable(conn: Connector, table: String) extends unicorn.bigtable.Tab
   override def delete(row: Array[Byte]): Unit = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(row)))
-
+    val writer = newWriter
     val mutation = new Mutation(row)
     // iterate through the keys
     scanner.foreach { case cell =>

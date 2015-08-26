@@ -17,6 +17,8 @@ lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(
 
 lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*)
 
+lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable)
+
 lazy val doc = project.in(file("doc")).settings(commonSettings: _*).dependsOn(json, bigtable)
 
 lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable)

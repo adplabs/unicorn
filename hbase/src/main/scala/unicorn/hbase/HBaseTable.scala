@@ -5,16 +5,21 @@
 
 package unicorn.hbase
 
+import org.apache.hadoop.hbase.TableName
+
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
+import unicorn.bigtable._
 
 /**
  * HBase table adapter.
  * 
  * @author Haifeng Li
  */
-class HBaseTable(table: Table) extends unicorn.bigtable.Table {
+class HBaseTable(val db: HBase, val name: String) extends BigTable {
+  val table = db.connection.getTable(TableName.valueOf(name))
+
   class HBaseScanner(scanner: ResultScanner) extends Scanner {
     val iter = scanner.iterator
     def close: Unit = scanner.close
@@ -59,7 +64,7 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
   }
 
   override def get(keys: Key*): Map[Key, Value] = {
-    val gets = keys.map { case (row, family, column) =>
+    val gets = keys.map { case Key(row, family, column) =>
       val get = newGet(row)
       get.addColumn(family, column)
       get
@@ -70,9 +75,9 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
     }
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
     val scan = newScan(startRow, stopRow)
-    families.foreach { family => scan.addFamily(family) }
+    scan.addFamily(family)
     new HBaseScanner(table.getScanner(scan))
   }
 
@@ -91,7 +96,7 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   override def put(values: (Key, Array[Byte])*): Unit = {
     require(!values.isEmpty)
-    val puts = values.map { case ((row, family, column), value) =>
+    val puts = values.map { case (Key(row, family, column), value) =>
       val put = newPut(row)
       put.addColumn(family, column, value)
       put
@@ -108,7 +113,7 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   override def delete(keys: Key*): Unit = {
     require(!keys.isEmpty)
-    val deletes = keys.map { case (row, family, column) =>
+    val deletes = keys.map { case Key(row, family, column) =>
       val deleter = newDelete(row)
       deleter.addColumns(family, column)
       deleter
@@ -130,7 +135,7 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   override def rollback(keys: Key*): Unit = {
     require(!keys.isEmpty)
-    val deletes = keys.map { case (row, family, column) =>
+    val deletes = keys.map { case Key(row, family, column) =>
       val del = newDelete(row)
       del.addColumn(family, column)
       del
@@ -188,8 +193,8 @@ class HBaseTable(table: Table) extends unicorn.bigtable.Table {
 
   private def getResults(result: Result): Map[Key, Value] = {
     result.listCells.map { cell =>
-      val key = (cell.getRowArray, cell.getFamilyArray, cell.getQualifierArray)
-      val value = (cell.getValueArray, cell.getTimestamp)
+      val key = Key(cell.getRowArray, cell.getFamilyArray, cell.getQualifierArray)
+      val value = Value(cell.getValueArray, cell.getTimestamp)
       (key, value)
     }.toMap
   }

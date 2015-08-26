@@ -6,19 +6,37 @@
 package unicorn.bigtable
 
 /**
+ * Cell Key. In original BigTable design, timestamp is treated as part of key.
+ * However, we treat it as part of value in this abstraction and the timestamp
+ * is always implicitly set by the database server rather than the client.
+ * This makes the API simple and we always retrieve the last value. Meanwhile,
+ * the value/timestamp pair is like a stack, which we can rollback to previous
+ * value. Beside, the timestamp may be used in a MVCC implementation to provide
+ * ACID transaction. In that situation, it is harder to use timestamps in regular
+ * time series or multi-versioning approach. However, we can easily implement
+ * time series in other modeling.
+ */
+case class Key(row: Array[Byte], family: Array[Byte], column: Array[Byte])
+/** Cell Value */
+case class Value(value: Array[Byte], timestamp: Long)
+/** Cell in wide columnar table */
+case class Cell(key: Key, value: Value)
+
+/** Big table scanner */
+trait Scanner extends Iterator[Map[Key, Value]] {
+  def close: Unit
+  def hasNext: Boolean
+  def next: Map[Key, Value]
+}
+
+/**
  * Abstraction of column data table.
- * 
+ *
  * @author Haifeng Li (293050)
  */
-trait Table extends AutoCloseable {
-  type Key = (Array[Byte], Array[Byte], Array[Byte]) // (row, family, column)
-  type Value = (Array[Byte], Long) // (value, timestamp)
-
-  trait Scanner extends Iterator[Map[Key, Value]] {
-    def close: Unit
-    def hasNext: Boolean
-    def next: Map[Key, Value]
-  }
+trait BigTable extends AutoCloseable {
+  def db: Database
+  def name: String
 
   /**
    * Visibility expression which can be associated with a cell.
@@ -52,11 +70,11 @@ trait Table extends AutoCloseable {
   def get(keys: Key*): Map[Key, Value]
 
   /**
-   * Scan all columns in one ore more column families. If family is empty, get all column families.
+   * Scan all columns in a column family.
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Array[Byte]*): Scanner
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner
   /**
    * Scan one or more columns. If columns is empty, get all columns in a column family
    * @param startRow row to start scanner at or after (inclusive)
