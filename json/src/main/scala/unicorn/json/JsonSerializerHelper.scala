@@ -47,7 +47,7 @@ trait JsonSerializerHelper {
   val TRUE                        : Byte = 0x01
   val FALSE                       : Byte = 0x00
 
-  // string encoder/decoder
+  /** string encoder/decoder */
   val charset = Charset.forName("UTF-8")
 
   /**

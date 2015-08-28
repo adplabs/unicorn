@@ -5,6 +5,8 @@
 
 package unicorn.hbase
 
+import java.util.Properties
+import scala.collection.JavaConversions._
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.HTableDescriptor
@@ -27,23 +29,31 @@ class HBase(config: Configuration) extends unicorn.bigtable.Database {
   override def apply(name: String): BigTable = {
     new HBaseTable(this, name)
   }
-  
-  override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
+
+  override def createTable(name: String, families: String*): BigTable = {
+    createTable(name, new Properties(), families: _*)
+  }
+
+  override def createTable(name: String, props: Properties, families: String*): BigTable = {
     if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     
     val tableDesc = new HTableDescriptor(TableName.valueOf(name))
+    props.stringPropertyNames.foreach { p => tableDesc.setConfiguration(p, props.getProperty(p))}
     families.foreach { family =>
       val desc = new HColumnDescriptor(family)
-      desc.setCompressionType(org.apache.hadoop.hbase.io.compress.Compression.Algorithm.SNAPPY)
-      desc.setDataBlockEncoding(org.apache.hadoop.hbase.io.encoding.DataBlockEncoding.FAST_DIFF)
-      //will be available in 2.0
-      //desc.setMobEnabled(true)
+      props.stringPropertyNames.foreach { p => desc.setConfiguration(p, props.getProperty(p))}
       tableDesc.addFamily(desc)
     }
     admin.createTable(tableDesc)
+    apply(name)
   }
-  
+
+  /** Truncates a table and preserves the splits */
+  override def truncateTable(name: String): Unit = {
+    admin.truncateTable(TableName.valueOf(name), true)
+  }
+
   override def dropTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
     if (!admin.tableExists(tableName))

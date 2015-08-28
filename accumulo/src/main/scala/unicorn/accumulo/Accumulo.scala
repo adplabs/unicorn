@@ -5,9 +5,11 @@
 
 package unicorn.accumulo
 
+import java.util.Properties
 import scala.collection.JavaConversions._
 import org.apache.hadoop.io.Text
 import org.apache.accumulo.core.client.{Connector, ZooKeeperInstance}
+import org.apache.accumulo.core.client.admin.NewTableConfiguration
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
 import unicorn.bigtable.BigTable
 
@@ -22,12 +24,14 @@ class Accumulo(val connector: Connector) extends unicorn.bigtable.Database {
   override def apply(name: String): BigTable = {
     new AccumuloTable(this, name)
   }
-  
-  override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
+
+  override def createTable(name: String, props: Properties, families: String*): Unit = {
     if (connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 
-    connector.tableOperations.create(name)
+    val config = new NewTableConfiguration
+    config.setProperties(props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap)
+    connector.tableOperations.create(name, config)
 
     val localityGroups = families.map { family =>
       val set = new java.util.TreeSet[Text]()

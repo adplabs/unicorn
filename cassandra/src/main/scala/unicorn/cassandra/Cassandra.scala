@@ -1,5 +1,7 @@
 package unicorn.cassandra
 
+import java.util.Properties
+import scala.collection.JavaConversions._
 import org.apache.cassandra.thrift.Cassandra.Client
 import org.apache.cassandra.thrift.KsDef
 import org.apache.cassandra.thrift.CfDef
@@ -23,13 +25,12 @@ class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
     new CassandraTable(this, name)
   }
   
-  override def createTable(name: String, strategy: String, replication: Int, families: String*): Unit = {
-    val options = new java.util.HashMap[String, String]
-    options.put("replication_factor", replication.toString)
+  override def createTable(name: String, props: Properties, families: String*): Unit = {
+    val options = props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap
     
     val keyspace = new KsDef
     keyspace.setName(name)
-    keyspace.setStrategy_class(strategy)
+    keyspace.setStrategy_class(props.getProperty("strategy"))
     keyspace.setStrategy_options(options)
     
     families.foreach { family =>

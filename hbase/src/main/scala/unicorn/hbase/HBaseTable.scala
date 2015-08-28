@@ -8,8 +8,9 @@ package unicorn.hbase
 import org.apache.hadoop.hbase.TableName
 
 import scala.collection.JavaConversions._
-import org.apache.hadoop.hbase.client._
+import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
+import org.apache.hadoop.hbase.util.Bytes
 import unicorn.bigtable._
 
 /**
@@ -19,15 +20,6 @@ import unicorn.bigtable._
  */
 class HBaseTable(val db: HBase, val name: String) extends BigTable {
   val table = db.connection.getTable(TableName.valueOf(name))
-
-  class HBaseScanner(scanner: ResultScanner) extends Scanner {
-    val iter = scanner.iterator
-    def close: Unit = scanner.close
-    def hasNext: Boolean = iter.hasNext
-    def next: Map[Key, Value] = {
-      getResults(iter.next)
-    }
-  }
 
   override def close: Unit = table.close
 
@@ -46,101 +38,156 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
 
   override def getAuthorizations: Option[Seq[String]] = authorizations.map(_.getLabels)
 
-  override def get(row: Array[Byte]): Map[Key, Value] = {
+  override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
     val get = newGet(row)
-    getResults(table.get(get))
+    get.addColumn(family, column)
+    Option(table.get(get).getValue(family, column))
   }
 
-  override def get(row: Array[Byte], family: Array[Byte]): Map[Key, Value] = {
+  override def get(row: Array[Byte], families: Seq[Array[Byte]]): Seq[ColumnFamily] = {
     val get = newGet(row)
-    get.addFamily(family)
-    getResults(table.get(get))
+    families.foreach { family => get.addFamily(family) }
+    HBaseTable.getRow(table.get(get)).families
   }
 
-  override def get(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Map[Key, Value] = {
+  override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
     val get = newGet(row)
     columns.foreach { column => get.addColumn(family, column) }
-    getResults(table.get(get))
+    val result = HBaseTable.getRow(table.get(get))
+    if (result.families.isEmpty) Seq() else result.families.head.columns
   }
 
-  override def get(keys: Key*): Map[Key, Value] = {
-    val gets = keys.map { case Key(row, family, column) =>
+  override def get(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Seq[Row] = {
+    val gets = rows.map { row =>
       val get = newGet(row)
-      get.addColumn(family, column)
+      families.foreach { family => get.addFamily(family) }
       get
     }
 
-    table.get(gets).foldLeft(Map.empty[Key, Value]) { case (acc, result) =>
-      acc ++ getResults(result)
+    table.get(gets).map { result =>
+      HBaseTable.getRow(result)
     }
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
+  override def get(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Row] = {
+    val gets = rows.map { row =>
+      val get = newGet(row)
+      columns.foreach { column => get.addColumn(family, column) }
+      get
+    }
+
+    table.get(gets).map { result =>
+      HBaseTable.getRow(result)
+    }
+  }
+
+  override def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long = {
+    val value = get(row, family, column)
+    value.map { x => Bytes.toLong(x) }.getOrElse(0)
+  }
+
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Scanner = {
     val scan = newScan(startRow, stopRow)
-    scan.addFamily(family)
+    families.foreach { family => scan.addFamily(family) }
     new HBaseScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Scanner = {
     val scan = newScan(startRow, stopRow)
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseScanner(table.getScanner(scan))
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], columns: (Array[Byte], Array[Byte])*): Unit = {
-    require(!columns.isEmpty)
+  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
     val put = newPut(row)
-    columns.foreach { case (column, value) => put.addColumn(family, column, value) }
+    put.addColumn(family, column, value)
     table.put(put)
   }
 
-  override def put(values: (Key, Array[Byte])*): Unit = {
-    require(!values.isEmpty)
-    val puts = values.map { case (Key(row, family, column), value) =>
+  override def put(row: Array[Byte], family: Array[Byte], columns: Column*): Unit = {
+    val put = newPut(row)
+    columns.foreach { case Column(qualifier, value, timestamp) =>
+      if (timestamp == 0)
+        put.addColumn(family, qualifier, value)
+      else
+        put.addColumn(family, qualifier, timestamp, value)
+    }
+    table.put(put)
+  }
+
+  override def put(row: Array[Byte], families: ColumnFamily*): Unit = {
+    val put = newPut(row)
+    families.foreach { case ColumnFamily(family, columns) =>
+      columns.foreach { case Column(qualifier, value, timestamp) =>
+        if (timestamp == 0)
+          put.addColumn(family, qualifier, value)
+        else
+          put.addColumn(family, qualifier, timestamp, value)
+      }
+    }
+    table.put(put)
+  }
+
+  override def put(rows: Row*): Unit = {
+    val puts = rows.map { case Row(row, families) =>
       val put = newPut(row)
-      put.addColumn(family, column, value)
+      families.foreach { case ColumnFamily(family, columns) =>
+        columns.foreach { case Column(qualifier, value, timestamp) =>
+          if (timestamp == 0)
+            put.addColumn(family, qualifier, value)
+          else
+            put.addColumn(family, qualifier, timestamp, value)
+        }
+      }
       put
     }
     table.put(puts)
   }
 
-  override def delete(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
-    val del = newDelete(row)
-    if (columns.isEmpty) del.addFamily(family)
-    else columns.foreach { column => del.addColumns(family, column) }
-    table.delete(del)
+  override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
+    val deleter = newDelete(row)
+    families.foreach { family => deleter.addFamily(family) }
+    table.delete(deleter)
   }
 
-  override def delete(keys: Key*): Unit = {
-    require(!keys.isEmpty)
-    val deletes = keys.map { case Key(row, family, column) =>
+  override def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+    val deleter = newDelete(row)
+    if (columns.isEmpty) deleter.addFamily(family)
+    else columns.foreach { column => deleter.addColumns(family, column) }
+    table.delete(deleter)
+  }
+
+  override def delete(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Unit = {
+    val deletes = rows.map { row =>
       val deleter = newDelete(row)
-      deleter.addColumns(family, column)
+      families.foreach { family => deleter.addFamily(family)}
       deleter
     }
     table.delete(deletes)
   }
 
-  override def delete(row: Array[Byte]): Unit = {
+  override def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+    val deletes = rows.map { row =>
+      val deleter = newDelete(row)
+      if (columns.isEmpty) deleter.addFamily(family)
+      else columns.foreach { column => deleter.addColumns(family, column) }
+      deleter
+    }
+    table.delete(deletes)
+  }
+
+  override def rollback(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
     val deleter = newDelete(row)
+    deleter.addColumn(family, column)
     table.delete(deleter)
   }
 
-  override def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
-    require(!columns.isEmpty)
-    val del = newDelete(row)
-    columns.foreach { column => del.addColumn(family, column) }
-    table.delete(del)
-  }
-
-  override def rollback(keys: Key*): Unit = {
-    require(!keys.isEmpty)
-    val deletes = keys.map { case Key(row, family, column) =>
-      val del = newDelete(row)
-      del.addColumn(family, column)
-      del
+  override def rollback(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+    if (!columns.isEmpty) {
+      val deleter = newDelete(row)
+      columns.foreach { column => deleter.addColumn(family, column) }
+      table.delete(deleter)
     }
-    table.delete(deletes)
   }
 
   override def append(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
@@ -149,7 +196,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     table.append(append)
   }
 
-  override def increment(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
+  override def addCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
     val increment = newIncrement(row)
     increment.addColumn(family, column, value)
     table.increment(increment)
@@ -190,12 +237,30 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     if (cellVisibility.isDefined) increment.setCellVisibility(cellVisibility.get)
     increment
   }
+}
 
-  private def getResults(result: Result): Map[Key, Value] = {
-    result.listCells.map { cell =>
-      val key = Key(cell.getRowArray, cell.getFamilyArray, cell.getQualifierArray)
-      val value = Value(cell.getValueArray, cell.getTimestamp)
-      (key, value)
-    }.toMap
+object HBaseTable {
+  def getRow(result: Result): Row = {
+    val families = result.getMap.map { case (family, columns) =>
+      val values = columns.flatMap { case (column, ver) =>
+        ver.map { case (timestamp, value) =>
+          Column(column, value, timestamp)
+        }
+      }.toSeq
+      ColumnFamily(family, values)
+    }.toSeq
+    Row(result.getRow, families)
+  }
+}
+
+class HBaseScanner(scanner: ResultScanner) extends Scanner {
+  val iter = scanner.iterator
+
+  def close: Unit = scanner.close
+
+  def hasNext: Boolean = iter.hasNext
+
+  def next: Row = {
+    HBaseTable.getRow(iter.next)
   }
 }

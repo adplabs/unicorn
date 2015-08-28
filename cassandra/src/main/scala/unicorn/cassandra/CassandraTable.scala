@@ -22,6 +22,7 @@ import unicorn.bigtable._
 class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable {
   val client = new Client(db.protocol)
   client.set_keyspace(name)
+  val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
 
   override def close: Unit = () // Client has no close method
 
