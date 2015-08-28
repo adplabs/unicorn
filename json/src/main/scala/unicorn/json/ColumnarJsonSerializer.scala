@@ -31,7 +31,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsObject => serialize(x, Some(jsonPath(ename.get, field)), map)
         case x: JsArray => serialize(x, Some(jsonPath(ename.get, field)), map)
         case JsNull => buffer.put(TYPE_NULL); map(jsonPath(ename.get, field)) = buffer
-        case JsUndefined => ()
+        case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, field)) = buffer
       }
     }
   }
@@ -57,7 +57,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsObject => serialize(x, Some(jsonPath(ename.get, index)), map)
         case x: JsArray => serialize(x, Some(jsonPath(ename.get, index)), map)
         case JsNull => buffer.put(TYPE_NULL); map(jsonPath(ename.get, index)) = buffer
-        case JsUndefined => ()
+        case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, index)) = buffer
       }
     }
   }
@@ -77,7 +77,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case x: JsObject => serialize(x, Some(jsonPath), map)(buffer)
       case x: JsArray => serialize(x, Some(jsonPath), map)(buffer)
       case JsNull => buffer.put(TYPE_NULL); map(jsonPath) = buffer
-      case JsUndefined => throw new IllegalArgumentException("serialize JsUndefined")
+      case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath) = buffer
     }
     map.toMap
   }
@@ -97,10 +97,10 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case TYPE_STRING => string
       case TYPE_BINARY => binary
       case TYPE_NULL => JsNull
-      case TYPE_UNDEFINED => JsUndefined // should not happen
+      case TYPE_UNDEFINED => JsUndefined
       case TYPE_DOCUMENT => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kv: _*)
       case TYPE_ARRAY => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
-      case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
+      case x => throw new IllegalStateException("Unsupported JSON type: %02X" format x)
     }
   }
 

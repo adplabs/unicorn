@@ -35,7 +35,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsObject  => serialize(x, Some(field))
       case x: JsArray   => serialize(x, Some(field))
       case JsNull       => buffer.put(TYPE_NULL); cstring(field)
-      case JsUndefined  => ()
+      case JsUndefined  => buffer.put(TYPE_UNDEFINED); cstring(field)
     }}
 
     buffer.put(END_OF_DOCUMENT)
@@ -61,7 +61,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsObject  => serialize(x, Some(index.toString))
       case x: JsArray   => serialize(x, Some(index.toString))
       case JsNull       => buffer.put(TYPE_NULL); cstring(index.toString)
-      case JsUndefined  => () // impossible
+      case JsUndefined  => buffer.put(TYPE_UNDEFINED); cstring(index.toString)
     }}
 
     buffer.put(END_OF_DOCUMENT)
@@ -82,7 +82,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsObject  => serialize(x, None)(buffer)
       case x: JsArray   => serialize(x, None)(buffer)
       case JsNull       => buffer.put(TYPE_NULL)
-      case JsUndefined  => ()
+      case JsUndefined  => buffer.put(TYPE_UNDEFINED)
     }
     Map(jsonPath -> buffer2Bytes(buffer))
   }
@@ -101,7 +101,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case TYPE_STRING    => string
       case TYPE_BINARY    => binary
       case TYPE_NULL      => JsNull
-      case TYPE_UNDEFINED => JsUndefined // should not happen
+      case TYPE_UNDEFINED => JsUndefined
       case TYPE_DOCUMENT  => val doc = JsObject(); deserialize(doc)
       case TYPE_ARRAY     => val doc = JsObject(); deserialize(doc); val elements = doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2); JsArray(elements: _*)
       case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
@@ -125,7 +125,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
           case TYPE_STRING => json(ename) = string
           case TYPE_BINARY => buffer.get; json(ename) = binary
           case TYPE_NULL => json(ename) = JsNull
-          case TYPE_UNDEFINED => ename()
+          case TYPE_UNDEFINED => json(ename) = JsUndefined
           case TYPE_DOCUMENT => val doc = JsObject(); json(ename) = deserialize(doc)
           case TYPE_ARRAY => val doc = JsObject(); val field = ename(); deserialize(doc); json(field) = JsArray(doc.fields.map { case (k, v) => (k.toInt, v) }.toSeq.sortBy(_._1).map(_._2): _*)
           case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
