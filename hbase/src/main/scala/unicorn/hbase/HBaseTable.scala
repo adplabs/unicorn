@@ -13,6 +13,8 @@ import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibili
 import org.apache.hadoop.hbase.util.Bytes
 import unicorn.bigtable._
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * HBase table adapter.
  * 
@@ -50,6 +52,14 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     HBaseTable.getRow(table.get(get)).families
   }
 
+  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
+    val get = newGet(row)
+    get.addFamily(family)
+
+    val result = HBaseTable.getRow(table.get(get))
+    if (result.families.isEmpty) Seq() else result.families.head.columns
+  }
+
   override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
     val get = newGet(row)
     columns.foreach { column => get.addColumn(family, column) }
@@ -64,9 +74,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
       get
     }
 
-    table.get(gets).map { result =>
-      HBaseTable.getRow(result)
-    }
+    HBaseTable.getRows(table.get(gets))
   }
 
   override def get(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Row] = {
@@ -76,14 +84,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
       get
     }
 
-    table.get(gets).map { result =>
-      HBaseTable.getRow(result)
-    }
-  }
-
-  override def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long = {
-    val value = get(row, family, column)
-    value.map { x => Bytes.toLong(x) }.getOrElse(0)
+    HBaseTable.getRows(table.get(gets))
   }
 
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Scanner = {
@@ -144,6 +145,12 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     table.put(puts)
   }
 
+  override def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
+    val deleter = newDelete(row)
+    deleter.addColumns(family, column)
+    table.delete(deleter)
+  }
+
   override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
     val deleter = newDelete(row)
     families.foreach { family => deleter.addFamily(family) }
@@ -163,7 +170,9 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
       families.foreach { family => deleter.addFamily(family)}
       deleter
     }
-    table.delete(deletes)
+    // HTable modifies the input parameter deletes.
+    // Make sure we pass in a mutable collection.
+    table.delete(deletes.toBuffer)
   }
 
   override def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
@@ -200,6 +209,11 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     val increment = newIncrement(row)
     increment.addColumn(family, column, value)
     table.increment(increment)
+  }
+
+  override def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long = {
+    val value = get(row, family, column)
+    value.map { x => Bytes.toLong(x) }.getOrElse(0)
   }
 
   private def newGet(row: Array[Byte]): Get = {
@@ -241,7 +255,10 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
 
 object HBaseTable {
   def getRow(result: Result): Row = {
-    val families = result.getMap.map { case (family, columns) =>
+    val valueMap = result.getMap
+    if (valueMap == null) return Row(result.getRow, Seq())
+
+    val families = valueMap.map { case (family, columns) =>
       val values = columns.flatMap { case (column, ver) =>
         ver.map { case (timestamp, value) =>
           Column(column, value, timestamp)
@@ -250,6 +267,12 @@ object HBaseTable {
       ColumnFamily(family, values)
     }.toSeq
     Row(result.getRow, families)
+  }
+
+  def getRows(results: Seq[Result]): Seq[Row] = {
+    results.map { result =>
+      HBaseTable.getRow(result)
+    }.filter(!_.families.isEmpty)
   }
 }
 

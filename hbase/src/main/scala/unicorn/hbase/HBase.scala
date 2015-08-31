@@ -56,11 +56,18 @@ class HBase(config: Configuration) extends unicorn.bigtable.Database {
 
   override def dropTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
-    if (!admin.tableExists(tableName))
-      throw new IllegalStateException(s"Drop Table $name, which does not exists")
-
     admin.disableTable(tableName)
     admin.deleteTable(tableName)
+  }
+
+  override def compactTable(name: String): Unit = {
+    val tableName = TableName.valueOf(name)
+    admin.compact(tableName)
+  }
+
+  override def majorCompactTable(name: String): Unit = {
+    val tableName = TableName.valueOf(name)
+    admin.majorCompact(tableName)
   }
 }
 

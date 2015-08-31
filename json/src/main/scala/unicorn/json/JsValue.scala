@@ -46,6 +46,18 @@ sealed trait JsValue extends Dynamic {
     throw new UnsupportedOperationException
   }
 
+  def apply(start: Int, end: Int): JsArray = {
+    throw new UnsupportedOperationException
+  }
+
+  def apply(start: Int, end: Int, step: Int): JsArray = {
+    throw new UnsupportedOperationException
+  }
+
+  def apply(range: Range): JsArray = {
+    throw new UnsupportedOperationException
+  }
+
   def applyDynamic(key: String): JsValue = {
     throw new UnsupportedOperationException
   }
@@ -215,12 +227,31 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
     JsArray(elements.flatMap(_ \\ key): _*)
   }
 
-  override def apply(index: Int): JsValue = elements(index)
+  override def apply(index: Int): JsValue = {
+    val i = if (index >= 0) index else elements.size + index
+    elements(i)
+  }
 
-  override def remove(index: Int): JsValue = elements.remove(index)
+  override def apply(start: Int, end: Int): JsArray = {
+    apply(start until end)
+  }
+
+  override def apply(start: Int, end: Int, step: Int): JsArray = {
+    apply(start until end by step)
+  }
+
+  override def apply(range: Range): JsArray = {
+    JsArray(range.map(elements(_)))
+  }
+
+  override def remove(index: Int): JsValue = {
+    val i = if (index >= 0) index else elements.size + index
+    elements.remove(i)
+  }
 
   override def update(index: Int, value: JsValue): JsValue = {
-    elements(index) = value
+    val i = if (index >= 0) index else elements.size + index
+    elements(i) = value
     value
   }
 
@@ -275,23 +306,23 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
    *  `update`, this method will not replace an element with a new
    *  one. Instead, it will insert a new element at index `n`.
    *
-   *  @param n     the index where a new element will be inserted.
+   *  @param idx   the index where a new element will be inserted.
    *  @param seq   the traversable object providing all elements to insert.
    *  @throws IndexOutOfBoundsException if `n` is out of bounds.
    */
-  def insertAll(n: Int, seq: Traversable[JsValue]) {
-    elements.insertAll(n, seq)
+  def insertAll(idx: Int, seq: Traversable[JsValue]) {
+    elements.insertAll(idx, seq)
   }
 
   /** Removes the element on a given index position. It takes time linear in
    *  the buffer size.
    *
-   *  @param n       the index which refers to the first element to delete.
+   *  @param idx     the index which refers to the first element to delete.
    *  @param count   the number of elements to delete
    *  @throws IndexOutOfBoundsException if `n` is out of bounds.
    */
-  def remove(n: Int, count: Int) {
-    elements.remove(n, count)
+  def remove(idx: Int, count: Int) {
+    elements.remove(idx, count)
   }
 }
 

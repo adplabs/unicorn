@@ -107,9 +107,7 @@ trait BigTable extends AutoCloseable {
   /**
    * Get the column family.
    */
-  def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
-    get(row, family)
-  }
+  def get(row: Array[Byte], family: Array[Byte]): Seq[Column]
 
   /**
    * Get the column family.
@@ -250,6 +248,18 @@ trait BigTable extends AutoCloseable {
   def put(rows: Row*): Unit
 
   /**
+   * Delete a value.
+   */
+  def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit
+
+  /**
+   * Delete a value.
+   */
+  def delete(row: String, family: String, column: String): Unit = {
+    delete(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+  }
+
+  /**
    * Delete a row.
    */
   def delete(row: Array[Byte]): Unit = {
@@ -290,13 +300,6 @@ trait BigTable extends AutoCloseable {
   }
 
   /**
-   * Delete a columns of a row.
-   */
-  def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
-    delete(row, family, Seq(column))
-  }
-
-  /**
    * Delete the columns of a row. If columns is empty, delete all columns in the family.
    */
   def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit
@@ -329,6 +332,13 @@ trait BigTable extends AutoCloseable {
    * Rollback to the previous version for the given column of a row.
    */
   def rollback(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit
+
+  /**
+   * Rollback to the previous version for the given column of a row.
+   */
+  def rollback(row: String, family: String, column: String): Unit = {
+    rollback(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+  }
 
   /**
    * Rollback to the previous version for the given columns of a row.

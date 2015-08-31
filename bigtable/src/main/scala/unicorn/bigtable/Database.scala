@@ -42,7 +42,7 @@ trait Database extends AutoCloseable {
   def createTable(name: String, props: Properties, families: String*): BigTable
 
   /**
-   * Truncate a table
+   * Truncates a table
    * @param name the name of table.
    */
   def truncateTable(name: String)
@@ -50,4 +50,16 @@ trait Database extends AutoCloseable {
    * Drops a table.
    */
   def dropTable(name: String): Unit
+
+  /**
+   * Compacts a table
+   * @param name the name of table.
+   */
+  def compactTable(name: String): Unit
+
+  /**
+   * Major compacts a table
+   * @param name the name of table.
+   */
+  def majorCompactTable(name: String): Unit
 }
