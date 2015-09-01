@@ -45,6 +45,15 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
       empty.size === 0
     }
 
+    "get empty family" in {
+      val columns = table.get("row1", "cf1")
+      columns.size === 0
+    }
+
+    "get nonexistent family" in {
+      table.get("row1", "cf5") must throwA[Exception]
+    }
+
     "get the row" in {
       table.put("row1".getBytes(table.charset),
         ColumnFamily("cf1".getBytes(table.charset), Seq(Column("c1".getBytes(table.charset), "v1".getBytes(table.charset)), Column("c2".getBytes(table.charset), "v2".getBytes(table.charset)))),
@@ -71,6 +80,11 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
 
       table.delete("row1")
       table.get("row1").size === 0
+    }
+
+    "get nonexistent row" in {
+      val families = table.get("row5")
+      families.size === 0
     }
 
     "get multiple rows" in {

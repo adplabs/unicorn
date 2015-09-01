@@ -7,7 +7,7 @@ package unicorn.accumulo
 
 import scala.collection.JavaConversions._
 import org.apache.hadoop.io.Text
-import org.apache.accumulo.core.client.{BatchDeleter, BatchWriterConfig, Durability, ScannerBase}
+import org.apache.accumulo.core.client.{BatchWriterConfig, ScannerBase}
 import org.apache.accumulo.core.data.{Mutation, Range}
 import org.apache.accumulo.core.security.{Authorizations, ColumnVisibility => CellVisibility}
 import unicorn.bigtable._
@@ -17,7 +17,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class AccumuloTable(val db: Accumulo, val name: String) extends BigTable {
+class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
   var expression: Option[String] = None
@@ -266,31 +266,6 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable {
     deleter.delete
   }
 
-  /** Unsupported */
-  override def rollback(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def rollback(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def append(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def addCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long = {
-    throw new UnsupportedOperationException
-  }
-
   private def numBatchThreads[T](rows: Seq[T]): Int = Math.min(rows.size, Runtime.getRuntime.availableProcessors)
 
   private def newScanner = authorizations match {
@@ -303,11 +278,11 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable {
     case Some(auth) => db.connector.createBatchScanner(name, auth, numQueryThreads)
   }
 
-  private def newBatchDeleter(numQueryThreads: Int) = authorizations match {
+  private def newBatchDeleter(numQueryThreads: Int, maxMemory: Long = 10000000L) = authorizations match {
     case None => throw new IllegalStateException("Authorizations not set yet")
     case Some(auth) =>
       val config = new BatchWriterConfig
-      config.setMaxMemory(10000000L)
+      config.setMaxMemory(maxMemory)
       db.connector.createBatchDeleter(name, auth, numQueryThreads, config)
   }
 

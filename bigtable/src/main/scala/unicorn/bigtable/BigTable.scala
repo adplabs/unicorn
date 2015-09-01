@@ -7,18 +7,6 @@ package unicorn.bigtable
 
 import java.nio.charset.Charset
 
-/**
- * Cell Key. In original BigTable design, timestamp is treated as part of key.
- * However, we treat it as part of value in this abstraction and the timestamp
- * is always implicitly set by the database server rather than the client.
- * This makes the API simple and we always retrieve the last value. Meanwhile,
- * the value/timestamp pair is like a stack, which we can rollback to previous
- * value. Beside, the timestamp may be used in a MVCC implementation to provide
- * ACID transaction. In that situation, it is harder to use timestamps in regular
- * time series or multi-versioning approach. However, we can easily implement
- * time series in other modeling.
- */
-
 /** Cell in wide columnar table */
 case class Cell(row: Array[Byte], family: Array[Byte], qualifier: Array[Byte], value: Array[Byte], timestamp: Long = 0)
 /** A column of a column family */
@@ -28,7 +16,7 @@ case class ColumnFamily(family: Array[Byte], columns: Seq[Column])
 /** A Row */
 case class Row(row: Array[Byte], families: Seq[ColumnFamily])
 
-/** Big table scanner */
+/** Big table row scanner */
 trait RowScanner extends Iterator[Row] {
   def close: Unit
   def hasNext: Boolean
@@ -36,29 +24,14 @@ trait RowScanner extends Iterator[Row] {
 }
 
 /**
- * Abstraction of column data table.
+ * Abstraction of wide columnar data table.
  *
  * @author Haifeng Li (293050)
  */
 trait BigTable extends AutoCloseable {
-  /** string encoder/decoder */
-  val charset = Charset.forName("UTF-8")
-
   def db: Database
+
   def name: String
-
-  /**
-   * Visibility expression which can be associated with a cell.
-   * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
-   */
-  def setCellVisibility(expression: String): Unit
-  def getCellVisibility: Option[String]
-
-  /**
-   * Visibility labels associated with a Scan/Get deciding which all labeled data current scan/get can access.
-   */
-  def setAuthorizations(labels: String*): Unit
-  def getAuthorizations: Option[Seq[String]]
 
   /**
    * Get a value.
@@ -69,10 +42,10 @@ trait BigTable extends AutoCloseable {
    * Get a value.
    */
   def get(row: String, family: String, column: String): Option[Array[Byte]] = {
-    get(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
   }
 
-  // Scala compiler disallow overloaded methods with default arguments
+  // Scala compiler disallows overloaded methods with default arguments
   // because of a deterministic naming-scheme for the methods with
   // default arguments. So instead of define a method like
   // get(row: Array[Byte], families: Seq[Array[Byte]] = Seq())
@@ -89,7 +62,7 @@ trait BigTable extends AutoCloseable {
    * Get the row.
    */
   def get(row: String): Seq[ColumnFamily] = {
-    get(row.getBytes(charset), Seq())
+    get(row.getBytes(BigTable.charset), Seq())
   }
 
   /**
@@ -101,7 +74,7 @@ trait BigTable extends AutoCloseable {
    * Get all columns in one or more column families. If families is empty, get all column families.
    */
   def get(row: String, families: Seq[String]): Seq[ColumnFamily] = {
-    get(row.getBytes(charset), families.map(_.getBytes(charset)))
+    get(row.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -113,7 +86,7 @@ trait BigTable extends AutoCloseable {
    * Get the column family.
    */
   def get(row: String, family: String): Seq[Column] = {
-    get(row.getBytes(charset), family.getBytes(charset))
+    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset))
   }
 
   /**
@@ -125,7 +98,7 @@ trait BigTable extends AutoCloseable {
    * Get one or more columns of a column family. If columns is empty, get all columns in the column family.
    */
   def get(row: String, family: String, columns: Seq[String]): Seq[Column] = {
-    get(row.getBytes(charset), family.getBytes(charset), columns.map(_.getBytes(charset)))
+    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -167,7 +140,7 @@ trait BigTable extends AutoCloseable {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String): RowScanner = {
-    scan(startRow.getBytes(charset), stopRow.getBytes(charset), Seq())
+    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), Seq())
   }
 
   /**
@@ -183,7 +156,7 @@ trait BigTable extends AutoCloseable {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, families: Seq[String] = Seq()): RowScanner = {
-    scan(startRow.getBytes(charset), stopRow.getBytes(charset), families.map(_.getBytes(charset)))
+    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -201,7 +174,7 @@ trait BigTable extends AutoCloseable {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, family: String): RowScanner = {
-    scan(startRow.getBytes(charset), stopRow.getBytes(charset), family.getBytes(charset), Seq())
+    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), family.getBytes(BigTable.charset), Seq())
   }
 
   /**
@@ -217,7 +190,7 @@ trait BigTable extends AutoCloseable {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, family: String, columns: Seq[String]): RowScanner = {
-    scan(startRow.getBytes(charset), stopRow.getBytes(charset), family.getBytes(charset), columns.map(_.getBytes(charset)))
+    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -229,7 +202,7 @@ trait BigTable extends AutoCloseable {
    * Upsert a value.
    */
   def put(row: String, family: String, column: String, value: String): Unit = {
-    put(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset), value.getBytes(charset))
+    put(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value.getBytes(BigTable.charset))
   }
 
   /**
@@ -256,7 +229,7 @@ trait BigTable extends AutoCloseable {
    * Delete a value.
    */
   def delete(row: String, family: String, column: String): Unit = {
-    delete(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
   }
 
   /**
@@ -270,7 +243,7 @@ trait BigTable extends AutoCloseable {
    * Delete a row.
    */
   def delete(row: String): Unit = {
-    delete(row.getBytes(charset), Seq())
+    delete(row.getBytes(BigTable.charset), Seq())
   }
 
   /**
@@ -284,7 +257,7 @@ trait BigTable extends AutoCloseable {
    * Delete all columns of a column family of a row.
    */
   def delete(row: String, family: String): Unit = {
-    delete(row.getBytes(charset), family.getBytes(charset))
+    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset))
   }
 
   /**
@@ -296,7 +269,7 @@ trait BigTable extends AutoCloseable {
    * Delete the columns of a row. If families is empty, delete the whole row.
    */
   def delete(row: String, families: Seq[String]): Unit = {
-    delete(row.getBytes(charset), families.map(_.getBytes(charset)))
+    delete(row.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -308,7 +281,7 @@ trait BigTable extends AutoCloseable {
    * Delete the columns of a row. If columns is empty, delete all columns in the family.
    */
   def delete(row: String, family: String, columns: Seq[String]): Unit = {
-    delete(row.getBytes(charset), family.getBytes(charset), columns.map(_.getBytes(charset)))
+    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
   }
 
   /**
@@ -327,7 +300,34 @@ trait BigTable extends AutoCloseable {
    * Delete multiple rows.
    */
   def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit
+}
 
+/** If BigTable supports cell level security. */
+trait CellLevelSecurity {
+  /**
+   * Visibility expression which can be associated with a cell.
+   * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
+   */
+  def setCellVisibility(expression: String): Unit
+
+  /**
+   * HBase supports cell level security since 0.98. But it is not mandatory.
+   */
+  def getCellVisibility: Option[String]
+
+  /**
+   * Visibility labels associated with a Scan/Get deciding which all labeled data current scan/get can access.
+   */
+  def setAuthorizations(labels: String*): Unit
+
+  /**
+   * HBase supports cell level security since 0.98. But it is not mandatory.
+   */
+  def getAuthorizations: Option[Seq[String]]
+}
+
+/** If BigTable supports rollback to previous version of a cell. */
+trait Rollback {
   /**
    * Rollback to the previous version for the given column of a row.
    */
@@ -337,7 +337,7 @@ trait BigTable extends AutoCloseable {
    * Rollback to the previous version for the given column of a row.
    */
   def rollback(row: String, family: String, column: String): Unit = {
-    rollback(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+    rollback(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
   }
 
   /**
@@ -349,9 +349,12 @@ trait BigTable extends AutoCloseable {
    * Rollback to the previous version for the given column(s) of a row.
    */
   def rollback(row: String, family: String, columns: Seq[String]): Unit = {
-    rollback(row.getBytes(charset), family.getBytes(charset), columns.map(_.getBytes(charset)))
+    rollback(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
   }
+}
 
+/** If BigTable supports appending to a cell. */
+trait Appendable {
   /**
    * Append the value of a column.
    */
@@ -361,15 +364,18 @@ trait BigTable extends AutoCloseable {
    * Append the value of a column.
    */
   def append(row: String, family: String, column: String, value: Array[Byte]): Unit = {
-    append(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset), value)
+    append(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value)
   }
+}
 
+/** If BigTable supports counter data type. */
+trait Counter {
   /** Get the value of a counter column */
   def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long
 
   /** Get the value of a counter column */
   def getCounter(row: String, family: String, column: String): Long = {
-    getCounter(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset))
+    getCounter(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
   }
 
   /**
@@ -381,6 +387,11 @@ trait BigTable extends AutoCloseable {
    * Add to a counter column.
    */
   def addCounter(row: String, family: String, column: String, value: Long): Unit = {
-    addCounter(row.getBytes(charset), family.getBytes(charset), column.getBytes(charset), value)
+    addCounter(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value)
   }
+}
+
+object BigTable {
+  /** string encoder/decoder */
+  val charset = Charset.forName("UTF-8")
 }

@@ -13,14 +13,12 @@ import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibili
 import org.apache.hadoop.hbase.util.Bytes
 import unicorn.bigtable._
 
-import scala.collection.mutable.ArrayBuffer
-
 /**
  * HBase table adapter.
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
