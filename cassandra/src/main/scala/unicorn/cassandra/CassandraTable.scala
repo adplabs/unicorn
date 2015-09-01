@@ -76,12 +76,12 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
   }
 
   /** Unsupported */
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): RowScanner = {
     throw new UnsupportedOperationException
   }
 
   /** Unsupported */
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): RowScanner = {
     throw new UnsupportedOperationException
   }
 

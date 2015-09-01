@@ -19,18 +19,20 @@ import unicorn.bigtable.BigTable
  * @author Haifeng Li
  */
 class Accumulo(val connector: Connector) extends unicorn.bigtable.Database {
+  val tableOperations = connector.tableOperations
   override def close: Unit = () // Connector has no close method
 
   override def apply(name: String): BigTable = {
     new AccumuloTable(this, name)
   }
 
-  override def createTable(name: String, props: Properties, families: String*): Unit = {
+  override def createTable(name: String, props: Properties, families: String*): BigTable = {
     if (connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 
     val config = new NewTableConfiguration
-    config.setProperties(props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap)
+    val settings = props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap
+    config.setProperties(settings)
     connector.tableOperations.create(name, config)
 
     val localityGroups = families.map { family =>
@@ -39,14 +41,23 @@ class Accumulo(val connector: Connector) extends unicorn.bigtable.Database {
       (family, set)
     }.toMap
 
-    connector.tableOperations().setLocalityGroups(name, localityGroups)
+    tableOperations.setLocalityGroups(name, localityGroups)
+    apply(name)
   }
   
   override def dropTable(name: String): Unit = {
     if (!connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Drop Table $name, which does not exists")
 
-    connector.tableOperations.delete(name)
+    tableOperations.delete(name)
+  }
+
+  override def truncateTable(name: String): Unit = {
+    tableOperations.deleteRows(name, null, null)
+  }
+
+  override def compactTable(name: String): Unit = {
+    tableOperations.compact(name, null, null, true, false)
   }
 }
 

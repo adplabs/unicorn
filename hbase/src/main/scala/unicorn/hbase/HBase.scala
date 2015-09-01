@@ -30,10 +30,6 @@ class HBase(config: Configuration) extends unicorn.bigtable.Database {
     new HBaseTable(this, name)
   }
 
-  override def createTable(name: String, families: String*): BigTable = {
-    createTable(name, new Properties(), families: _*)
-  }
-
   override def createTable(name: String, props: Properties, families: String*): BigTable = {
     if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
@@ -49,23 +45,18 @@ class HBase(config: Configuration) extends unicorn.bigtable.Database {
     apply(name)
   }
 
-  /** Truncates a table and preserves the splits */
-  override def truncateTable(name: String): Unit = {
-    admin.truncateTable(TableName.valueOf(name), true)
-  }
-
   override def dropTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
     admin.disableTable(tableName)
     admin.deleteTable(tableName)
   }
 
-  override def compactTable(name: String): Unit = {
-    val tableName = TableName.valueOf(name)
-    admin.compact(tableName)
+  /** Truncates a table and preserves the splits */
+  override def truncateTable(name: String): Unit = {
+    admin.truncateTable(TableName.valueOf(name), true)
   }
 
-  override def majorCompactTable(name: String): Unit = {
+  override def compactTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
     admin.majorCompact(tableName)
   }

@@ -28,7 +28,10 @@ trait Database extends AutoCloseable {
    *   In some NoSQL solutions (e.g. HBase), column families are static
    *   and should be created when creating the table.
    */
-  def createTable(name: String, families: String*): BigTable
+  def createTable(name: String, families: String*): BigTable = {
+    createTable(name, new Properties(), families: _*)
+  }
+
   /**
    * Creates a table.
    * @param name the name of table.
@@ -52,14 +55,8 @@ trait Database extends AutoCloseable {
   def dropTable(name: String): Unit
 
   /**
-   * Compacts a table
+   * Major compacts a table. Asynchronous operation.
    * @param name the name of table.
    */
   def compactTable(name: String): Unit
-
-  /**
-   * Major compacts a table
-   * @param name the name of table.
-   */
-  def majorCompactTable(name: String): Unit
 }

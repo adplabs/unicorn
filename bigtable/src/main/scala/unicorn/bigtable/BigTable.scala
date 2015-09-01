@@ -29,7 +29,7 @@ case class ColumnFamily(family: Array[Byte], columns: Seq[Column])
 case class Row(row: Array[Byte], families: Seq[ColumnFamily])
 
 /** Big table scanner */
-trait Scanner extends Iterator[Row] {
+trait RowScanner extends Iterator[Row] {
   def close: Unit
   def hasNext: Boolean
   def next: Row
@@ -157,7 +157,7 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte]): Scanner = {
+  def scan(startRow: Array[Byte], stopRow: Array[Byte]): RowScanner = {
     scan(startRow, stopRow, Seq())
   }
 
@@ -166,7 +166,7 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: String, stopRow: String): Scanner = {
+  def scan(startRow: String, stopRow: String): RowScanner = {
     scan(startRow.getBytes(charset), stopRow.getBytes(charset), Seq())
   }
 
@@ -175,14 +175,14 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Scanner
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner
 
   /**
    * Scan the range for all columns in one or more column families. If families is empty, get all column families.
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: String, stopRow: String, families: Seq[String] = Seq()): Scanner = {
+  def scan(startRow: String, stopRow: String, families: Seq[String] = Seq()): RowScanner = {
     scan(startRow.getBytes(charset), stopRow.getBytes(charset), families.map(_.getBytes(charset)))
   }
 
@@ -191,7 +191,7 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): RowScanner = {
     scan(startRow, stopRow, family, Seq())
   }
 
@@ -200,7 +200,7 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: String, stopRow: String, family: String): Scanner = {
+  def scan(startRow: String, stopRow: String, family: String): RowScanner = {
     scan(startRow.getBytes(charset), stopRow.getBytes(charset), family.getBytes(charset), Seq())
   }
 
@@ -209,14 +209,14 @@ trait BigTable extends AutoCloseable {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Scanner
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: String, stopRow: String, family: String, columns: Seq[String]): Scanner = {
+  def scan(startRow: String, stopRow: String, family: String, columns: Seq[String]): RowScanner = {
     scan(startRow.getBytes(charset), stopRow.getBytes(charset), family.getBytes(charset), columns.map(_.getBytes(charset)))
   }
 

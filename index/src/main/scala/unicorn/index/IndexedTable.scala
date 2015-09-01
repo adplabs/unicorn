@@ -55,11 +55,11 @@ class IndexedTable(table: BigTable) extends BigTable {
     table.get(keys: _*)
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): RowScanner = {
     table.scan(startRow, stopRow, family)
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): RowScanner = {
     table.scan(startRow, stopRow, family, columns: _*)
   }
 

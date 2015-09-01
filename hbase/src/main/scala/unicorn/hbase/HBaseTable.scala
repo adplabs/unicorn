@@ -87,16 +87,16 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     families.foreach { family => scan.addFamily(family) }
-    new HBaseScanner(table.getScanner(scan))
+    new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Scanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     columns.foreach { column => scan.addColumn(family, column) }
-    new HBaseScanner(table.getScanner(scan))
+    new HBaseRowScanner(table.getScanner(scan))
   }
 
   override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
@@ -151,16 +151,16 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable {
     table.delete(deleter)
   }
 
-  override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
-    val deleter = newDelete(row)
-    families.foreach { family => deleter.addFamily(family) }
-    table.delete(deleter)
-  }
-
   override def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
     val deleter = newDelete(row)
     if (columns.isEmpty) deleter.addFamily(family)
     else columns.foreach { column => deleter.addColumns(family, column) }
+    table.delete(deleter)
+  }
+
+  override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
+    val deleter = newDelete(row)
+    families.foreach { family => deleter.addFamily(family) }
     table.delete(deleter)
   }
 
@@ -276,7 +276,7 @@ object HBaseTable {
   }
 }
 
-class HBaseScanner(scanner: ResultScanner) extends Scanner {
+class HBaseRowScanner(scanner: ResultScanner) extends RowScanner {
   val iter = scanner.iterator
 
   def close: Unit = scanner.close

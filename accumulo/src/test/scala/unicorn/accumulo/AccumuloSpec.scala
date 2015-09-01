@@ -1,17 +1,17 @@
-package unicorn.hbase
+package unicorn.accumulo
 
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable._
+import unicorn.accumulo.Accumulo
 
 /**
  * @author Haifeng Li
  */
-class HBaseSpec extends Specification with BeforeAfterAll {
+class AccumuloSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
-  // Otherwise, test cases on same columns will fail due to concurrency
-  sequential
-  val hbase = HBase()
+  // Otherwise, test cases on same columns will fail due to concurrency  sequential
+  val hbase = Accumulo("instance", "localhost:2181", "tester", "password")
   val tableName = "unicorn_test"
   var table: BigTable = null
 
@@ -25,7 +25,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     hbase.dropTable(tableName)
   }
 
-  "HBase" should {
+  "Accumulo" should {
     "get the put" in {
       table.put("row1", "cf1", "c1", "v1")
       new String(table.get("row1", "cf1", "c1").get, table.charset) === "v1"
@@ -43,15 +43,6 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       table.delete("row1", "cf1")
       val empty = table.get("row1", "cf1")
       empty.size === 0
-    }
-
-    "get empty family" in {
-      val columns = table.get("row1", "cf1")
-      columns.size === 0
-    }
-
-    "get nonexistent family" in {
-      table.get("row1", "cf5") must throwA[Exception]
     }
 
     "get the row" in {
@@ -82,15 +73,10 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       table.get("row1").size === 0
     }
 
-    "get nonexistent row" in {
-      val families = table.get("row5")
-      families.size === 0
-    }
-
     "get multiple rows" in {
       val row1 = Row("row1".getBytes(table.charset),
         Seq(ColumnFamily("cf1".getBytes(table.charset), Seq(Column("c1".getBytes(table.charset), "v1".getBytes(table.charset)), Column("c2".getBytes(table.charset), "v2".getBytes(table.charset)))),
-           ColumnFamily("cf2".getBytes(table.charset), Seq(Column("c3".getBytes(table.charset), "v3".getBytes(table.charset))))))
+          ColumnFamily("cf2".getBytes(table.charset), Seq(Column("c3".getBytes(table.charset), "v3".getBytes(table.charset))))))
 
       val row2 = Row("row2".getBytes(table.charset),
         Seq(ColumnFamily("cf1".getBytes(table.charset), Seq(Column("c1".getBytes(table.charset), "v1".getBytes(table.charset)), Column("c2".getBytes(table.charset), "v2".getBytes(table.charset))))))
