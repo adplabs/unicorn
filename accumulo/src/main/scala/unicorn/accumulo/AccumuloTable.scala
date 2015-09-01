@@ -17,11 +17,11 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with CellLevelSecurity {
+class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: String) extends BigTable with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
-  var expression: Option[String] = None
-  var labels: Option[Seq[String]] = None
+  var expression: Option[String] = Some(expr)
+  var labels: Option[Seq[String]] = Some(auth)
   var cellVisibility: Option[CellVisibility] = None
   var authorizations: Option[Authorizations] = None
 

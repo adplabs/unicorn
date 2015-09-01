@@ -42,6 +42,9 @@ class JsonParserSpec extends Specification {
     "parse 'CA761232-ED42-11CE-BACD-00AA0057B223' to JsUUID" in {
       JsonParser("\"CA761232-ED42-11CE-BACD-00AA0057B223\"") === JsUUID("CA761232-ED42-11CE-BACD-00AA0057B223")
     }
+    "parse \"ObjectId(507f191e810c19729de860ea)\" to JsObjectId" in {
+      JsonParser("\"ObjectId(507f191e810c19729de860ea)\"") === JsObjectId("507f191e810c19729de860ea")
+    }
     "parse all representations of the slash (SOLIDUS) character in a JsString" in {
       JsonParser( "\"" + "/\\/\\u002f" + "\"") === JsString("///")
     }

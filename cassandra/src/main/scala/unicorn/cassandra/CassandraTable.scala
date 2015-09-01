@@ -26,20 +26,6 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
   override def close: Unit = () // Client has no close method
 
-  /** Unsupported */
-  override def setCellVisibility(expression: String): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  override def getCellVisibility: Option[String] = None
-
-  /** Unsupported */
-  override def setAuthorizations(labels: String*): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  override def getAuthorizations: Option[Seq[String]] = None
-
   private val null_range = ByteBuffer.wrap(Array[Byte]())
 
   /** Unsupported */

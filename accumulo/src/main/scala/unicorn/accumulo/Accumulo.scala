@@ -11,22 +11,26 @@ import org.apache.hadoop.io.Text
 import org.apache.accumulo.core.client.{Connector, ZooKeeperInstance}
 import org.apache.accumulo.core.client.admin.NewTableConfiguration
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
-import unicorn.bigtable.BigTable
+import unicorn.bigtable._
 
 /**
  * Accumulo server adapter.
  * 
  * @author Haifeng Li
  */
-class Accumulo(val connector: Connector) extends unicorn.bigtable.Database {
+class Accumulo(val connector: Connector) extends Database {
   val tableOperations = connector.tableOperations
   override def close: Unit = () // Connector has no close method
 
-  override def apply(name: String): BigTable = {
+  override def apply(name: String): AccumuloTable = {
     new AccumuloTable(this, name)
   }
 
-  override def createTable(name: String, props: Properties, families: String*): BigTable = {
+  def apply(name: String, auth: String, expr: String): AccumuloTable = {
+    new AccumuloTable(this, name, auth, expr)
+  }
+
+  override def createTable(name: String, props: Properties, families: String*): AccumuloTable = {
     if (connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
 

@@ -20,18 +20,19 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     json.fields.foreach { case (field, value) =>
       buffer.clear
       value match {
-        case x: JsBoolean => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsInt => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsLong => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsDouble => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsString => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsUUID => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsBinary => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsObject => serialize(x, Some(jsonPath(ename.get, field)), map)
-        case x: JsArray => serialize(x, Some(jsonPath(ename.get, field)), map)
-        case JsNull => buffer.put(TYPE_NULL); map(jsonPath(ename.get, field)) = buffer
-        case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, field)) = buffer
+        case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsString   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsUUID     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsObjectId => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsBinary   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsObject   => serialize(x, Some(jsonPath(ename.get, field)), map)
+        case x: JsArray    => serialize(x, Some(jsonPath(ename.get, field)), map)
+        case JsNull        => buffer.put(TYPE_NULL); map(jsonPath(ename.get, field)) = buffer
+        case JsUndefined   => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, field)) = buffer
       }
     }
   }
@@ -46,18 +47,19 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     json.elements.zipWithIndex.foreach { case (value, index) =>
       buffer.clear
       value match {
-        case x: JsBoolean => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsInt => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsLong => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsDouble => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsString => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsDate => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsUUID => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsBinary => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsObject => serialize(x, Some(jsonPath(ename.get, index)), map)
-        case x: JsArray => serialize(x, Some(jsonPath(ename.get, index)), map)
-        case JsNull => buffer.put(TYPE_NULL); map(jsonPath(ename.get, index)) = buffer
-        case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, index)) = buffer
+        case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsString   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsUUID     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsObjectId => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsBinary   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsObject   => serialize(x, Some(jsonPath(ename.get, index)), map)
+        case x: JsArray    => serialize(x, Some(jsonPath(ename.get, index)), map)
+        case JsNull        => buffer.put(TYPE_NULL); map(jsonPath(ename.get, index)) = buffer
+        case JsUndefined   => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, index)) = buffer
       }
     }
   }
@@ -66,18 +68,19 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     buffer.clear
     val map = collection.mutable.Map[String, Array[Byte]]()
     json match {
-      case x: JsBoolean => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsInt => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsLong => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsDouble => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsString => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsDate => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsUUID => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsBinary => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsObject => serialize(x, Some(jsonPath), map)(buffer)
-      case x: JsArray => serialize(x, Some(jsonPath), map)(buffer)
-      case JsNull => buffer.put(TYPE_NULL); map(jsonPath) = buffer
-      case JsUndefined => buffer.put(TYPE_UNDEFINED); map(jsonPath) = buffer
+      case x: JsBoolean  => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsInt      => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsLong     => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsDouble   => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsString   => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsDate     => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsUUID     => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsObjectId => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsBinary   => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsObject   => serialize(x, Some(jsonPath), map)(buffer)
+      case x: JsArray    => serialize(x, Some(jsonPath), map)(buffer)
+      case JsNull        => buffer.put(TYPE_NULL); map(jsonPath) = buffer
+      case JsUndefined  => buffer.put(TYPE_UNDEFINED); map(jsonPath) = buffer
     }
     map.toMap
   }
@@ -89,18 +92,19 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     implicit val buffer = ByteBuffer.wrap(bytes.get)
     buffer.get match {
       // data type
-      case TYPE_BOOLEAN => boolean
-      case TYPE_INT32 => int
-      case TYPE_INT64 => long
-      case TYPE_DOUBLE => double
-      case TYPE_DATETIME => date
-      case TYPE_STRING => string
-      case TYPE_BINARY => binary
-      case TYPE_NULL => JsNull
+      case TYPE_BOOLEAN  => boolean
+      case TYPE_INT32     => int
+      case TYPE_INT64     => long
+      case TYPE_DOUBLE    => double
+      case TYPE_DATETIME  => date
+      case TYPE_STRING    => string
+      case TYPE_OBJECTID  => objectId
+      case TYPE_BINARY    => binary
+      case TYPE_NULL      => JsNull
       case TYPE_UNDEFINED => JsUndefined
-      case TYPE_DOCUMENT => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kv: _*)
-      case TYPE_ARRAY => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
-      case x => throw new IllegalStateException("Unsupported JSON type: %02X" format x)
+      case TYPE_DOCUMENT  => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kv: _*)
+      case TYPE_ARRAY     => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
+      case x              => throw new IllegalStateException("Unsupported JSON type: %02X" format x)
     }
   }
 

@@ -13,24 +13,24 @@ import org.apache.hadoop.hbase.HTableDescriptor
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
-import unicorn.bigtable.BigTable
+import unicorn.bigtable._
 
 /**
  * HBase server adapter.
  *
  * @author Haifeng Li (293050)
  */
-class HBase(config: Configuration) extends unicorn.bigtable.Database {
+class HBase(config: Configuration) extends Database {
   val connection = ConnectionFactory.createConnection(config)
   val admin = connection.getAdmin
 
   override def close: Unit = connection.close
 
-  override def apply(name: String): BigTable = {
+  override def apply(name: String): HBaseTable = {
     new HBaseTable(this, name)
   }
 
-  override def createTable(name: String, props: Properties, families: String*): BigTable = {
+  override def createTable(name: String, props: Properties, families: String*): HBaseTable = {
     if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
     

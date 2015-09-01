@@ -60,6 +60,8 @@ class JsonParser(input: ParserInput) {
       } catch {
         case _: java.text.ParseException => JsString(s)
       }
+    } else if (s.length == JsObjectId.formatLength && JsObjectId.regex.pattern.matcher(s).matches) {
+      JsObjectId(s.substring(9, 33))
     } else if (s.length == JsUUID.formatLength && JsUUID.regex.pattern.matcher(s).matches) {
       JsUUID(s)
     } else {

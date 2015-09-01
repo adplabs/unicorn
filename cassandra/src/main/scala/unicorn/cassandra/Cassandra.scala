@@ -3,29 +3,32 @@ package unicorn.cassandra
 import java.util.Properties
 import scala.collection.JavaConversions._
 import org.apache.cassandra.thrift.Cassandra.Client
-import org.apache.cassandra.thrift.KsDef
-import org.apache.cassandra.thrift.CfDef
+import org.apache.cassandra.thrift.{ConsistencyLevel, KsDef, CfDef}
 import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TBinaryProtocol
-import unicorn.bigtable.BigTable
+import unicorn.bigtable._
 
 /**
  * Cassandra server adapter.
  *
  * @author Haifeng Li
  */
-class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
+class Cassandra(transport: TFramedTransport) extends Database {
   val protocol = new TBinaryProtocol(transport)
-  val admin = new Client(protocol)
+  val client = new Client(protocol)
 
   override def close: Unit = transport.close
 
-  override def apply(name: String): BigTable = {
+  override def apply(name: String): CassandraTable = {
     new CassandraTable(this, name)
   }
+
+  def apply(name: String, consistency: ConsistencyLevel): CassandraTable = {
+    new CassandraTable(this, name, consistency)
+  }
   
-  override def createTable(name: String, props: Properties, families: String*): Unit = {
+  override def createTable(name: String, props: Properties, families: String*): CassandraTable = {
     val options = props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap
     
     val keyspace = new KsDef
@@ -40,20 +43,29 @@ class Cassandra(transport: TFramedTransport) extends unicorn.bigtable.Database {
       keyspace.addToCf_defs(cf)
     }
     
-    admin.system_add_keyspace(keyspace)
+    client.system_add_keyspace(keyspace)
+    apply(name)
   }
   
   override def dropTable(name: String): Unit = {
-    admin.system_drop_keyspace(name)
+    client.system_drop_keyspace(name)
+  }
+
+  override def truncateTable(name: String): Unit = {
+    client.truncate(name)
+  }
+
+  override def compactTable(name: String): Unit = {
+    client.compact(name, null, null, true, false)
   }
 }
 
 object Cassandra {
   def apply(host: String, port: Int): Cassandra = {
-    // For ultra-wide row, we set the maxLength to 1G.
+    // For ultra-wide row, we set the maxLength to 16MB.
     // Note that we also need to set the server side configuration
     // thrift_framed_transport_size_in_mb in cassandra.yaml
-    val transport = new TFramedTransport(new TSocket(host, port), 1024 * 1024 * 1024)
+    val transport = new TFramedTransport(new TSocket(host, port), 16 * 1024 * 1024)
     transport.open
 
     new Cassandra(transport)

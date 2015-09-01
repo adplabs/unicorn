@@ -104,6 +104,12 @@ trait JsonSerializerHelper {
     buffer.putLong(json.value.getTime)
   }
 
+  def serialize(json: JsObjectId, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+    buffer.put(TYPE_OBJECTID)
+    if (ename.isDefined) cstring(ename.get)
+    buffer.put(json.value.id)
+  }
+
   def serialize(json: JsUUID, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_BINARY)
     if (ename.isDefined) cstring(ename.get)
@@ -152,6 +158,12 @@ trait JsonSerializerHelper {
 
   def date()(implicit buffer: ByteBuffer): JsDate = {
     JsDate(buffer.getLong)
+  }
+
+  def objectId()(implicit buffer: ByteBuffer): JsValue = {
+    val id = new Array[Byte](BsonObjectId.size)
+    buffer.get(id)
+    JsObjectId(BsonObjectId(id))
   }
 
   def string()(implicit buffer: ByteBuffer): JsString = {

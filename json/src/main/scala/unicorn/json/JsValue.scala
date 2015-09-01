@@ -164,8 +164,37 @@ object JsUUID {
   def apply(uuid: Array[Byte]) = new JsUUID(UUID.nameUUIDFromBytes(uuid))
 }
 
+case class JsObjectId(value: BsonObjectId) extends JsValue {
+  override def toString = value.toString
+}
+
+object JsObjectId {
+  val regex = """ObjectId\([0-9a-fA-F]{24}\)""".r
+  val formatLength = 34
+  def apply() = new JsObjectId(BsonObjectId.generate)
+  def apply(id: String) = new JsObjectId(BsonObjectId(id))
+  def apply(id: Array[Byte]) = new JsObjectId(BsonObjectId(id))
+}
+
 case class JsBinary(value: Array[Byte]) extends JsValue {
   override def toString = value.map("%02X" format _).mkString
+}
+
+object JsBinary {
+  def bytes2Hex(bytes: Array[Byte]): String = {
+    bytes.map("%02X" format _).mkString
+  }
+
+  def hex2Bytes(s: String): Array[Byte] = {
+    if (s.length % 2 != 0)
+      throw new IllegalArgumentException("Hexadecimal string must contain an even number of characters")
+
+    val bytes = new Array[Byte](s.length / 2)
+    for (i <- 0 until s.length by 2) {
+      bytes(i/2) = java.lang.Integer.parseInt(s.substring(i, i+2), 16).toByte
+    }
+    bytes
+  }
 }
 
 case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsValue {
