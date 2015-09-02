@@ -17,7 +17,7 @@
 package unicorn.graph.document
 
 import unicorn._, json._
-import unicorn.doc.Document
+import unicorn.core.Document
 import unicorn.graph.Edge
 import unicorn.graph.Visitor
 

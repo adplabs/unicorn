@@ -18,7 +18,7 @@ package unicorn.graph.document
 
 import unicorn._, json._, graph._
 import smile.graph._
-import unicorn.doc.Document
+import unicorn.core.Document
 
 /**
  * Document graph.

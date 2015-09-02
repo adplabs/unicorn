@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.doc
+package unicorn.core
 
 /**
  * @author Haifeng Li

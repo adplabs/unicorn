@@ -17,7 +17,7 @@
 package unicorn.search
 
 import unicorn._, json._
-import unicorn.doc.Document
+import unicorn.core.Document
 import unicorn.store.Dataset
 import smile.nlp.relevance.BM25
 

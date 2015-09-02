@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.doc
+package unicorn.core
 
 import java.nio._
 import java.util.UUID

@@ -24,7 +24,7 @@ import MediaTypes._
 
 import unicorn._, json._
 import unicorn.cassandra.CassandraServer
-import unicorn.doc.Document
+import unicorn.core.Document
 import unicorn.search.TextSearch
 
 

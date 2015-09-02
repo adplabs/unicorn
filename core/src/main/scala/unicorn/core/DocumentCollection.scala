@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.doc
+package unicorn.core
 
 import unicorn.json._
 import unicorn.bigtable._
