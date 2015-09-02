@@ -8,13 +8,14 @@ import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TBinaryProtocol
 import unicorn.bigtable._
+import unicorn.util.Logging
 
 /**
  * Cassandra server adapter.
  *
  * @author Haifeng Li
  */
-class Cassandra(transport: TFramedTransport) extends Database {
+class Cassandra(transport: TFramedTransport) extends Database with Logging {
   val protocol = new TBinaryProtocol(transport)
   val client = new Client(protocol)
 
@@ -52,11 +53,18 @@ class Cassandra(transport: TFramedTransport) extends Database {
   }
 
   override def truncateTable(name: String): Unit = {
-    client.truncate(name)
+    client.describe_keyspace(name).getCf_defs.foreach { cf =>
+      client.truncate(cf.getName)
+    }
   }
 
+  /**
+   * Cassandra client API doesn't support compaction.
+   * This is actually a nop.
+   */
   override def compactTable(name: String): Unit = {
-    client.compact(name, null, null, true, false)
+    // fail silently
+    log.warn("Cassandra client API doesn't support compaction")
   }
 }
 

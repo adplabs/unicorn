@@ -2,11 +2,12 @@ package unicorn.cassandra
 
 import java.nio.ByteBuffer
 import scala.collection.JavaConversions._
-import org.apache.cassandra.thrift.Cassandra.Client
 import org.apache.cassandra.thrift.Column
 import org.apache.cassandra.thrift.ColumnParent
+import org.apache.cassandra.thrift.ColumnPath
 import org.apache.cassandra.thrift.ConsistencyLevel
 import org.apache.cassandra.thrift.Mutation
+import org.apache.cassandra.thrift.NotFoundException
 import org.apache.cassandra.thrift.Deletion
 import org.apache.cassandra.thrift.SlicePredicate
 import org.apache.cassandra.thrift.SliceRange
@@ -20,20 +21,70 @@ import unicorn.bigtable._
  * @author Haifeng Li
  */
 class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable {
-  val client = new Client(db.protocol)
+  val client = db.client
   client.set_keyspace(name)
   val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
 
+  import unicorn.bigtable.BigTable.charset
+
   override def close: Unit = () // Client has no close method
 
-  private val null_range = ByteBuffer.wrap(Array[Byte]())
+  private val emptyBytes = Array[Byte]()
+  private val nullRange = ByteBuffer.wrap(emptyBytes)
 
-  /** Unsupported */
-  override def get(row: Array[Byte]): Map[Key, Value] = {
-    throw new UnsupportedOperationException
+  override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
+    get(row, new String(family, charset), column)
   }
 
-  override def get(row: Array[Byte], family: Array[Byte]): Map[Key, Value] = {
+  def get(row: Array[Byte], family: String, column: Array[Byte]): Option[Array[Byte]] = {
+    val key = ByteBuffer.wrap(row)
+    val path = new ColumnPath(family)
+    path.column = nullRange
+
+    try {
+      val result = client.get(key, path, consistency)
+      Some(result.getColumn.getValue)
+    } catch {
+      case _: NotFoundException => None
+    }
+  }
+
+  override def get(row: Array[Byte], families: Seq[Array[Byte]]): Seq[ColumnFamily] = {
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
+    get(row, new String(family, charset))
+  }
+
+  def get(row: Array[Byte], family: String): Seq[Column] = {
+    val key = ByteBuffer.wrap(row)
+    val parent = new ColumnParent(family)
+    val predicate = new SlicePredicate
+    val range = new SliceRange
+    range.start = null_range
+    range.start =
+    predicate.range = range
+
+    val slice = client.get_slice(key, parent, predicate, consistency)
+    getColumns(slice)
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
+    val key = ByteBuffer.wrap(row)
+    val parent = new ColumnParent(new String(family))
+    val predicate = new SlicePredicate
+    columns.foreach { column =>
+      predicate.addToColumn_names(ByteBuffer.wrap(column))
+    }
+
+    val slice = client.get_slice(key, parent, predicate, consistency)
+    getColumns(slice)
+  }
+
+  override def get(row: Array[Byte]): Row = {
+  }
+
+  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(new String(family))
     val predicate = new SlicePredicate
@@ -43,18 +94,6 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     getResults(row, family, result)
   }
   
-  override def get(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Map[Key, Value] = {
-    val key = ByteBuffer.wrap(row)
-    val parent = new ColumnParent(new String(family))
-    val predicate = new SlicePredicate
-    columns.foreach { column =>
-      predicate.addToColumn_names(ByteBuffer.wrap(column))
-    }
-
-    val result = client.get_slice(key, parent, predicate, consistency)
-    getResults(row, family, result)
-  }
-
   override def get(keys: Key*): Map[Key, Value] = {
     keys.foldLeft(Map.empty[Key, Value]) { case (acc, Key(row, family, column)) =>
       acc ++ get(row, family, column)
@@ -71,12 +110,11 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     throw new UnsupportedOperationException
   }
 
-  private def getResults(row: Array[Byte], family: Array[Byte], result: java.util.List[ColumnOrSuperColumn]): Map[Key, Value] = {
+  private def getColumns(result: java.util.List[ColumnOrSuperColumn]): Seq[Column] = {
     result.map { column =>
-      val key = Key(row, family, column.getColumn.getName)
-      val value = Value(column.getColumn.getValue, column.getColumn.getTimestamp)
-      (key, value)
-    }.toMap
+      val c = column.getColumn
+      Column(c.getName, c.getValue, c.getTimestamp)
+    }
   }
 
   private val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
@@ -179,25 +217,5 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     } else if (!updates.get(key).containsKey(family)) {
       updates.get(key).put(family, new java.util.ArrayList[Mutation])
     }
-  }
-
-  /** Unsupported */
-  override def rollback(row: Array[Byte], family: Array[Byte], columns: Array[Byte]*): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def rollback(keys: Key*): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def append(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def increment(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
-    throw new UnsupportedOperationException
   }
 }

@@ -30,13 +30,18 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with CellLeve
     cellVisibility = Some(new CellVisibility(expression))
   }
 
-  override def getCellVisibility: Option[String] = cellVisibility.map(_.getExpression)
+  override def getCellVisibility: String = {
+    cellVisibility.map(_.getExpression).getOrElse("")
+  }
 
   override def setAuthorizations(labels: String*): Unit = {
     authorizations = Some(new Authorizations(labels: _*))
   }
 
-  override def getAuthorizations: Option[Seq[String]] = authorizations.map(_.getLabels)
+  override def getAuthorizations: Seq[String] = {
+    if (authorizations.isDefined) authorizations.get.getLabels
+    else Seq()
+  }
 
   override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
     val get = newGet(row)

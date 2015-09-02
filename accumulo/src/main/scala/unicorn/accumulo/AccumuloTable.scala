@@ -17,27 +17,27 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: String) extends BigTable with CellLevelSecurity {
+class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
-  var expression: Option[String] = Some(expr)
-  var labels: Option[Seq[String]] = Some(auth)
-  var cellVisibility: Option[CellVisibility] = None
-  var authorizations: Option[Authorizations] = None
+  var cellVisibility = new CellVisibility
+  var authorizations = new Authorizations
 
   override def setCellVisibility(expression: String): Unit = {
-    this.expression = Some(expression)
-    cellVisibility = Some(new CellVisibility(expression))
+    cellVisibility = new CellVisibility(expression)
   }
 
-  override def getCellVisibility: Option[String] = expression
+  override def getCellVisibility: String = {
+    new String(cellVisibility.getExpression)
+  }
 
   override def setAuthorizations(labels: String*): Unit = {
-    this.labels = Some(labels)
-    authorizations = Some(new Authorizations(labels: _*))
+    authorizations = new Authorizations(labels: _*)
   }
 
-  override def getAuthorizations: Option[Seq[String]] = labels
+  override def getAuthorizations: Seq[String] = {
+    authorizations.getAuthorizations.map { bytes => new String(bytes)}
+  }
 
   override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
     val scanner = newScanner
@@ -109,10 +109,7 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
 
   override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
     val mutation = new Mutation(row)
-    if (cellVisibility.isDefined)
-      mutation.put(family, column, cellVisibility.get, value)
-    else
-      mutation.put(family, column, value)
+    mutation.put(family, column, cellVisibility, value)
 
     val writer = newBatchWriter(1)
     writer.addMutation(mutation)
@@ -121,20 +118,11 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
 
   override def put(row: Array[Byte], family: Array[Byte], columns: Column*): Unit = {
     val mutation = new Mutation(row)
-    if (cellVisibility.isDefined) {
-      columns.foreach { case Column(qualifier, value, timestamp) =>
-        if (timestamp == 0)
-          mutation.put(family, qualifier, cellVisibility.get, value)
-        else
-          mutation.put(family, qualifier, cellVisibility.get, timestamp, value)
-      }
-    } else {
-      columns.foreach { case Column(qualifier, value, timestamp) =>
-        if (timestamp == 0)
-          mutation.put(family, qualifier, value)
-        else
-          mutation.put(family, qualifier, timestamp, value)
-      }
+    columns.foreach { case Column(qualifier, value, timestamp) =>
+      if (timestamp == 0)
+        mutation.put(family, qualifier, cellVisibility, value)
+      else
+        mutation.put(family, qualifier, cellVisibility, timestamp, value)
     }
 
     val writer = newBatchWriter(1)
@@ -144,23 +132,12 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
 
   override def put(row: Array[Byte], families: ColumnFamily*): Unit = {
     val mutation = new Mutation(row)
-    if (cellVisibility.isDefined) {
-      families.foreach { case ColumnFamily(family, columns) =>
-        columns.foreach { case Column(qualifier, value, timestamp) =>
-          if (timestamp == 0)
-            mutation.put(family, qualifier, cellVisibility.get, value)
-          else
-            mutation.put(family, qualifier, cellVisibility.get, timestamp, value)
-        }
-      }
-    } else {
-      families.foreach { case ColumnFamily(family, columns) =>
-        columns.foreach { case Column(qualifier, value, timestamp) =>
-          if (timestamp == 0)
-            mutation.put(family, qualifier, value)
-          else
-            mutation.put(family, qualifier, timestamp, value)
-        }
+    families.foreach { case ColumnFamily(family, columns) =>
+      columns.foreach { case Column(qualifier, value, timestamp) =>
+        if (timestamp == 0)
+          mutation.put(family, qualifier, cellVisibility, value)
+        else
+          mutation.put(family, qualifier, cellVisibility, timestamp, value)
       }
     }
 
@@ -174,23 +151,12 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
     rows.foreach { case Row(row, families) =>
       val mutation = new Mutation(row)
 
-      if (cellVisibility.isDefined) {
-        families.foreach { case ColumnFamily(family, columns) =>
-          columns.foreach { case Column(qualifier, value, timestamp) =>
-            if (timestamp == 0)
-              mutation.put(family, qualifier, cellVisibility.get, value)
-            else
-              mutation.put(family, qualifier, cellVisibility.get, timestamp, value)
-          }
-        }
-      } else {
-        families.foreach { case ColumnFamily(family, columns) =>
-          columns.foreach { case Column(qualifier, value, timestamp) =>
-            if (timestamp == 0)
-              mutation.put(family, qualifier, value)
-            else
-              mutation.put(family, qualifier, timestamp, value)
-          }
+      families.foreach { case ColumnFamily(family, columns) =>
+        columns.foreach { case Column(qualifier, value, timestamp) =>
+          if (timestamp == 0)
+            mutation.put(family, qualifier, cellVisibility, value)
+          else
+            mutation.put(family, qualifier, cellVisibility, timestamp, value)
         }
       }
 
@@ -203,10 +169,7 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
   override def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
     val writer = newBatchWriter(1)
     val mutation = new Mutation(row)
-    if (cellVisibility.isDefined)
-      mutation.putDelete(family, column, cellVisibility.get)
-    else
-      mutation.putDelete(family, column)
+    mutation.putDelete(family, column, cellVisibility)
 
     writer.addMutation(mutation)
     writer.flush
@@ -221,10 +184,7 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
     } else {
       val writer = newBatchWriter(1)
       val mutation = new Mutation(row)
-      if (cellVisibility.isDefined)
-        columns.foreach { column => mutation.putDelete(family, column, cellVisibility.get) }
-      else
-        columns.foreach { column => mutation.putDelete(family, column) }
+      columns.foreach { column => mutation.putDelete(family, column, cellVisibility) }
 
       writer.addMutation(mutation)
       writer.flush
@@ -268,22 +228,14 @@ class AccumuloTable(val db: Accumulo, val name: String, auth: String, expr: Stri
 
   private def numBatchThreads[T](rows: Seq[T]): Int = Math.min(rows.size, Runtime.getRuntime.availableProcessors)
 
-  private def newScanner = authorizations match {
-    case None => throw new IllegalStateException("Authorizations not set yet")
-    case Some(auth) => db.connector.createScanner(name, auth)
-  }
+  private def newScanner = db.connector.createScanner(name, authorizations)
 
-  private def newBatchScanner(numQueryThreads: Int) = authorizations match {
-    case None => throw new IllegalStateException("Authorizations not set yet")
-    case Some(auth) => db.connector.createBatchScanner(name, auth, numQueryThreads)
-  }
+  private def newBatchScanner(numQueryThreads: Int) = db.connector.createBatchScanner(name, authorizations, numQueryThreads)
 
-  private def newBatchDeleter(numQueryThreads: Int, maxMemory: Long = 10000000L) = authorizations match {
-    case None => throw new IllegalStateException("Authorizations not set yet")
-    case Some(auth) =>
-      val config = new BatchWriterConfig
+  private def newBatchDeleter(numQueryThreads: Int, maxMemory: Long = 10000000L) = {
+    val config = new BatchWriterConfig
       config.setMaxMemory(maxMemory)
-      db.connector.createBatchDeleter(name, auth, numQueryThreads, config)
+      db.connector.createBatchDeleter(name, authorizations, numQueryThreads, config)
   }
 
   /**

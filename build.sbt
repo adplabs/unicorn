@@ -25,7 +25,7 @@ lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsO
 
 lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(bigtable)
 
-lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable)
+lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
 lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(doc)
 

@@ -311,9 +311,9 @@ trait CellLevelSecurity {
   def setCellVisibility(expression: String): Unit
 
   /**
-   * HBase supports cell level security since 0.98. But it is not mandatory.
+   * Returns the current visibility expression setting.
    */
-  def getCellVisibility: Option[String]
+  def getCellVisibility: String
 
   /**
    * Visibility labels associated with a Scan/Get deciding which all labeled data current scan/get can access.
@@ -321,9 +321,9 @@ trait CellLevelSecurity {
   def setAuthorizations(labels: String*): Unit
 
   /**
-   * HBase supports cell level security since 0.98. But it is not mandatory.
+   * Returns the current authorization labels.
    */
-  def getAuthorizations: Option[Seq[String]]
+  def getAuthorizations: Seq[String]
 }
 
 /** If BigTable supports rollback to previous version of a cell. */
