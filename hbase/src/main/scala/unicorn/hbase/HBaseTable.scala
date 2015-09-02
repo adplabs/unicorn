@@ -8,7 +8,7 @@ package unicorn.hbase
 import org.apache.hadoop.hbase.TableName
 
 import scala.collection.JavaConversions._
-import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
+import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan => HBaseScan}
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
 import unicorn.bigtable._
@@ -18,7 +18,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with Scan with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
@@ -90,13 +90,13 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with CellLeve
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Iterator[Row] = {
     val scan = newScan(startRow, stopRow)
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Iterator[Row] = {
     val scan = newScan(startRow, stopRow)
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
@@ -225,8 +225,8 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with CellLeve
     get
   }
 
-  private def newScan(startRow: Array[Byte], stopRow: Array[Byte]): Scan = {
-    val scan = new Scan(startRow, stopRow)
+  private def newScan(startRow: Array[Byte], stopRow: Array[Byte]): HBaseScan = {
+    val scan = new HBaseScan(startRow, stopRow)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
     scan
   }
@@ -279,14 +279,14 @@ object HBaseTable {
   }
 }
 
-class HBaseRowScanner(scanner: ResultScanner) extends RowScanner {
+class HBaseRowScanner(scanner: ResultScanner) extends Iterator[Row] {
   private val iterator = scanner.iterator
 
   def close: Unit = scanner.close
 
-  def hasNext: Boolean = iterator.hasNext
+  override def hasNext: Boolean = iterator.hasNext
 
-  def next: Row = {
+  override def next: Row = {
     HBaseTable.getRow(iterator.next)
   }
 }

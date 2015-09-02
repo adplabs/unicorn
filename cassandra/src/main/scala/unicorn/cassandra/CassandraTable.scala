@@ -2,7 +2,8 @@ package unicorn.cassandra
 
 import java.nio.ByteBuffer
 import scala.collection.JavaConversions._
-import org.apache.cassandra.thrift.Column
+import scala.collection.mutable.ArrayBuffer
+import org.apache.cassandra.thrift.{Column => CassandraColumn}
 import org.apache.cassandra.thrift.ColumnParent
 import org.apache.cassandra.thrift.ColumnPath
 import org.apache.cassandra.thrift.ConsistencyLevel
@@ -12,7 +13,7 @@ import org.apache.cassandra.thrift.Deletion
 import org.apache.cassandra.thrift.SlicePredicate
 import org.apache.cassandra.thrift.SliceRange
 import org.apache.cassandra.thrift.ColumnOrSuperColumn
-import unicorn.bigtable._
+import unicorn.bigtable._, BigTable.charset
 
 /**
  * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
@@ -50,6 +51,14 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
   }
 
   override def get(row: Array[Byte], families: Seq[Array[Byte]]): Seq[ColumnFamily] = {
+    get(row, families.map(new String(_, charset)))
+  }
+
+  def get(row: Array[Byte], families: Seq[String]): Seq[ColumnFamily] = {
+    if (families.isEmpty)
+      columnFamilies.map { family => ColumnFamily(family.getBytes(charset), get(row, family)) }
+    else
+      families.map { family => ColumnFamily(family.getBytes(charset), get(row, family)) }
   }
 
   override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
@@ -57,21 +66,42 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
   }
 
   def get(row: Array[Byte], family: String): Seq[Column] = {
+    val columns = new ArrayBuffer[Column]
+    var start = nullRange
+    do {
+      val slice = get(row, family, start, nullRange, 1000)
+      columns.appendAll(slice)
+      if (!slice.isEmpty) start = ByteBuffer.wrap(slice.last.qualifier)
+    } while (columns.size > 0 && columns.size % 1000 == 0)
+    columns
+  }
+
+  /**
+   *  Get a slice of rows.
+   *  The default count should be sufficient for most documents.
+   */
+  def get(row: Array[Byte], family: String, startColumn: ByteBuffer, stopColumn: ByteBuffer = nullRange, count: Int = 1000): Seq[Column] = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(family)
     val predicate = new SlicePredicate
     val range = new SliceRange
-    range.start = null_range
-    range.start =
-    predicate.range = range
+    range.start = startColumn
+    range.finish = stopColumn
+    range.reversed = false
+    range.count = count
+    predicate.setSlice_range(range)
 
     val slice = client.get_slice(key, parent, predicate, consistency)
     getColumns(slice)
   }
 
   override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
+    get(row, new String(family, charset), columns)
+  }
+
+  def get(row: Array[Byte], family: String, columns: Seq[Array[Byte]]): Seq[Column] = {
     val key = ByteBuffer.wrap(row)
-    val parent = new ColumnParent(new String(family))
+    val parent = new ColumnParent(family)
     val predicate = new SlicePredicate
     columns.foreach { column =>
       predicate.addToColumn_names(ByteBuffer.wrap(column))
@@ -81,33 +111,29 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     getColumns(slice)
   }
 
-  override def get(row: Array[Byte]): Row = {
+  override def get(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Seq[Row] = {
+    rows.map { row =>
+      val result = get(row, families)
+      Row(row, result)
+    }.toSeq
   }
 
-  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
-    val key = ByteBuffer.wrap(row)
-    val parent = new ColumnParent(new String(family))
+  override def get(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Row] = {
+    get(rows, new String(family, charset), columns)
+  }
+
+  def get(rows: Seq[Array[Byte]], family: String, columns: Seq[Array[Byte]]): Seq[Row] = {
+    val keys = rows.map(ByteBuffer.wrap(_))
+    val parent = new ColumnParent(family)
     val predicate = new SlicePredicate
-    predicate.setSlice_range(new SliceRange(null_range, null_range, false, Int.MaxValue))
-
-    val result = client.get_slice(key, parent, predicate, consistency)
-    getResults(row, family, result)
-  }
-  
-  override def get(keys: Key*): Map[Key, Value] = {
-    keys.foldLeft(Map.empty[Key, Value]) { case (acc, Key(row, family, column)) =>
-      acc ++ get(row, family, column)
+    columns.foreach { column =>
+      predicate.addToColumn_names(ByteBuffer.wrap(column))
     }
-  }
 
-  /** Unsupported */
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte]): RowScanner = {
-    throw new UnsupportedOperationException
-  }
-
-  /** Unsupported */
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Array[Byte]*): RowScanner = {
-    throw new UnsupportedOperationException
+    val slices = client.multiget_slice(keys, parent, predicate, consistency)
+    slices.map { case (row, slice) =>
+      Row(row.array, Seq(ColumnFamily(family.getBytes(charset), getColumns(slice))))
+    }.toSeq
   }
 
   private def getColumns(result: java.util.List[ColumnOrSuperColumn]): Seq[Column] = {

@@ -17,7 +17,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with CellLevelSecurity {
+class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Scan with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
   var cellVisibility = new CellVisibility
@@ -92,7 +92,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
     rowScanner.toSeq
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Iterator[Row] = {
     val scanner = newScanner
     // from startRow inclusive to endRow exclusive.
     scanner.setRange(new Range(new Text(startRow), true, new Text(stopRow), false))
@@ -100,7 +100,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
     new AccumuloRowScanner(scanner)
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Iterator[Row] = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(startRow), new Text(stopRow)))
     columns.foreach { column => scanner.fetchColumn(new Text(family), new Text(column)) }
@@ -250,13 +250,13 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
   }
 }
 
-class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
+class AccumuloRowScanner(scanner: ScannerBase) extends Iterator[Row] {
   private val iterator = scanner.iterator
   private var cell = if (iterator.hasNext) iterator.next else null
 
   def close: Unit = scanner.close
 
-  def hasNext: Boolean = cell != null
+  override def hasNext: Boolean = cell != null
 
   def nextColumnFamily: ColumnFamily = {
     if (cell == null) throw new NoSuchElementException
@@ -270,7 +270,7 @@ class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
     ColumnFamily(family.copyBytes, columns)
   }
 
-  def next: Row = {
+  override def next: Row = {
     if (cell == null) throw new NoSuchElementException
     val rowKey = cell.getKey.getRow
     val families = new collection.mutable.ArrayBuffer[ColumnFamily]
