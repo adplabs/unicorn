@@ -31,8 +31,8 @@ class DocumentCollection(table: BigTable, family: String) {
   }
 
   def apply(id: Array[Byte]): Document = {
-    val map = table.get(id, columnFamily).map { case (key, value) =>
-      (new String(key.column), value.value)
+    val map = table.get(id, columnFamily).map { case Column(qualifier, value, _) =>
+      (new String(qualifier), value)
     }
     new Document(id, serializer.deserialize(map))
   }
@@ -41,7 +41,7 @@ class DocumentCollection(table: BigTable, family: String) {
     val columns = serializer.serialize(doc.value).map { case (path, value) =>
       (path.getBytes("UTF-8"), value)
     }
-    table.put(doc.id, columnFamily, columns.toSeq: _*)
+    table.put(doc.id, columnFamily, columns.toSeq)
   }
 
   def insert(json: JsValue): Document = {
