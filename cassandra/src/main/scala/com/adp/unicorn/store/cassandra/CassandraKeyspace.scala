@@ -1,3 +1,19 @@
+/*******************************************************************************
+ * (C) Copyright 2015 ADP, LLC.
+ *   
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *  
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
 package com.adp.unicorn.store.cassandra
 
 import java.nio.ByteBuffer
@@ -16,7 +32,7 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
  * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
  * in other NoSQL solutions such as Accumulo and HBase.
  * 
- * @author Haifeng Li (293050)
+ * @author Haifeng Li
  */
 class CassandraKeyspace(client: Cassandra.Client, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends Dataset {
   val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]()
