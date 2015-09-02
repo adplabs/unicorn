@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 # IntelliJ
 .idea
 
-=======
->>>>>>> remotes/origin/master
 *.class
 
 # Mobile Tools for Java (J2ME)
