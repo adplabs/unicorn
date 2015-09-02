@@ -43,8 +43,8 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
     val scanner = newScanner
     scanner.setRange(new Range(new Text(row)))
     scanner.fetchColumn(new Text(family), new Text(column))
-    val iter = scanner.iterator
-    if (iter.hasNext) Option(iter.next.getValue.get)
+    val iterator = scanner.iterator
+    if (iterator.hasNext) Option(iterator.next.getValue.get)
     else None
   }
 
@@ -53,7 +53,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
     scanner.setRange(new Range(new Text(row)))
     families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
     val rowScanner = new AccumuloRowScanner(scanner)
-    rowScanner.next.families
+    if (rowScanner.hasNext) rowScanner.next.families else Seq()
   }
 
   override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
@@ -251,8 +251,8 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ce
 }
 
 class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
-  val iter = scanner.iterator
-  private var cell = if (iter.hasNext) iter.next else null
+  private val iterator = scanner.iterator
+  private var cell = if (iterator.hasNext) iterator.next else null
 
   def close: Unit = scanner.close
 
@@ -265,7 +265,7 @@ class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
     do {
       val column = Column(cell.getKey.getColumnQualifier.copyBytes, cell.getValue.get, cell.getKey.getTimestamp)
       columns.append(column)
-      if (iter.hasNext) cell = iter.next else cell = null
+      if (iterator.hasNext) cell = iterator.next else cell = null
     } while (cell != null && cell.getKey.getColumnFamily.equals(family))
     ColumnFamily(family.copyBytes, columns)
   }
@@ -277,7 +277,6 @@ class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
     do {
       val family = nextColumnFamily
       families.append(family)
-      if (iter.hasNext) cell = iter.next else cell = null
     } while (cell != null && cell.getKey.getRow.equals(rowKey))
     Row(rowKey.copyBytes, families)
   }

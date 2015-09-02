@@ -10,6 +10,7 @@ import scala.collection.JavaConversions._
 import org.apache.hadoop.io.Text
 import org.apache.accumulo.core.client.{Connector, ZooKeeperInstance}
 import org.apache.accumulo.core.client.admin.NewTableConfiguration
+import org.apache.accumulo.core.client.mock.MockInstance
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
 import unicorn.bigtable._
 
@@ -24,10 +25,6 @@ class Accumulo(val connector: Connector) extends Database {
 
   override def apply(name: String): AccumuloTable = {
     new AccumuloTable(this, name)
-  }
-
-  def apply(name: String, auth: String, expr: String): AccumuloTable = {
-    new AccumuloTable(this, name, auth, expr)
   }
 
   override def createTable(name: String, props: Properties, families: String*): AccumuloTable = {
@@ -68,6 +65,18 @@ class Accumulo(val connector: Connector) extends Database {
 object Accumulo {
   def apply(instance: String, zookeeper: String, user: String, password: String): Accumulo = {
     val inst = new ZooKeeperInstance(instance, zookeeper)
+    val conn = inst.getConnector(user, new PasswordToken(password))
+    new Accumulo(conn)
+  }
+
+    /**
+     * Create a mock instance that holds all data in memory, and will
+     * not retain any data or settings between runs. It presently does
+     * not enforce users, logins, permissions, etc.
+     * This is for test purpose only.
+     */
+  def apply(user: String = "root", password: String = ""): Accumulo = {
+    val inst = new MockInstance
     val conn = inst.getConnector(user, new PasswordToken(password))
     new Accumulo(conn)
   }

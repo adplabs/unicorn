@@ -280,13 +280,13 @@ object HBaseTable {
 }
 
 class HBaseRowScanner(scanner: ResultScanner) extends RowScanner {
-  val iter = scanner.iterator
+  private val iterator = scanner.iterator
 
   def close: Unit = scanner.close
 
-  def hasNext: Boolean = iter.hasNext
+  def hasNext: Boolean = iterator.hasNext
 
   def next: Row = {
-    HBaseTable.getRow(iter.next)
+    HBaseTable.getRow(iterator.next)
   }
 }
