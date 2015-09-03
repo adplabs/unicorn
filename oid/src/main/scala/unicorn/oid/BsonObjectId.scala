@@ -14,14 +14,14 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.json
+package unicorn.oid
 
-import java.math.BigInteger
 import java.util.Date
 import scala.util.Try
+import unicorn.util._
 
 /**
- * ObjectId is a 12-byte BSON type, constructed using:
+ * BSON's 12-byte ObjectId type, constructed using:
  * a 4-byte value representing the seconds since the Unix epoch,
  * a 3-byte machine identifier,
  * a 2-byte process id, and
@@ -29,13 +29,13 @@ import scala.util.Try
  *
  * The implementation is adopt from ReactiveMongo.
  */
-case class BsonObjectId(id: Array[Byte]) {
+case class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
   require(id.size == BsonObjectId.size)
   import java.util.Arrays
   import java.nio.ByteBuffer
 
   /** Hexadecimal string representation */
-  lazy val str = JsBinary.bytes2Hex(id)
+  lazy val str = bytes2Hex(id)
 
   /** In the form of a string literal "ObjectId(...)" */
   override def toString = s"""ObjectId(${str})"""
@@ -50,7 +50,7 @@ case class BsonObjectId(id: Array[Byte]) {
   def getTimestamp: Date = new Date(ByteBuffer.wrap(id.take(4)).getInt * 1000L)
 
   /** Copy the bytes */
-  def copyBytes = Arrays.copyOf(id, BsonObjectId.size)
+  def toBytes = Arrays.copyOf(id, BsonObjectId.size)
 }
 
 object BsonObjectId {
@@ -113,8 +113,6 @@ object BsonObjectId {
     }
   }
 
-  private def md5(bytes: Array[Byte]) = java.security.MessageDigest.getInstance("MD5").digest(bytes)
-
   /**
    * Constructs a BSON ObjectId element from a hexadecimal String representation.
    * Throws an exception if the given argument is not a valid ObjectID.
@@ -125,7 +123,7 @@ object BsonObjectId {
     if (id.length != 24)
       throw new IllegalArgumentException(s"wrong ObjectId: '$id'")
     /** Constructs a BSON ObjectId element from a hexadecimal String representation */
-    new BsonObjectId(JsBinary.hex2Bytes(id))
+    new BsonObjectId(hex2Bytes(id))
   }
 
   /** Tries to make a BSON ObjectId element from a hexadecimal String representation. */

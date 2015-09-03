@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.hbase
+package unicorn.bigtable.hbase
 
 import java.util.Properties
 import scala.collection.JavaConversions._

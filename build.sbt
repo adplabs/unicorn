@@ -9,11 +9,13 @@ lazy val commonSettings = Seq(
   scalacOptions in Test ++= Seq("-Yrangepos")
 )
 
-lazy val root = project.in(file(".")).aggregate(util, json, bigtable, hbase, cassandra, accumulo, core, console, graph, search, demo)
+lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, core, console, graph, search, demo)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
-lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(util)
+lazy val oid = project.in(file("oid")).settings(commonSettings: _*)
+
+lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(util, oid)
 
 lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*)
 

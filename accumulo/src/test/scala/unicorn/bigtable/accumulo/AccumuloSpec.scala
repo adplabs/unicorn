@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.cassandra
+package unicorn.bigtable.accumulo
 
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
@@ -23,22 +23,22 @@ import unicorn.bigtable._, BigTable.charset
 /**
  * @author Haifeng Li
  */
-class CassandraSpec extends Specification with BeforeAfterAll {
+class AccumuloSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
-  val cassandra = Cassandra("127.0.0.1", 9160)
+  val accumulo = Accumulo()
   val tableName = "unicorn_test"
-  var table: CassandraTable = null
+  var table: AccumuloTable = null
 
   override def beforeAll = {
-    cassandra.createTable(tableName, "cf1", "cf2")
-    table = cassandra(tableName)
+    accumulo.createTable(tableName, "cf1", "cf2")
+    table = accumulo(tableName)
   }
 
   override def afterAll = {
     if (table != null) table.close
-    cassandra.dropTable(tableName)
+    accumulo.dropTable(tableName)
   }
 
   "Accumulo" should {

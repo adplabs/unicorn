@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.accumulo
+package unicorn.bigtable.hbase
 
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
@@ -23,25 +23,25 @@ import unicorn.bigtable._, BigTable.charset
 /**
  * @author Haifeng Li
  */
-class AccumuloSpec extends Specification with BeforeAfterAll {
+class HBaseSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
-  val accumulo = Accumulo()
+  val hbase = HBase()
   val tableName = "unicorn_test"
-  var table: AccumuloTable = null
+  var table: HBaseTable = null
 
   override def beforeAll = {
-    accumulo.createTable(tableName, "cf1", "cf2")
-    table = accumulo(tableName)
+    hbase.createTable(tableName, "cf1", "cf2")
+    table = hbase(tableName)
   }
 
   override def afterAll = {
     if (table != null) table.close
-    accumulo.dropTable(tableName)
+    hbase.dropTable(tableName)
   }
 
-  "Accumulo" should {
+  "HBase" should {
     "get the put" in {
       table.put("row1", "cf1", "c1", "v1")
       new String(table.get("row1", "cf1", "c1").get, charset) === "v1"
@@ -67,8 +67,7 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
     }
 
     "get nonexistent family" in {
-      val columns = table.get("row1", "cf5")
-      columns.size === 0
+      table.get("row1", "cf5") must throwA[Exception]
     }
 
     "get the row" in {
@@ -107,7 +106,7 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
     "get multiple rows" in {
       val row1 = Row("row1".getBytes(charset),
         Seq(ColumnFamily("cf1".getBytes(charset), Seq(Column("c1".getBytes(charset), "v1".getBytes(charset)), Column("c2".getBytes(charset), "v2".getBytes(charset)))),
-          ColumnFamily("cf2".getBytes(charset), Seq(Column("c3".getBytes(charset), "v3".getBytes(charset))))))
+           ColumnFamily("cf2".getBytes(charset), Seq(Column("c3".getBytes(charset), "v3".getBytes(charset))))))
 
       val row2 = Row("row2".getBytes(charset),
         Seq(ColumnFamily("cf1".getBytes(charset), Seq(Column("c1".getBytes(charset), "v1".getBytes(charset)), Column("c2".getBytes(charset), "v2".getBytes(charset))))))
@@ -148,6 +147,36 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
       val keys = Seq("row1", "row2", "row3").map(_.getBytes(charset))
       table.delete(keys)
       table.get(keys).size === 0
+    }
+
+    "rollback" in {
+      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v2")
+      new String(table.get("row1", "cf1", "c1").get, charset) === "v2"
+      table.rollback("row1", "cf1", "c1")
+      new String(table.get("row1", "cf1", "c1").get, charset) === "v1"
+      table.rollback("row1", "cf1", "c1")
+      table.get("row1", "cf1", "c1") === None
+      table.delete("row1", "cf1", "c1")
+      table.get("row1", "cf1", "c1") === None
+    }
+
+    "append" in {
+      table.put("row1", "cf1", "c1", "v1")
+      table.append("row1", "cf1", "c1", "v2".getBytes(charset))
+      new String(table.get("row1", "cf1", "c1").get, charset) === "v1v2"
+      table.delete("row1", "cf1", "c1")
+      table.get("row1", "cf1", "c1") === None
+    }
+
+    "counter" in {
+      table.getCounter("row1", "cf1", "counter") === 0
+      table.addCounter("row1", "cf1", "counter", 10)
+      table.getCounter("row1", "cf1", "counter") === 10
+      table.addCounter("row1", "cf1", "counter", -5)
+      table.getCounter("row1", "cf1", "counter") === 5
+      table.delete("row1", "cf1", "counter")
+      table.get("row1", "cf1", "counter") === None
     }
   }
 }

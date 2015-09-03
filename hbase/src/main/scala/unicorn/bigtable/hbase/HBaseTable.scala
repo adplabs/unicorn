@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.hbase
+package unicorn.bigtable.hbase
 
 import org.apache.hadoop.hbase.TableName
 

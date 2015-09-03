@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.cassandra
+package unicorn.bigtable.cassandra
 
 import java.util.Properties
 import scala.collection.JavaConversions._

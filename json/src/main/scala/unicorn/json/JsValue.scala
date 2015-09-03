@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.{Date, UUID}
 import scala.language.dynamics
 import scala.language.implicitConversions
+import unicorn.oid.BsonObjectId
 
 /**
  * JSON value.
@@ -189,23 +190,6 @@ object JsObjectId {
 
 case class JsBinary(value: Array[Byte]) extends JsValue {
   override def toString = value.map("%02X" format _).mkString
-}
-
-object JsBinary {
-  def bytes2Hex(bytes: Array[Byte]): String = {
-    bytes.map("%02X" format _).mkString
-  }
-
-  def hex2Bytes(s: String): Array[Byte] = {
-    if (s.length % 2 != 0)
-      throw new IllegalArgumentException("Hexadecimal string must contain an even number of characters")
-
-    val bytes = new Array[Byte](s.length / 2)
-    for (i <- 0 until s.length by 2) {
-      bytes(i/2) = java.lang.Integer.parseInt(s.substring(i, i+2), 16).toByte
-    }
-    bytes
-  }
 }
 
 case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsValue {

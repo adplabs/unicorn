@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.accumulo
+package unicorn.bigtable.accumulo
 
 import java.util.Properties
 import scala.collection.JavaConversions._
