@@ -20,10 +20,11 @@ import org.specs2.mutable._
 
 class BsonObjectIdSpec extends Specification {
 
-  "Generating BSONObjectID" should {
-    "not throw a SocketException" in {
-
-      BsonObjectId.generate must beAnInstanceOf[BsonObjectID]
+  "BsonObjectId" should {
+    "change over time" in {
+      println(BsonObjectId.generate)
+      println(BsonObjectId.generate)
+      BsonObjectId.generate !== BsonObjectId.generate
     }
   }
 }

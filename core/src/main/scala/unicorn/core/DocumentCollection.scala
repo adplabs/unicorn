@@ -18,6 +18,7 @@ package unicorn.core
 
 import unicorn.json._
 import unicorn.bigtable._
+import unicorn.util.utf8
 
 /**
  * @author Haifeng Li
@@ -31,17 +32,13 @@ class DocumentCollection(table: BigTable, family: String) {
   }
 
   def apply(id: Array[Byte]): Document = {
-    val map = table.get(id, columnFamily).map { case Column(qualifier, value, _) =>
-      (new String(qualifier), value)
-    }
+    val map = table.get(id, columnFamily).map { case Column(qualifier, value, _) => (new String(qualifier, utf8), value) }.toMap
     new Document(id, serializer.deserialize(map))
   }
 
   def insert(doc: Document): Unit = {
-    val columns = serializer.serialize(doc.value).map { case (path, value) =>
-      (path.getBytes("UTF-8"), value)
-    }
-    table.put(doc.id, columnFamily, columns.toSeq)
+    val columns = serializer.serialize(doc.value).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+    table.put(doc.id, columnFamily, columns: _*)
   }
 
   def insert(json: JsValue): Document = {
@@ -51,7 +48,7 @@ class DocumentCollection(table: BigTable, family: String) {
   }
 
   def remove(id: String): Unit = {
-    table.delete(id.getBytes("UTF-8"))
+    table.delete(id.getBytes(utf8))
   }
 
   def remove(id: Array[Byte]): Unit = {

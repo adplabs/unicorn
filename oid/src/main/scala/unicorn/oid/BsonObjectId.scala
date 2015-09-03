@@ -29,7 +29,7 @@ import unicorn.util._
  *
  * The implementation is adopt from ReactiveMongo.
  */
-case class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
+class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
   require(id.size == BsonObjectId.size)
   import java.util.Arrays
   import java.nio.ByteBuffer
@@ -38,7 +38,7 @@ case class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
   lazy val str = bytes2Hex(id)
 
   /** In the form of a string literal "ObjectId(...)" */
-  override def toString = s"""ObjectId(${str})"""
+  override lazy val toString = s"""ObjectId(${str})"""
 
   override def equals(that: Any): Boolean = {
     that.isInstanceOf[BsonObjectId] && Arrays.equals(id, that.asInstanceOf[BsonObjectId].id)
@@ -48,9 +48,6 @@ case class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
 
   /** The timestamp port of ObjectId object as a Date */
   def getTimestamp: Date = new Date(ByteBuffer.wrap(id.take(4)).getInt * 1000L)
-
-  /** Copy the bytes */
-  def toBytes = Arrays.copyOf(id, BsonObjectId.size)
 }
 
 object BsonObjectId {
@@ -112,6 +109,8 @@ object BsonObjectId {
       arr
     }
   }
+
+  def apply(id: Array[Byte]): BsonObjectId = new BsonObjectId(id)
 
   /**
    * Constructs a BSON ObjectId element from a hexadecimal String representation.
@@ -190,6 +189,6 @@ object BsonObjectId {
       id(11) = (c & 0xFF).toByte
     }
 
-    BsonObjectId(id)
+    new BsonObjectId(id)
   }
 }

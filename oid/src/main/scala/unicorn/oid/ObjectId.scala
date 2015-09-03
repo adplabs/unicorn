@@ -16,13 +16,22 @@
 
 package unicorn.oid
 
-import java.util.{Date, UUID}
+import java.util.{Arrays, Date, UUID}
 import java.nio.ByteBuffer
+import unicorn.util._
 
 /**
  * Abstract Object Id type.
  */
-class ObjectId(val id: Array[Byte])
+class ObjectId(val id: Array[Byte]) {
+  override lazy val toString = bytes2Hex(id)
+
+  override def equals(that: Any): Boolean = {
+    that.isInstanceOf[ObjectId] && Arrays.equals(id, that.asInstanceOf[ObjectId].id)
+  }
+
+  override lazy val hashCode: Int = Arrays.hashCode(id)
+}
 
 object ObjectId {
   def apply(id: Array[Byte]) = new ObjectId(id)

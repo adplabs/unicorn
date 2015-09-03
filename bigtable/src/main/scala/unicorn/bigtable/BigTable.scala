@@ -16,7 +16,7 @@
 
 package unicorn.bigtable
 
-import java.nio.charset.Charset
+import unicorn.util.utf8
 
 /** Cell in wide columnar table */
 case class Cell(row: Array[Byte], family: Array[Byte], qualifier: Array[Byte], value: Array[Byte], timestamp: Long = 0)
@@ -46,7 +46,7 @@ trait BigTable extends AutoCloseable {
    * Get a value.
    */
   def get(row: String, family: String, column: String): Option[Array[Byte]] = {
-    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
+    get(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8))
   }
 
   // Scala compiler disallows overloaded methods with default arguments
@@ -66,7 +66,7 @@ trait BigTable extends AutoCloseable {
    * Get the row.
    */
   def get(row: String): Seq[ColumnFamily] = {
-    get(row.getBytes(BigTable.charset), Seq())
+    get(row.getBytes(utf8), Seq())
   }
 
   /**
@@ -78,7 +78,7 @@ trait BigTable extends AutoCloseable {
    * Get all columns in one or more column families. If families is empty, get all column families.
    */
   def get(row: String, families: Seq[String]): Seq[ColumnFamily] = {
-    get(row.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
+    get(row.getBytes(utf8), families.map(_.getBytes(utf8)))
   }
 
   /**
@@ -90,7 +90,7 @@ trait BigTable extends AutoCloseable {
    * Get the column family.
    */
   def get(row: String, family: String): Seq[Column] = {
-    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset))
+    get(row.getBytes(utf8), family.getBytes(utf8))
   }
 
   /**
@@ -102,7 +102,7 @@ trait BigTable extends AutoCloseable {
    * Get one or more columns of a column family. If columns is empty, get all columns in the column family.
    */
   def get(row: String, family: String, columns: Seq[String]): Seq[Column] = {
-    get(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
+    get(row.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
   }
 
   /**
@@ -138,7 +138,7 @@ trait BigTable extends AutoCloseable {
    * Upsert a value.
    */
   def put(row: String, family: String, column: String, value: String): Unit = {
-    put(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value.getBytes(BigTable.charset))
+    put(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8), value.getBytes(utf8))
   }
 
   /**
@@ -165,7 +165,7 @@ trait BigTable extends AutoCloseable {
    * Delete a value.
    */
   def delete(row: String, family: String, column: String): Unit = {
-    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
+    delete(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8))
   }
 
   /**
@@ -179,7 +179,7 @@ trait BigTable extends AutoCloseable {
    * Delete a row.
    */
   def delete(row: String): Unit = {
-    delete(row.getBytes(BigTable.charset), Seq())
+    delete(row.getBytes(utf8), Seq())
   }
 
   /**
@@ -193,7 +193,7 @@ trait BigTable extends AutoCloseable {
    * Delete all columns of a column family of a row.
    */
   def delete(row: String, family: String): Unit = {
-    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset))
+    delete(row.getBytes(utf8), family.getBytes(utf8))
   }
 
   /**
@@ -205,7 +205,7 @@ trait BigTable extends AutoCloseable {
    * Delete the columns of a row. If families is empty, delete the whole row.
    */
   def delete(row: String, families: Seq[String]): Unit = {
-    delete(row.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
+    delete(row.getBytes(utf8), families.map(_.getBytes(utf8)))
   }
 
   /**
@@ -217,7 +217,7 @@ trait BigTable extends AutoCloseable {
    * Delete the columns of a row. If columns is empty, delete all columns in the family.
    */
   def delete(row: String, family: String, columns: Seq[String]): Unit = {
-    delete(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
+    delete(row.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
   }
 
   /**
@@ -255,7 +255,7 @@ trait Scan {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String): Iterator[Row] = {
-    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), Seq())
+    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), Seq())
   }
 
   /**
@@ -271,7 +271,7 @@ trait Scan {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, families: Seq[String] = Seq()): Iterator[Row] = {
-    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), families.map(_.getBytes(BigTable.charset)))
+    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), families.map(_.getBytes(utf8)))
   }
 
   /**
@@ -289,7 +289,7 @@ trait Scan {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, family: String): Iterator[Row] = {
-    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), family.getBytes(BigTable.charset), Seq())
+    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), Seq())
   }
 
   /**
@@ -305,7 +305,7 @@ trait Scan {
    * @param stopRow row to stop scanner before (exclusive)
    */
   def scan(startRow: String, stopRow: String, family: String, columns: Seq[String]): Iterator[Row] = {
-    scan(startRow.getBytes(BigTable.charset), stopRow.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
+    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
   }
 }
 
@@ -324,7 +324,7 @@ trait IntraRowScan {
    * @param stopColumn column to stop scanner before (exclusive)
    */
   def scan(row: String, family: String, startColumn: String, stopColumn: String): Iterator[Column] = {
-    scan(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), startColumn.getBytes(BigTable.charset), stopColumn.getBytes(BigTable.charset))
+    scan(row.getBytes(utf8), family.getBytes(utf8), startColumn.getBytes(utf8), stopColumn.getBytes(utf8))
   }
 }
 
@@ -363,7 +363,7 @@ trait Rollback {
    * Rollback to the previous version for the given column of a row.
    */
   def rollback(row: String, family: String, column: String): Unit = {
-    rollback(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
+    rollback(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8))
   }
 
   /**
@@ -375,7 +375,7 @@ trait Rollback {
    * Rollback to the previous version for the given column(s) of a row.
    */
   def rollback(row: String, family: String, columns: Seq[String]): Unit = {
-    rollback(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), columns.map(_.getBytes(BigTable.charset)))
+    rollback(row.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
   }
 }
 
@@ -390,7 +390,7 @@ trait Appendable {
    * Append the value of a column.
    */
   def append(row: String, family: String, column: String, value: Array[Byte]): Unit = {
-    append(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value)
+    append(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8), value)
   }
 }
 
@@ -401,7 +401,7 @@ trait Counter {
 
   /** Get the value of a counter column */
   def getCounter(row: String, family: String, column: String): Long = {
-    getCounter(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset))
+    getCounter(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8))
   }
 
   /**
@@ -413,11 +413,6 @@ trait Counter {
    * Add to a counter column.
    */
   def addCounter(row: String, family: String, column: String, value: Long): Unit = {
-    addCounter(row.getBytes(BigTable.charset), family.getBytes(BigTable.charset), column.getBytes(BigTable.charset), value)
+    addCounter(row.getBytes(utf8), family.getBytes(utf8), column.getBytes(utf8), value)
   }
-}
-
-object BigTable {
-  /** string encoder/decoder */
-  val charset = Charset.forName("UTF-8")
 }

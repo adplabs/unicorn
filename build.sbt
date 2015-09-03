@@ -13,11 +13,11 @@ lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
-lazy val oid = project.in(file("oid")).settings(commonSettings: _*)
+lazy val oid = project.in(file("oid")).settings(commonSettings: _*).dependsOn(util)
 
-lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(util, oid)
+lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(oid)
 
-lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*)
+lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*).dependsOn(util)
 
 lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable)
 

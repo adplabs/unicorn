@@ -22,10 +22,10 @@ import java.util.{Date, UUID}
  * @author Haifeng Li
  */
 package object oid {
-  implicit def int2JsValue(x: Int) = ObjectId(x)
-  implicit def long2JsValue(x: Long) = ObjectId(x)
-  implicit def string2JsValue(x: String) = ObjectId(x)
-  implicit def date2JsValue(x: Date) = ObjectId(x)
-  implicit def uuid2JsValue(x: UUID) = ObjectId(x)
-  implicit def byteArray2JsValue(x: Array[Byte]) = ObjectId(x)
+  implicit def int2ObjectId(x: Int): ObjectId = ObjectId(x)
+  implicit def long2ObjectId(x: Long): ObjectId = ObjectId(x)
+  implicit def string2ObjectId(x: String): ObjectId = ObjectId(x)
+  implicit def date2ObjectId(x: Date): ObjectId = ObjectId(x)
+  implicit def uuid2ObjectId(x: UUID): ObjectId = ObjectId(x)
+  implicit def bytes2ObjectId(x: Array[Byte]): ObjectId = ObjectId(x)
 }

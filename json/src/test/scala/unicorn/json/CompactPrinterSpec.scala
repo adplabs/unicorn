@@ -49,7 +49,7 @@ class CompactPrinterSpec extends Specification {
       CompactPrinter(JsString("xyz")) mustEqual "\"xyz\""
     }
     "properly escape special chars in JsString" in {
-      CompactPrinter(JsString("\"\\\b\f\n\r\t")) mustEqual """"\"\\\b\f\n\r\t"""
+      CompactPrinter(JsString("\"\\\b\f\n\r\t")) mustEqual """"\"\\\b\f\n\r\t""""
       CompactPrinter(JsString("\u1000")) mustEqual "\"\u1000\""
       CompactPrinter(JsString("\u0100")) mustEqual "\"\u0100\""
       CompactPrinter(JsString("\u0010")) mustEqual "\"\\u0010\""

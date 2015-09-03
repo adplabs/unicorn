@@ -18,6 +18,7 @@ package unicorn.json
 
 import java.nio.charset.Charset
 import java.nio.ByteBuffer
+import unicorn.oid.BsonObjectId
 
 /**
  * @author Haifeng Li
