@@ -43,4 +43,17 @@ package object util {
 
   /** MD5 hash function */
   def md5(bytes: Array[Byte]) = java.security.MessageDigest.getInstance("MD5").digest(bytes)
+
+  /** Byte array ordering */
+  object BytesOrdering extends Ordering[Array[Byte]] {
+    override def compare(x: Array[Byte], y: Array[Byte]): Int = {
+      val n = Math.min(x.length, y.length)
+      for (i <- 0 until n) {
+        val a: Int = x(i) & 0xFF
+        val b: Int = y(i) & 0xFF
+        if (a != b) return a - b
+      }
+      x.length - y.length
+    }
+  }
 }
