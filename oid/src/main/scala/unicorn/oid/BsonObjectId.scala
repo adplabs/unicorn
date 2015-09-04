@@ -16,6 +16,7 @@
 
 package unicorn.oid
 
+import java.nio.ByteBuffer
 import java.util.Date
 import scala.util.Try
 import unicorn.util._
@@ -31,20 +32,12 @@ import unicorn.util._
  */
 class BsonObjectId(id: Array[Byte]) extends ObjectId(id) {
   require(id.size == BsonObjectId.size)
-  import java.util.Arrays
-  import java.nio.ByteBuffer
-
-  /** Hexadecimal string representation */
-  lazy val str = bytes2Hex(id)
 
   /** In the form of a string literal "ObjectId(...)" */
-  override lazy val toString = s"""ObjectId(${str})"""
-
-  override def equals(that: Any): Boolean = {
-    that.isInstanceOf[BsonObjectId] && Arrays.equals(id, that.asInstanceOf[BsonObjectId].id)
+  override def toString: String = {
+    val hex = bytes2Hex(id)
+    s"""ObjectId($hex)"""
   }
-
-  override lazy val hashCode: Int = Arrays.hashCode(id)
 
   /** The timestamp port of ObjectId object as a Date */
   def getTimestamp: Date = new Date(ByteBuffer.wrap(id.take(4)).getInt * 1000L)
