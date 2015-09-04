@@ -239,7 +239,7 @@ trait BigTable extends AutoCloseable {
 }
 
 /** If BigTable supports row scan. */
-trait Scan {
+trait RowScan {
   /**
    * Scan all column families.
    * @param startRow row to start scanner at or after (inclusive)

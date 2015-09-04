@@ -19,7 +19,7 @@ package unicorn.bigtable.hbase
 import org.apache.hadoop.hbase.TableName
 
 import scala.collection.JavaConversions._
-import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan => HBaseScan}
+import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
 import unicorn.bigtable._
@@ -29,7 +29,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with Scan with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
@@ -236,8 +236,8 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with Scan wit
     get
   }
 
-  private def newScan(startRow: Array[Byte], stopRow: Array[Byte]): HBaseScan = {
-    val scan = new HBaseScan(startRow, stopRow)
+  private def newScan(startRow: Array[Byte], stopRow: Array[Byte]): Scan = {
+    val scan = new Scan(startRow, stopRow)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
     scan
   }

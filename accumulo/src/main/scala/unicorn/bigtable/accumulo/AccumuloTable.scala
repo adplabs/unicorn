@@ -28,7 +28,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Scan with CellLevelSecurity {
+class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with RowScan with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
   var cellVisibility = new CellVisibility
