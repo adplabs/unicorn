@@ -17,7 +17,9 @@
 package unicorn.bigtable.cassandra
 
 import java.util.Properties
+import java.net.{InetAddress, UnknownHostException}
 import scala.collection.JavaConversions._
+import org.apache.cassandra.locator.SimpleSnitch
 import org.apache.cassandra.thrift.Cassandra.Client
 import org.apache.cassandra.thrift.{ConsistencyLevel, KsDef, CfDef}
 import org.apache.thrift.transport.TFramedTransport
@@ -44,15 +46,33 @@ class Cassandra(transport: TFramedTransport) extends Database with Logging {
   def apply(name: String, consistency: ConsistencyLevel): CassandraTable = {
     new CassandraTable(this, name, consistency)
   }
-  
+
+  /** Create a table with default NetworkTopologyStrategy placement strategy. */
+  override def createTable(name: String, families: String*): CassandraTable = {
+    val props = new Properties
+    props.put("class", "org.apache.cassandra.locator.NetworkTopologyStrategy")
+    props.put("replication_factor", "3")
+    createTable(name, props, families: _*)
+  }
+
   override def createTable(name: String, props: Properties, families: String*): CassandraTable = {
-    val options = props.stringPropertyNames.map { p => (p, props.getProperty(p)) }.toMap
-    
+    val replicationStrategy = props.getProperty("class")
+    val replicationOptions = props.stringPropertyNames.filter(_ != "class").map { p => (p, props.getProperty(p)) }.toMap
+    if (replicationStrategy.contains(".NetworkTopologyStrategy") && replicationOptions.isEmpty) {
+      // adding default data center from SimpleSnitch
+      val snitch = new SimpleSnitch
+      try {
+        replicationOptions.put(snitch.getDatacenter(InetAddress.getLocalHost()), "1")
+      } catch {
+        case e: UnknownHostException => throw new RuntimeException(e)
+      }
+    }
+
     val keyspace = new KsDef
     keyspace.setName(name)
-    keyspace.setStrategy_class(props.getProperty("strategy"))
-    keyspace.setStrategy_options(options)
-    
+    keyspace.setStrategy_class(replicationStrategy)
+    keyspace.setStrategy_options(replicationOptions)
+
     families.foreach { family =>
       val cf = new CfDef
       cf.setName(family)
@@ -60,7 +80,8 @@ class Cassandra(transport: TFramedTransport) extends Database with Logging {
       keyspace.addToCf_defs(cf)
     }
     
-    client.system_add_keyspace(keyspace)
+    val schemaVersion = client.system_add_keyspace(keyspace)
+    log.info(s"create table $name", schemaVersion)
     apply(name)
   }
   
@@ -89,6 +110,7 @@ object Cassandra {
     // For ultra-wide row, we set the maxLength to 16MB.
     // Note that we also need to set the server side configuration
     // thrift_framed_transport_size_in_mb in cassandra.yaml
+    // In case of ultra-wide row, it is better to use intra row scan.
     val transport = new TFramedTransport(new TSocket(host, port), 16 * 1024 * 1024)
     transport.open
 

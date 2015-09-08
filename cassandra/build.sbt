@@ -1,3 +1,4 @@
 name := "unicorn-cassandra"
 
-libraryDependencies += "org.apache.cassandra" % "cassandra-thrift" % "2.1.8"
+libraryDependencies += "org.apache.cassandra" % "cassandra-all" % "2.2.1"
+
