@@ -17,7 +17,7 @@
 package unicorn.bigtable.cassandra
 
 import java.util.Properties
-
+import java.nio.ByteBuffer
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable._
@@ -127,6 +127,49 @@ class CassandraSpec extends Specification with BeforeAfterAll {
 
       table.delete(keys)
       table.get(keys).size === 0
+    }
+
+    "get the long row" in {
+      table.put("row1".getBytes(utf8),
+        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+          val bytes = ByteBuffer.allocate(4).putInt(i).array
+          Column(bytes, bytes)
+        })
+      )
+
+      val columns = table.get("row1", "cf1")
+      columns.size === 1000
+      (1 to 1000).foreach { i =>
+        val column = columns(i - 1)
+        ByteBuffer.wrap(column.qualifier).getInt === i
+        ByteBuffer.wrap(column.value).getInt === i
+      }
+
+      table.delete("row1")
+      table.get("row1").size === 0
+    }
+
+    "intrarow scan" in {
+      table.put("row1".getBytes(utf8),
+        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+          val bytes = ByteBuffer.allocate(4).putInt(i).array
+          Column(bytes, bytes)
+        })
+      )
+
+      val b103 = ByteBuffer.allocate(4).putInt(103).array
+      val b415 = ByteBuffer.allocate(4).putInt(415).array
+      val iterator = table.scan("row1".getBytes(utf8), "cf1", b103, b415)
+      (103 to 415).foreach { i =>
+        iterator.hasNext === true
+        val column = iterator.next
+        ByteBuffer.wrap(column.qualifier).getInt === i
+        ByteBuffer.wrap(column.value).getInt === i
+      }
+
+      iterator.hasNext === false
+      table.delete("row1")
+      table.get("row1").size === 0
     }
   }
 }

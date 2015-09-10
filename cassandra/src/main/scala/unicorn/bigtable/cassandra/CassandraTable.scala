@@ -38,15 +38,15 @@ import unicorn.util.utf8
  * 
  * @author Haifeng Li
  */
-class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable {
+class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable with IntraRowScan {
   val client = db.client
   client.set_keyspace(name)
   val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
 
   override def close: Unit = () // Client has no close method
 
-  private val emptyBytes = Array[Byte]()
-  private val nullRange = ByteBuffer.wrap(emptyBytes)
+  private val nullRange = Array[Byte]()
+  //private val nullRange = ByteBuffer.wrap(emptyBytes)
 
   override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
     get(row, new String(family, utf8), column)
@@ -75,12 +75,12 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
   def get(row: Array[Byte], family: String): Seq[Column] = {
     val columns = new ArrayBuffer[Column]
-    var start = nullRange
-    do {
-      val slice = get(row, family, start, nullRange, 1000)
-      columns.appendAll(slice)
-      if (!slice.isEmpty) start = ByteBuffer.wrap(slice.last.qualifier)
-    } while (columns.size > 0 && columns.size % 1000 == 0)
+    var iterator = get(row, family, nullRange, nullRange, 100).iterator
+    while (iterator.hasNext) {
+      columns.appendAll(iterator)
+      iterator = get(row, family, columns.last.qualifier, nullRange, 100).iterator
+      iterator.next // get ride of the first that is the last one of previous bulk
+    }
     columns
   }
 
@@ -88,13 +88,13 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
    * Get a slice of rows.
    * The default count should be sufficient for most documents.
    */
-  def get(row: Array[Byte], family: String, startColumn: ByteBuffer, stopColumn: ByteBuffer = nullRange, count: Int = 1000): Seq[Column] = {
+  def get(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte], count: Int): Seq[Column] = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(family)
     val predicate = new SlicePredicate
     val range = new SliceRange
-    range.start = startColumn
-    range.finish = stopColumn
+    range.start = ByteBuffer.wrap(startColumn)
+    range.finish = ByteBuffer.wrap(stopColumn)
     range.reversed = false
     range.count = count
     predicate.setSlice_range(range)
@@ -142,6 +142,28 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     slices.map { case (row, slice) =>
       Row(row.array, Seq(ColumnFamily(family.getBytes(utf8), getColumns(slice))))
     }.toSeq
+  }
+
+  override def scan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): Iterator[Column] = {
+    scan(row, new String(family, utf8), startColumn, stopColumn)
+  }
+
+  def scan(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte]): Iterator[Column] = {
+    new Iterator[Column] {
+      var iterator = get(row, family, startColumn, stopColumn, 100).iterator
+      def hasNext: Boolean = {
+        iterator.hasNext
+      }
+
+      def next: Column = {
+        val column = iterator.next
+        if (!iterator.hasNext) {
+          iterator = get(row, family, column.qualifier, stopColumn, 100).iterator
+          iterator.next // get ride of the first one
+        }
+        column
+      }
+    }
   }
 
   private def getColumns(result: java.util.List[ColumnOrSuperColumn]): Seq[Column] = {
