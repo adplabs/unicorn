@@ -16,6 +16,8 @@
 
 package unicorn.bigtable.hbase
 
+import java.nio.ByteBuffer
+
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable._
@@ -148,6 +150,57 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
       table.delete(keys)
       table.get(keys).size === 0
+    }
+
+    "prefix row scan" in {
+      val row1 = Row("row1".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
+          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))))
+
+      val row2 = Row("row2".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+
+      val row3 = Row("row3".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+
+      table.put(row1, row2, row3)
+
+      val scanner = table.prefixScan("row")
+      val r1 = scanner.next
+      new String(r1.row, utf8) === "row1"
+      val r2 = scanner.next
+      new String(r2.row, utf8) === "row2"
+      val r3 = scanner.next
+      new String(r3.row, utf8) === "row3"
+      scanner.hasNext === false
+      scanner.close
+
+      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
+      table.delete(keys)
+      table.get(keys).size === 0
+    }
+
+    "intra row scan" in {
+      table.put("row1".getBytes(utf8),
+        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+          val bytes = ByteBuffer.allocate(4).putInt(i).array
+          Column(bytes, bytes)
+        })
+      )
+
+      val b103 = ByteBuffer.allocate(4).putInt(103).array
+      val b415 = ByteBuffer.allocate(4).putInt(415).array
+      val iterator = table.scan("row1".getBytes(utf8), "cf1".getBytes(utf8), b103, b415)
+      (103 to 415).foreach { i =>
+        iterator.hasNext === true
+        val column = iterator.next
+        ByteBuffer.wrap(column.qualifier).getInt === i
+        ByteBuffer.wrap(column.value).getInt === i
+      }
+
+      iterator.hasNext === false
+      table.delete("row1")
+      table.get("row1").size === 0
     }
 
     "rollback" in {

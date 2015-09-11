@@ -144,6 +144,7 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
       val r2 = scanner.next
       new String(r2.row, utf8) === "row2"
       scanner.hasNext === false
+      scanner.close
 
       val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
       table.delete(keys)

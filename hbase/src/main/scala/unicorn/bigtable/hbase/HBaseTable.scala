@@ -20,8 +20,10 @@ import org.apache.hadoop.hbase.TableName
 
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
+import org.apache.hadoop.hbase.filter.ColumnRangeFilter
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.CellUtil
 import unicorn.bigtable._
 
 /**
@@ -29,7 +31,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with PrefixScan with IntraRowScan with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
@@ -101,16 +103,37 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Iterator[Row] = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Iterator[Row] = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def prefixScan(prefix: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
+    val scan = newScan(prefix)
+    families.foreach { family => scan.addFamily(family) }
+    new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def prefixScan(prefix: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
+    val scan = newScan(prefix)
+    columns.foreach { column => scan.addColumn(family, column) }
+    new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def scan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
+    val scan = newScan(row, row)
+    scan.addFamily(family)
+    val filter = new ColumnRangeFilter(startColumn, true, stopColumn, true)
+    scan.setFilter(filter)
+    scan.setBatch(100) // avoid getting all columns for the HBase row
+    new HBaseColumnScanner(table.getScanner(scan))
   }
 
   override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
@@ -242,6 +265,13 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     scan
   }
 
+  private def newScan(prefix: Array[Byte]): Scan = {
+    val scan = new Scan
+    scan.setRowPrefixFilter(prefix)
+    if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
+    scan
+  }
+
   private def newPut(row: Array[Byte]): Put = {
     val put = new Put(row)
     if (cellVisibility.isDefined) put.setCellVisibility(cellVisibility.get)
@@ -290,14 +320,33 @@ object HBaseTable {
   }
 }
 
-class HBaseRowScanner(scanner: ResultScanner) extends Iterator[Row] {
+class HBaseRowScanner(scanner: ResultScanner) extends RowScanner {
   private val iterator = scanner.iterator
 
-  def close: Unit = scanner.close
+  override def close: Unit = scanner.close
 
   override def hasNext: Boolean = iterator.hasNext
 
   override def next: Row = {
     HBaseTable.getRow(iterator.next)
+  }
+}
+
+class HBaseColumnScanner(scanner: ResultScanner) extends IntraRowScanner {
+  private val rowIterator = scanner.iterator
+  private var cellIterator = if (rowIterator.hasNext) rowIterator.next.listCells.iterator else null
+
+  override def close: Unit = scanner.close
+
+  override def hasNext: Boolean = {
+    if (cellIterator == null) return false
+    cellIterator.hasNext
+  }
+
+  override def next: Column = {
+    val cell = cellIterator.next
+    if (!cellIterator.hasNext)
+      cellIterator = if (rowIterator.hasNext) rowIterator.next.listCells.iterator else null
+    Column(CellUtil.cloneQualifier(cell), CellUtil.cloneValue(cell), cell.getTimestamp)
   }
 }

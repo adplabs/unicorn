@@ -149,7 +149,7 @@ class CassandraSpec extends Specification with BeforeAfterAll {
       table.get("row1").size === 0
     }
 
-    "intrarow scan" in {
+    "intra row scan" in {
       table.put("row1".getBytes(utf8),
         ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
           val bytes = ByteBuffer.allocate(4).putInt(i).array

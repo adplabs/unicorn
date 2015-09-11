@@ -144,18 +144,21 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }.toSeq
   }
 
-  override def scan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): Iterator[Column] = {
+  override def scan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
     scan(row, new String(family, utf8), startColumn, stopColumn)
   }
 
-  def scan(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte]): Iterator[Column] = {
-    new Iterator[Column] {
+  def scan(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
+    new IntraRowScanner {
       var iterator = get(row, family, startColumn, stopColumn, 100).iterator
-      def hasNext: Boolean = {
+
+      override def close: Unit = ()
+
+      override def hasNext: Boolean = {
         iterator.hasNext
       }
 
-      def next: Column = {
+      override def next: Column = {
         val column = iterator.next
         if (!iterator.hasNext) {
           iterator = get(row, family, column.qualifier, stopColumn, 100).iterator

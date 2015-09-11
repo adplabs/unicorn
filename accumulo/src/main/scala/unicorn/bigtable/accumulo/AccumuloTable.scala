@@ -103,7 +103,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     rowScanner.toSeq
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): Iterator[Row] = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
     val scanner = newScanner
     // from startRow inclusive to endRow exclusive.
     scanner.setRange(new Range(new Text(startRow), true, new Text(stopRow), false))
@@ -111,7 +111,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     new AccumuloRowScanner(scanner)
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Iterator[Row] = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(startRow), new Text(stopRow)))
     columns.foreach { column => scanner.fetchColumn(new Text(family), new Text(column)) }
@@ -261,11 +261,11 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
   }
 }
 
-class AccumuloRowScanner(scanner: ScannerBase) extends Iterator[Row] {
+class AccumuloRowScanner(scanner: ScannerBase) extends RowScanner {
   private val iterator = scanner.iterator
   private var cell = if (iterator.hasNext) iterator.next else null
 
-  def close: Unit = scanner.close
+  override def close: Unit = scanner.close
 
   override def hasNext: Boolean = cell != null
 
