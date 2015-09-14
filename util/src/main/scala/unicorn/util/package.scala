@@ -17,11 +17,16 @@
  package unicorn
 
  import java.nio.charset.Charset
+ import java.time.format.DateTimeFormatter
 
  /**
  * @author Haifeng Li
  */
 package object util {
+
+  val iso8601DateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+  val iso8601DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]['Z']")
+
   val utf8 = Charset.forName("UTF-8")
 
   /** Byte array to hexadecimal string. */

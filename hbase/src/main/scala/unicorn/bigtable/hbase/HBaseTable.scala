@@ -116,23 +116,19 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   }
 
   override def prefixScan(prefix: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
-    val scan = newScan(prefix)
+    val scan = newPrefixScan(prefix)
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
   override def prefixScan(prefix: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
-    val scan = newScan(prefix)
+    val scan = newPrefixScan(prefix)
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
-    val scan = newScan(row, row)
-    scan.addFamily(family)
-    val filter = new ColumnRangeFilter(startColumn, true, stopColumn, true)
-    scan.setFilter(filter)
-    scan.setBatch(100) // avoid getting all columns for the HBase row
+  override def intraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
+    val scan = newIntraRowScan(row, family, startColumn, stopColumn, 100)
     new HBaseColumnScanner(table.getScanner(scan))
   }
 
@@ -259,15 +255,38 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     get
   }
 
-  private def newScan(startRow: Array[Byte], stopRow: Array[Byte]): Scan = {
+  /**
+   * @param caching Set the number of rows for caching that will be passed to scanners.
+   *                Higher caching values will enable faster scanners but will use more memory.
+   * @param cacheBlocks When true, default settings of the table and family are used (this will never override
+   *                    caching blocks if the block cache is disabled for that family or entirely).
+   *                    If false, default settings are overridden and blocks will not be cached
+   */
+  private def newScan(startRow: Array[Byte], stopRow: Array[Byte], caching: Int = 20, cacheBlocks: Boolean = true): Scan = {
     val scan = new Scan(startRow, stopRow)
+    scan.setCacheBlocks(cacheBlocks)
+    scan.setCaching(caching)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
     scan
   }
 
-  private def newScan(prefix: Array[Byte]): Scan = {
+  private def newPrefixScan(prefix: Array[Byte]): Scan = {
     val scan = new Scan
     scan.setRowPrefixFilter(prefix)
+    if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
+    scan
+  }
+
+  /**
+   * @param batch Set the maximum number of values to return for each call to next() to
+   *              avoid getting all columns for the row.
+   */
+  private def newIntraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte], batch: Int = 100): Scan = {
+    val scan = new Scan(row, row)
+    scan.addFamily(family)
+    val filter = new ColumnRangeFilter(startColumn, true, stopColumn, true)
+    scan.setFilter(filter)
+    scan.setBatch(batch)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
     scan
   }

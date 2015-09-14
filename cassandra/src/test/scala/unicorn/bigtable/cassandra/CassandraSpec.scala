@@ -159,7 +159,7 @@ class CassandraSpec extends Specification with BeforeAfterAll {
 
       val b103 = ByteBuffer.allocate(4).putInt(103).array
       val b415 = ByteBuffer.allocate(4).putInt(415).array
-      val iterator = table.scan("row1".getBytes(utf8), "cf1", b103, b415)
+      val iterator = table.intraRowScan("row1".getBytes(utf8), "cf1", b103, b415)
       (103 to 415).foreach { i =>
         iterator.hasNext === true
         val column = iterator.next

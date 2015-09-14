@@ -16,8 +16,6 @@
 
 package unicorn.util
 
-import java.text.SimpleDateFormat
-
 import com.typesafe.config.ConfigFactory
 
 /**
@@ -34,9 +32,4 @@ object Config {
     val mergedCfg = ConfigFactory.load().getConfig(configNamespace)
     mergedCfg.getConfig(deployEnvironment)
   }
-
-  val isoDateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-  val isoDateTimeMSFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-  val simpleDateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
-  val simpleDateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
 }

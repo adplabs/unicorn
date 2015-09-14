@@ -16,31 +16,57 @@
 
 package unicorn.bigtable
 
+import java.util.Date
+import java.time.Instant
 import scala.util.parsing.combinator.JavaTokenParsers
 
+sealed trait Literal
+case class StringLiteral(x: String) extends Literal
+case class IntLiteral(x: Int) extends Literal
+case class DoubleLiteral(x: Double) extends Literal
+case class DateLiteral(x: Date) extends Literal
+
+sealed trait FilterExpression
+case class AndExpression(exps: Seq[FilterExpression]) extends FilterExpression
+case class OrExpression(exps: Seq[FilterExpression]) extends FilterExpression
+case class EqExpression(left: String, right: Literal) extends FilterExpression
+case class NeExpression(left: String, right: Literal) extends FilterExpression
+case class GtExpression(left: String, right: Literal) extends FilterExpression
+case class GeExpression(left: String, right: Literal) extends FilterExpression
+case class LtExpression(left: String, right: Literal) extends FilterExpression
+case class LeExpression(left: String, right: Literal) extends FilterExpression
+
 /**
- *  <b-expression>::= <b-term> [<orop> <b-term>]*
- *  <b-term>      ::= <not-factor> [AND <not-factor>]*
- *  <not-factor>  ::= [NOT] <b-factor>
- *  <b-factor>    ::= <b-literal> | <b-variable> | (<b-expression>)
  *
  *  @author Haifeng Li
  */
+class FilterExpressionParser extends JavaTokenParsers {
+  private lazy val filterLiteral: Parser[Literal] =
+    stringLiteral ^^ { x => StringLiteral(x) } |
+    wholeNumber ^^ { x => IntLiteral(x.toInt) } |
+    (decimalNumber | floatingPointNumber) ^^ { x => DoubleLiteral(x.toDouble) } |
+    """\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(.\d{3})?)?""".r ^^ { x => DateLiteral(Date.from(Instant.parse(x))) }
 
-case class FilterExpression(variableMap: Map[String, Boolean]) extends JavaTokenParsers {
-  private lazy val b_expression: Parser[Boolean] = b_term ~ rep("or" ~ b_term) ^^ { case f1 ~ fs ⇒ (f1 /: fs)(_ || _._2) }
-  private lazy val b_term: Parser[Boolean] = (b_not_factor ~ rep("and" ~ b_not_factor)) ^^ { case f1 ~ fs ⇒ (f1 /: fs)(_ && _._2) }
-  private lazy val b_not_factor: Parser[Boolean] = opt("not") ~ b_factor ^^ (x ⇒ x match { case Some(v) ~ f ⇒ !f; case None ~ f ⇒ f })
-  private lazy val b_factor: Parser[Boolean] = b_literal | b_variable | ("(" ~ b_expression ~ ")" ^^ { case "(" ~ exp ~ ")" ⇒ exp })
-  private lazy val b_literal: Parser[Boolean] = "true" ^^ (x ⇒ true) | "false" ^^ (x ⇒ false)
-  // This will construct the list of variables for this parser
-  private lazy val b_variable: Parser[Boolean] = variableMap.keysIterator.map(Parser(_)).reduceLeft(_ | _) ^^ (x ⇒ variableMap(x))
+  private lazy val eqExpression: Parser[FilterExpression] = ident ~ "="  ~ filterLiteral ^^ { case left ~ "="  ~ right => EqExpression(left, right) }
+  private lazy val neExpression: Parser[FilterExpression] = ident ~ "<>" ~ filterLiteral ^^ { case left ~ "<>" ~ right => NeExpression(left, right) }
+  private lazy val gtExpression: Parser[FilterExpression] = ident ~ ">"  ~ filterLiteral ^^ { case left ~ ">"  ~ right => GtExpression(left, right) }
+  private lazy val geExpression: Parser[FilterExpression] = ident ~ ">=" ~ filterLiteral ^^ { case left ~ ">=" ~ right => GeExpression(left, right) }
+  private lazy val ltExpression: Parser[FilterExpression] = ident ~ "<"  ~ filterLiteral ^^ { case left ~ "<"  ~ right => LtExpression(left, right) }
+  private lazy val leExpression: Parser[FilterExpression] = ident ~ "<=" ~ filterLiteral ^^ { case left ~ "<=" ~ right => LeExpression(left, right) }
 
-  def parse(expression: String) = this.parseAll(b_expression, expression)
+  private lazy val andExpression: Parser[FilterExpression] = expression ~ rep("and" ~ expression) ^^ { case f1 ~ fs => AndExpression(f1 :: fs.map(_._2)) }
+  private lazy val orExpression:  Parser[FilterExpression] = expression ~ rep("or" ~ expression) ^^ { case f1 ~ fs => OrExpression(f1 :: fs.map(_._2)) }
+  private lazy val expression: Parser[FilterExpression] = eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression |
+    andExpression | orExpression | ("(" ~ expression ~ ")" ^^ { case "(" ~ exp ~ ")" => exp })
+
+  def parse(input: String): FilterExpression = parseAll(expression, input) match {
+    case Success(result, _) => result
+    case failure : NoSuccess => scala.sys.error(failure.msg)
+  }
 }
 
 object FilterExpression {
-  def parse(variables: Map[String, Boolean])(value: String) {
-    println(FilterExpression(variables).parse(value))
+  def parse(input: String) {
+    (new FilterExpressionParser).parse(input)
   }
 }
