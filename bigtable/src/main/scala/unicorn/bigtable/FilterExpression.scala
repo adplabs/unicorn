@@ -37,27 +37,62 @@ case class LtExpression(left: String, right: Literal) extends FilterExpression
 case class LeExpression(left: String, right: Literal) extends FilterExpression
 
 /**
+ * The where clause used for scan and index. Currently we support = (equal), <> or != (not equal),
+ * > (greater than), >= (greater than or equal), < (less than), and <= (less than or equal).
+ * The AND & OR operators can be used to combine multiple conditions. Datetime should be
+ * in ISO 8601 format (yyyy-MM-dd'T'HH:mm:ss'Z' or yyyy-MM-dd'T'HH:mm:ss.SSS'Z').
  *
- *  @author Haifeng Li
+ * @author Haifeng Li
  */
 class FilterExpressionParser extends JavaTokenParsers {
-  private lazy val filterLiteral: Parser[Literal] =
-    stringLiteral ^^ { x => StringLiteral(x) } |
-    wholeNumber ^^ { x => IntLiteral(x.toInt) } |
-    (decimalNumber | floatingPointNumber) ^^ { x => DoubleLiteral(x.toDouble) } |
-    """\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(.\d{3})?)?""".r ^^ { x => DateLiteral(Date.from(Instant.parse(x))) }
+  def filterLiteral: Parser[Literal] =
+    stringLiteral ^^ { x => StringLiteral(x.substring(1, x.length-1)) } | // dequoted
+    """\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(.\d{3})?Z)?""".r ^^ { x => DateLiteral(Date.from(Instant.parse(x))) } |
+    // floatingPointNumber recognizes integers too. We force a dot after the integer part here
+    """-?((\d+\.\d*|\d*\.\d+)|(\d+(\.\d*)?|\d*\.\d+)[eE][+-]?\d+)""".r ^^ { x => DoubleLiteral(x.toDouble) } |
+    // wholeNumber should after the floating number. Otherwise, it will recognize the integer part first.
+    wholeNumber ^^ { x => IntLiteral(x.toInt) }
 
-  private lazy val eqExpression: Parser[FilterExpression] = ident ~ "="  ~ filterLiteral ^^ { case left ~ "="  ~ right => EqExpression(left, right) }
-  private lazy val neExpression: Parser[FilterExpression] = ident ~ "<>" ~ filterLiteral ^^ { case left ~ "<>" ~ right => NeExpression(left, right) }
-  private lazy val gtExpression: Parser[FilterExpression] = ident ~ ">"  ~ filterLiteral ^^ { case left ~ ">"  ~ right => GtExpression(left, right) }
-  private lazy val geExpression: Parser[FilterExpression] = ident ~ ">=" ~ filterLiteral ^^ { case left ~ ">=" ~ right => GeExpression(left, right) }
-  private lazy val ltExpression: Parser[FilterExpression] = ident ~ "<"  ~ filterLiteral ^^ { case left ~ "<"  ~ right => LtExpression(left, right) }
-  private lazy val leExpression: Parser[FilterExpression] = ident ~ "<=" ~ filterLiteral ^^ { case left ~ "<=" ~ right => LeExpression(left, right) }
+  def jsFieldPath: Parser[String] =
+    """[$_a-zA-Z][$_a-zA-Z0-9]*(\[\d+\])?(\.[$_a-zA-Z][$_a-zA-Z0-9]*(\[\d+\])?)*""".r
 
-  private lazy val andExpression: Parser[FilterExpression] = expression ~ rep("and" ~ expression) ^^ { case f1 ~ fs => AndExpression(f1 :: fs.map(_._2)) }
-  private lazy val orExpression:  Parser[FilterExpression] = expression ~ rep("or" ~ expression) ^^ { case f1 ~ fs => OrExpression(f1 :: fs.map(_._2)) }
-  private lazy val expression: Parser[FilterExpression] = eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression |
-    andExpression | orExpression | ("(" ~ expression ~ ")" ^^ { case "(" ~ exp ~ ")" => exp })
+  def eqExpression: Parser[FilterExpression] =
+    jsFieldPath ~ "="  ~ filterLiteral ^^ { case left ~ _  ~ right => EqExpression(left, right) } |
+    filterLiteral ~ "="  ~ jsFieldPath ^^ { case left ~ _  ~ right => EqExpression(right, left) }
+
+  def neExpression: Parser[FilterExpression] =
+    jsFieldPath ~ ("<>" | "!=") ~ filterLiteral ^^ { case left ~ _ ~ right => NeExpression(left, right) } |
+    filterLiteral ~ ("<>" | "!=") ~ jsFieldPath ^^ { case left ~ _ ~ right => NeExpression(right, left) }
+
+  def gtExpression: Parser[FilterExpression] =
+    jsFieldPath ~ ">"  ~ filterLiteral ^^ { case left ~ _ ~ right => GtExpression(left, right) } |
+    filterLiteral ~ "<"  ~ jsFieldPath ^^ { case left ~ _ ~ right => GtExpression(right, left) }
+
+  def geExpression: Parser[FilterExpression] =
+    jsFieldPath ~ ">=" ~ filterLiteral ^^ { case left ~ _ ~ right => GeExpression(left, right) } |
+    filterLiteral ~ "<=" ~ jsFieldPath ^^ { case left ~ _ ~ right => GeExpression(right, left) }
+
+  def ltExpression: Parser[FilterExpression] =
+    jsFieldPath ~ "<"  ~ filterLiteral ^^ { case left ~ _ ~ right => LtExpression(left, right) } |
+    filterLiteral ~ ">"  ~ jsFieldPath ^^ { case left ~ _ ~ right => LtExpression(right, left) }
+
+  def leExpression: Parser[FilterExpression] =
+    jsFieldPath ~ "<=" ~ filterLiteral ^^ { case left ~ _ ~ right => LeExpression(left, right) } |
+    filterLiteral ~ ">=" ~ jsFieldPath ^^ { case left ~ _ ~ right => LeExpression(right, left) }
+
+  def andOp: Parser[String] = """(?i)(and)|(&&)""".r
+
+  def orOp: Parser[String] = """(?i)(or)|(\|\|)""".r
+
+  def andExpression: Parser[FilterExpression] =
+    expression ~ rep1(andOp ~> expression) ^^ { case f1 ~ fs => AndExpression(f1 :: fs) }
+
+  def orExpression:  Parser[FilterExpression] =
+    expression ~ rep1(orOp ~> expression) ^^ { case f1 ~ fs => OrExpression(f1 :: fs) }
+
+  def expression: Parser[FilterExpression] =
+    eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression |
+    andExpression | orExpression | "(" ~> expression <~ ")"
 
   def parse(input: String): FilterExpression = parseAll(expression, input) match {
     case Success(result, _) => result
@@ -66,7 +101,7 @@ class FilterExpressionParser extends JavaTokenParsers {
 }
 
 object FilterExpression {
-  def parse(input: String) {
+  def apply(input: String): FilterExpression = {
     (new FilterExpressionParser).parse(input)
   }
 }

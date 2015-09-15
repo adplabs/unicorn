@@ -31,7 +31,7 @@ import unicorn.bigtable._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with PrefixScan with IntraRowScan with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with PrefixScan with IntraRowScan with Filter with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
@@ -110,6 +110,18 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   }
 
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
+    val scan = newScan(startRow, stopRow)
+    columns.foreach { column => scan.addColumn(family, column) }
+    new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: FilterExpression): RowScanner = {
+    val scan = newScan(startRow, stopRow)
+    families.foreach { family => scan.addFamily(family) }
+    new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: FilterExpression): RowScanner = {
     val scan = newScan(startRow, stopRow)
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
