@@ -19,6 +19,7 @@ package unicorn.bigtable
 import java.util.Date
 import java.time.Instant
 import scala.util.parsing.combinator.JavaTokenParsers
+import unicorn.util.Logging
 
 sealed trait Literal
 case class StringLiteral(x: String) extends Literal
@@ -27,14 +28,14 @@ case class DoubleLiteral(x: Double) extends Literal
 case class DateLiteral(x: Date) extends Literal
 
 sealed trait FilterExpression
-case class AndExpression(exps: Seq[FilterExpression]) extends FilterExpression
-case class OrExpression(exps: Seq[FilterExpression]) extends FilterExpression
-case class EqExpression(left: String, right: Literal) extends FilterExpression
-case class NeExpression(left: String, right: Literal) extends FilterExpression
-case class GtExpression(left: String, right: Literal) extends FilterExpression
-case class GeExpression(left: String, right: Literal) extends FilterExpression
-case class LtExpression(left: String, right: Literal) extends FilterExpression
-case class LeExpression(left: String, right: Literal) extends FilterExpression
+case class And(left: FilterExpression, right: FilterExpression) extends FilterExpression
+case class Or (left: FilterExpression, right: FilterExpression) extends FilterExpression
+case class Eq(left: String, right: Literal) extends FilterExpression
+case class Ne(left: String, right: Literal) extends FilterExpression
+case class Gt(left: String, right: Literal) extends FilterExpression
+case class Ge(left: String, right: Literal) extends FilterExpression
+case class Lt(left: String, right: Literal) extends FilterExpression
+case class Le(left: String, right: Literal) extends FilterExpression
 
 /**
  * The where clause used for scan and index. Currently we support = (equal), <> or != (not equal),
@@ -44,7 +45,7 @@ case class LeExpression(left: String, right: Literal) extends FilterExpression
  *
  * @author Haifeng Li
  */
-class FilterExpressionParser extends JavaTokenParsers {
+class FilterExpressionParser extends JavaTokenParsers with Logging {
   def filterLiteral: Parser[Literal] =
     stringLiteral ^^ { x => StringLiteral(x.substring(1, x.length-1)) } | // dequoted
     """\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(.\d{3})?Z)?""".r ^^ { x => DateLiteral(Date.from(Instant.parse(x))) } |
@@ -57,46 +58,48 @@ class FilterExpressionParser extends JavaTokenParsers {
     """[$_a-zA-Z][$_a-zA-Z0-9]*(\[\d+\])?(\.[$_a-zA-Z][$_a-zA-Z0-9]*(\[\d+\])?)*""".r
 
   def eqExpression: Parser[FilterExpression] =
-    jsFieldPath ~ "="  ~ filterLiteral ^^ { case left ~ _  ~ right => EqExpression(left, right) } |
-    filterLiteral ~ "="  ~ jsFieldPath ^^ { case left ~ _  ~ right => EqExpression(right, left) }
+    jsFieldPath ~ "="  ~ filterLiteral ^^ { case left ~ _  ~ right => Eq(left, right) } |
+    filterLiteral ~ "="  ~ jsFieldPath ^^ { case left ~ _  ~ right => Eq(right, left) }
 
   def neExpression: Parser[FilterExpression] =
-    jsFieldPath ~ ("<>" | "!=") ~ filterLiteral ^^ { case left ~ _ ~ right => NeExpression(left, right) } |
-    filterLiteral ~ ("<>" | "!=") ~ jsFieldPath ^^ { case left ~ _ ~ right => NeExpression(right, left) }
+    jsFieldPath ~ ("<>" | "!=") ~ filterLiteral ^^ { case left ~ _ ~ right => Ne(left, right) } |
+    filterLiteral ~ ("<>" | "!=") ~ jsFieldPath ^^ { case left ~ _ ~ right => Ne(right, left) }
 
   def gtExpression: Parser[FilterExpression] =
-    jsFieldPath ~ ">"  ~ filterLiteral ^^ { case left ~ _ ~ right => GtExpression(left, right) } |
-    filterLiteral ~ "<"  ~ jsFieldPath ^^ { case left ~ _ ~ right => GtExpression(right, left) }
+    jsFieldPath ~ ">"  ~ filterLiteral ^^ { case left ~ _ ~ right => Gt(left, right) } |
+    filterLiteral ~ "<"  ~ jsFieldPath ^^ { case left ~ _ ~ right => Gt(right, left) }
 
   def geExpression: Parser[FilterExpression] =
-    jsFieldPath ~ ">=" ~ filterLiteral ^^ { case left ~ _ ~ right => GeExpression(left, right) } |
-    filterLiteral ~ "<=" ~ jsFieldPath ^^ { case left ~ _ ~ right => GeExpression(right, left) }
+    jsFieldPath ~ ">=" ~ filterLiteral ^^ { case left ~ _ ~ right => Ge(left, right) } |
+    filterLiteral ~ "<=" ~ jsFieldPath ^^ { case left ~ _ ~ right => Ge(right, left) }
 
   def ltExpression: Parser[FilterExpression] =
-    jsFieldPath ~ "<"  ~ filterLiteral ^^ { case left ~ _ ~ right => LtExpression(left, right) } |
-    filterLiteral ~ ">"  ~ jsFieldPath ^^ { case left ~ _ ~ right => LtExpression(right, left) }
+    jsFieldPath ~ "<"  ~ filterLiteral ^^ { case left ~ _ ~ right => Lt(left, right) } |
+    filterLiteral ~ ">"  ~ jsFieldPath ^^ { case left ~ _ ~ right => Lt(right, left) }
 
   def leExpression: Parser[FilterExpression] =
-    jsFieldPath ~ "<=" ~ filterLiteral ^^ { case left ~ _ ~ right => LeExpression(left, right) } |
-    filterLiteral ~ ">=" ~ jsFieldPath ^^ { case left ~ _ ~ right => LeExpression(right, left) }
+    jsFieldPath ~ "<=" ~ filterLiteral ^^ { case left ~ _ ~ right => Le(left, right) } |
+    filterLiteral ~ ">=" ~ jsFieldPath ^^ { case left ~ _ ~ right => Le(right, left) }
 
   def andOp: Parser[String] = """(?i)(and)|(&&)""".r
 
   def orOp: Parser[String] = """(?i)(or)|(\|\|)""".r
 
   def andExpression: Parser[FilterExpression] =
-    expression ~ rep1(andOp ~> expression) ^^ { case f1 ~ fs => AndExpression(f1 :: fs) }
+    simpleExpression * (andOp ^^^ { (left: FilterExpression, right: FilterExpression) => And(left, right) })
 
   def orExpression:  Parser[FilterExpression] =
-    expression ~ rep1(orOp ~> expression) ^^ { case f1 ~ fs => OrExpression(f1 :: fs) }
+    andExpression * (orOp ^^^ { (left: FilterExpression, right: FilterExpression) => Or(left, right) })
+
+  def simpleExpression: Parser[FilterExpression] =
+    eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression | "(" ~> expression <~ ")"
 
   def expression: Parser[FilterExpression] =
-    eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression |
-    andExpression | orExpression | "(" ~> expression <~ ")"
+    orExpression | andExpression | simpleExpression
 
   def parse(input: String): FilterExpression = parseAll(expression, input) match {
     case Success(result, _) => result
-    case failure : NoSuccess => scala.sys.error(failure.msg)
+    case failure: NoSuccess => log.error(failure.toString); scala.sys.error(failure.msg)
   }
 }
 
