@@ -45,8 +45,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
   override def close: Unit = () // Client has no close method
 
-  private val nullRange = Array[Byte]()
-  //private val nullRange = ByteBuffer.wrap(emptyBytes)
+  private val emptyBytes = Array[Byte]()
 
   override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
     get(row, new String(family, utf8), column)
@@ -75,10 +74,10 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
   def get(row: Array[Byte], family: String): Seq[Column] = {
     val columns = new ArrayBuffer[Column]
-    var iterator = get(row, family, nullRange, nullRange, 100).iterator
+    var iterator = get(row, family, emptyBytes, emptyBytes, 100).iterator
     while (iterator.hasNext) {
       columns.appendAll(iterator)
-      iterator = get(row, family, columns.last.qualifier, nullRange, 100).iterator
+      iterator = get(row, family, columns.last.qualifier, emptyBytes, 100).iterator
       iterator.next // get ride of the first that is the last one of previous bulk
     }
     columns

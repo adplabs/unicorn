@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.bigtable
+package unicorn.index
 
 import java.util.Date
 import java.time.Instant
@@ -99,7 +99,7 @@ class FilterExpressionParser extends JavaTokenParsers with Logging {
 
   def parse(input: String): FilterExpression = parseAll(expression, input) match {
     case Success(result, _) => result
-    case failure: NoSuccess => log.error(failure.toString); scala.sys.error(failure.msg)
+    case failure: NoSuccess => scala.sys.error(failure.toString)
   }
 }
 

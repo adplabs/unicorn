@@ -245,6 +245,11 @@ trait RowScanner extends Iterator[Row] {
 
 /** If BigTable supports row scan. */
 trait RowScan {
+  /** Frist row in a table. */
+  val startRowKey: Array[Byte]
+  /** Last row in a table. */
+  val endRowKey: Array[Byte]
+
   /**
    * Scan all column families.
    * @param startRow row to start scanner at or after (inclusive)
@@ -312,69 +317,38 @@ trait RowScan {
   def scan(startRow: String, stopRow: String, family: String, columns: Seq[String]): RowScanner = {
     scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
   }
-}
-
-
-/** If BigTable supports scanning rows with given prefix. */
-trait PrefixScan {
-  /**
-   * Scan all column families.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: Array[Byte]): RowScanner = {
-    prefixScan(prefix, Seq())
-  }
 
   /**
-   * Scan the range for all column families.
-   * @param prefix returns rows which key starts with the specified prefix
+   * When scanning for a prefix the scan should stop immediately after the the last row that
+   * has the specified prefix. This method calculates the closest next rowKey immediately following
+   * the given prefix.
+   *
+   * @param prefix the row key prefix.
+   * @return the closest next row key immediately following the given prefix.
    */
-  def prefixScan(prefix: String): RowScanner = {
-    prefixScan(prefix.getBytes(utf8), Seq())
-  }
+  def nextRowKeyForPrefix(prefix: Array[Byte]): Array[Byte] = {
+    val ff:  Byte = 0xFF.toByte
+    val one: Byte = 1
 
-  /**
-   * Scan the range for all columns in one or more column families. If families is empty, get all column families.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: Array[Byte], families: Seq[Array[Byte]]): RowScanner
+    // Essentially we are treating it like an 'unsigned very very long' and doing +1 manually.
+    // Search for the place where the trailing 0xFFs start
+    val offset = prefix.reverse.indexOf(ff) match {
+      case -1 => prefix.length
+      case  x => prefix.length - x - 1
+    }
 
-  /**
-   * Scan the range for all columns in one or more column families. If families is empty, get all column families.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: String, families: Seq[String] = Seq()): RowScanner = {
-    prefixScan(prefix.getBytes(utf8), families.map(_.getBytes(utf8)))
-  }
+    // We got an 0xFFFF... (only FFs) stopRow value which is
+    // the last possible prefix before the end of the table.
+    // So set it to stop at the 'end of the table'
+    if (offset == 0) {
+      return endRowKey
+    }
 
-  /**
-   * Scan the range for the column family.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: Array[Byte], family: Array[Byte]): RowScanner = {
-    prefixScan(prefix, family, Seq())
-  }
-
-  /**
-   * Scan the range for the column family.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: String, family: String): RowScanner = {
-    prefixScan(prefix.getBytes(utf8), family.getBytes(utf8), Seq())
-  }
-
-  /**
-   * Scan one or more columns. If columns is empty, get all columns in the column family.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner
-
-  /**
-   * Scan one or more columns. If columns is empty, get all columns in the column family.
-   * @param prefix returns rows which key starts with the specified prefix
-   */
-  def prefixScan(prefix: String, family: String, columns: Seq[String]): RowScanner = {
-    prefixScan(prefix.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)))
+    // Copy the right length of the original
+    val stopRow = java.util.Arrays.copyOfRange(prefix, 0, offset)
+    // And increment the last one
+    stopRow(stopRow.length - 1) = (stopRow(stopRow.length - 1) + one).toByte
+    stopRow
   }
 }
 
@@ -402,25 +376,28 @@ trait IntraRowScan {
   }
 }
 
+object ScanFilter {
+  object CompareOperator extends Enumeration {
+    type CompareOperator = Value
+    val Equal, NotEqual, Greater, GreaterOrEqual, Less, LessOrEqual = Value
+  }
+
+  import CompareOperator._
+  sealed trait Expression
+  case class And(left: Expression, right: Expression) extends Expression
+  case class Or (left: Expression, right: Expression) extends Expression
+  case class BasicExpression(op: CompareOperator, family: Array[Byte], column: Array[Byte], value: Array[Byte]) extends Expression
+}
+
 /** If BigTable supports filter. */
-trait Filter {
+trait ScanFilter {
   /**
    * Scan all column families.
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], filter: String): RowScanner = {
-    scan(startRow, stopRow, Seq(), filter)
-  }
-
-  /**
-   * Scan all column families.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], filter: FilterExpression): RowScanner = {
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], filter: ScanFilter.Expression): RowScanner = {
     scan(startRow, stopRow, Seq(), filter)
   }
 
@@ -430,17 +407,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: String, stopRow: String, filter: String): RowScanner = {
-    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), Seq(), filter)
-  }
-
-  /**
-   * Scan the range for all column families.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, filter: FilterExpression): RowScanner = {
+  def scan(startRow: String, stopRow: String, filter: ScanFilter.Expression): RowScanner = {
     scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), Seq(), filter)
   }
 
@@ -450,9 +417,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: String): RowScanner = {
-    scan(startRow, stopRow, families, FilterExpression(filter))
-  }
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner
 
   /**
    * Scan the range for all columns in one or more column families. If families is empty, get all column families.
@@ -460,25 +425,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: FilterExpression): RowScanner
-
-  /**
-   * Scan the range for all columns in one or more column families. If families is empty, get all column families.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, families: Seq[String], filter: String): RowScanner = {
-    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), families.map(_.getBytes(utf8)), filter)
-  }
-
-  /**
-   * Scan the range for all columns in one or more column families. If families is empty, get all column families.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, families: Seq[String], filter: FilterExpression): RowScanner = {
+  def scan(startRow: String, stopRow: String, families: Seq[String], filter: ScanFilter.Expression): RowScanner = {
     scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), families.map(_.getBytes(utf8)), filter)
   }
 
@@ -488,7 +435,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], filter: String): RowScanner = {
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], filter: ScanFilter.Expression): RowScanner = {
     scan(startRow, stopRow, family, Seq(), filter)
   }
 
@@ -498,27 +445,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], filter: FilterExpression): RowScanner = {
-    scan(startRow, stopRow, family, Seq(), filter)
-  }
-
-  /**
-   * Scan the range for the column family.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, family: String, filter: String): RowScanner = {
-    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), Seq(), filter)
-  }
-
-  /**
-   * Scan the range for the column family.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, family: String, filter: FilterExpression): RowScanner = {
+  def scan(startRow: String, stopRow: String, family: String, filter: ScanFilter.Expression): RowScanner = {
     scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), Seq(), filter)
   }
 
@@ -528,9 +455,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: String): RowScanner = {
-    scan(startRow, stopRow, family, columns, FilterExpression(filter))
-  }
+  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
@@ -538,25 +463,7 @@ trait Filter {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: FilterExpression): RowScanner
-
-  /**
-   * Scan one or more columns. If columns is empty, get all columns in the column family.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, family: String, columns: Seq[String], filter: String): RowScanner = {
-    scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)), filter)
-  }
-
-  /**
-   * Scan one or more columns. If columns is empty, get all columns in the column family.
-   * @param startRow row to start scanner at or after (inclusive)
-   * @param stopRow row to stop scanner before (exclusive)
-   * @param filter filter expression
-   */
-  def scan(startRow: String, stopRow: String, family: String, columns: Seq[String], filter: FilterExpression): RowScanner = {
+  def scan(startRow: String, stopRow: String, family: String, columns: Seq[String], filter: ScanFilter.Expression): RowScanner = {
     scan(startRow.getBytes(utf8), stopRow.getBytes(utf8), family.getBytes(utf8), columns.map(_.getBytes(utf8)), filter)
   }
 }

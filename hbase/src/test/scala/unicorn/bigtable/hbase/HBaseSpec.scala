@@ -165,11 +165,101 @@ class HBaseSpec extends Specification with BeforeAfterAll {
 
       table.put(row1, row2, row3)
 
-      val scanner = table.prefixScan("row")
+      val prefix = "row".getBytes(utf8)
+      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix))
       val r1 = scanner.next
       new String(r1.row, utf8) === "row1"
       val r2 = scanner.next
       new String(r2.row, utf8) === "row2"
+      val r3 = scanner.next
+      new String(r3.row, utf8) === "row3"
+      scanner.hasNext === false
+      scanner.close
+
+      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
+      table.delete(keys)
+      table.get(keys).size === 0
+    }
+
+    "scan with basic filter" in {
+      val row1 = Row("row1".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
+          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+
+      val row2 = Row("row2".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+
+      val row3 = Row("row3".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+
+      table.put(row1, row2, row3)
+
+      val prefix = "row".getBytes(utf8)
+      import ScanFilter.CompareOperator._
+      val filter = ScanFilter.BasicExpression(Equal, "cf1".getBytes(utf8), "c1".getBytes(utf8), "21".getBytes(utf8))
+      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val r1 = scanner.next
+      new String(r1.row, utf8) === "row2"
+      scanner.hasNext === false
+      scanner.close
+
+      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
+      table.delete(keys)
+      table.get(keys).size === 0
+    }
+
+    "scan with and filter" in {
+      val row1 = Row("row1".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
+          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+
+      val row2 = Row("row2".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+
+      val row3 = Row("row3".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+
+      table.put(row1, row2, row3)
+
+      val prefix = "row".getBytes(utf8)
+      import ScanFilter.CompareOperator._
+      val filter = ScanFilter.And(
+        ScanFilter.BasicExpression(Greater, "cf1".getBytes(utf8), "c1".getBytes(utf8), "11".getBytes(utf8)),
+        ScanFilter.BasicExpression(Greater, "cf1".getBytes(utf8), "c2".getBytes(utf8), "22".getBytes(utf8))
+      )
+      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val r1 = scanner.next
+      new String(r1.row, utf8) === "row3"
+      scanner.hasNext === false
+      scanner.close
+
+      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
+      table.delete(keys)
+      table.get(keys).size === 0
+    }
+
+    "scan with or filter" in {
+      val row1 = Row("row1".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
+          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+
+      val row2 = Row("row2".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+
+      val row3 = Row("row3".getBytes(utf8),
+        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+
+      table.put(row1, row2, row3)
+
+      val prefix = "row".getBytes(utf8)
+      import ScanFilter.CompareOperator._
+      val filter = ScanFilter.Or(
+        ScanFilter.BasicExpression(Less, "cf1".getBytes(utf8), "c1".getBytes(utf8), "21".getBytes(utf8)),
+        ScanFilter.BasicExpression(GreaterOrEqual, "cf1".getBytes(utf8), "c1".getBytes(utf8), "31".getBytes(utf8))
+      )
+      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val r1 = scanner.next
+      new String(r1.row, utf8) === "row1"
       val r3 = scanner.next
       new String(r3.row, utf8) === "row3"
       scanner.hasNext === false

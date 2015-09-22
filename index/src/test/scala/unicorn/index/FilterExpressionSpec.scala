@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.bigtable
+package unicorn.index
 
 import java.time.Instant
 import java.util.Date

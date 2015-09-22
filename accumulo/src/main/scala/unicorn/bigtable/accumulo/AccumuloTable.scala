@@ -31,6 +31,9 @@ import unicorn.bigtable._
 class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with RowScan with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
+  override val startRowKey: Array[Byte] = null
+  override val endRowKey: Array[Byte] = null
+
   var cellVisibility = new CellVisibility
   var authorizations = new Authorizations
 
@@ -106,14 +109,14 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
     val scanner = newScanner
     // from startRow inclusive to endRow exclusive.
-    scanner.setRange(new Range(new Text(startRow), true, new Text(stopRow), false))
+    scanner.setRange(new Range(rowKey(startRow), true, rowKey(stopRow), false))
     families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
     new AccumuloRowScanner(scanner)
   }
 
   override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
     val scanner = newScanner
-    scanner.setRange(new Range(new Text(startRow), new Text(stopRow)))
+    scanner.setRange(new Range(rowKey(startRow), rowKey(stopRow)))
     columns.foreach { column => scanner.fetchColumn(new Text(family), new Text(column)) }
     new AccumuloRowScanner(scanner)
   }
@@ -237,6 +240,9 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     deleter.delete
   }
 
+  private def rowKey(key: Array[Byte]): Text = {
+    if (key == null) null else new Text(key)
+  }
   private def numBatchThreads[T](rows: Seq[T]): Int = Math.min(rows.size, Runtime.getRuntime.availableProcessors)
 
   private def newScanner = db.connector.createScanner(name, authorizations)

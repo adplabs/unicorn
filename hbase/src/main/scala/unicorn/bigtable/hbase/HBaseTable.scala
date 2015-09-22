@@ -16,25 +16,28 @@
 
 package unicorn.bigtable.hbase
 
-import org.apache.hadoop.hbase.TableName
-
 import scala.collection.JavaConversions._
+import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
-import org.apache.hadoop.hbase.filter.ColumnRangeFilter
+import org.apache.hadoop.hbase.filter.{ColumnRangeFilter, CompareFilter, FilterList, SingleColumnValueFilter}, CompareFilter.CompareOp
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.CellUtil
-import unicorn.bigtable._
+import org.apache.hadoop.hbase.{CellUtil, HConstants}
+import unicorn.bigtable._, ScanFilter._
+import unicorn.util._
 
 /**
  * HBase table adapter.
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with PrefixScan with IntraRowScan with Filter with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with ScanFilter with CellLevelSecurity with Appendable with Rollback with Counter {
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
+
+  override val startRowKey: Array[Byte] = HConstants.EMPTY_START_ROW
+  override val endRowKey: Array[Byte] = HConstants.EMPTY_END_ROW
 
   var cellVisibility: Option[CellVisibility] = None
   var authorizations: Option[Authorizations] = None
@@ -115,28 +118,34 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: FilterExpression): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner = {
     val scan = newScan(startRow, stopRow)
+    scan.setFilter(hbaseFilter(filter))
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: FilterExpression): RowScanner = {
+  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner = {
     val scan = newScan(startRow, stopRow)
+    scan.setFilter(hbaseFilter(filter))
     columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def prefixScan(prefix: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
-    val scan = newPrefixScan(prefix)
-    families.foreach { family => scan.addFamily(family) }
-    new HBaseRowScanner(table.getScanner(scan))
-  }
-
-  override def prefixScan(prefix: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
-    val scan = newPrefixScan(prefix)
-    columns.foreach { column => scan.addColumn(family, column) }
-    new HBaseRowScanner(table.getScanner(scan))
+  private def hbaseFilter(filter: ScanFilter.Expression): org.apache.hadoop.hbase.filter.Filter = filter match {
+    case BasicExpression(op, family, column, value) =>
+      val f = op match {
+        case CompareOperator.Equal => new SingleColumnValueFilter(family, column, CompareOp.EQUAL, value)
+        case CompareOperator.NotEqual => new SingleColumnValueFilter(family, column, CompareOp.NOT_EQUAL, value)
+        case CompareOperator.Greater => new SingleColumnValueFilter(family, column, CompareOp.GREATER, value)
+        case CompareOperator.GreaterOrEqual => new SingleColumnValueFilter(family, column, CompareOp.GREATER_OR_EQUAL, value)
+        case CompareOperator.Less => new SingleColumnValueFilter(family, column, CompareOp.LESS, value)
+        case CompareOperator.LessOrEqual => new SingleColumnValueFilter(family, column, CompareOp.LESS_OR_EQUAL, value)
+      }
+      f.setFilterIfMissing(true)
+      f
+    case And(left, right) => new FilterList(FilterList.Operator.MUST_PASS_ALL, hbaseFilter(left), hbaseFilter(right))
+    case Or(left, right) => new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFilter(left), hbaseFilter(right))
   }
 
   override def intraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
