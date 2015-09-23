@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.console
+package unicorn.shell
 
 import scala.sys.SystemProperties
 import scala.tools.nsc.interpreter.ILoop
@@ -25,7 +25,7 @@ import scala.tools.nsc.Settings
  * 
  * @author Haifeng Li
  */
-object Console extends App {
+object Shell extends App {
   val settings = new Settings
   settings.usejavacp.value = true
   settings.deprecation.value = true

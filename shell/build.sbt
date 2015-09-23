@@ -1,4 +1,4 @@
-name := "unicorn-console"
+name := "unicorn-shell"
 
 enablePlugins(JavaAppPackaging)
 
@@ -6,9 +6,9 @@ maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
 packageName := "unicorn"
 
-packageSummary := "ADP Unicorn Console"
+packageSummary := "ADP Unicorn Shell"
 
-packageDescription := "ADP Unicorn Console"
+packageDescription := "ADP Unicorn Shell"
 
 executableScriptName := "unicorn"
 

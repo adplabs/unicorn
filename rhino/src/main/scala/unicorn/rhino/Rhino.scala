@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.demo
+package unicorn.rhino
 
 import akka.actor.Actor
 import spray.routing._
@@ -31,7 +31,7 @@ import unicorn.search.TextSearch
 /**
  * @author Haifeng Li
  */
-class SearchDemoServiceActor extends Actor with SearchDemoService {
+class RhinoActor extends Actor with Rhino {
 
   // the HttpService trait defines only one abstract member, which
   // connects the services environment to the enclosing actor or test
@@ -45,7 +45,7 @@ class SearchDemoServiceActor extends Actor with SearchDemoService {
 
 
 // this trait defines our service behavior independently from the service actor
-trait SearchDemoService extends HttpService {
+trait Rhino extends HttpService {
   val host = System.getProperty("adp.unicorn.demo.cassandra.host", "localhost")
   val port = System.getProperty("adp.unicorn.demo.cassandra.port", "9160").toInt
   val server = CassandraServer(host, port)

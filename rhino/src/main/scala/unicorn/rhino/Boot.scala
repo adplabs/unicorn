@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.demo
+package unicorn.rhino
 
 import scala.concurrent.duration._
 import akka.actor.{ActorSystem, Props}
@@ -33,7 +33,7 @@ object Boot extends App {
   implicit val system = ActorSystem("unicorn-demo")
 
   // create and start our service actor
-  val service = system.actorOf(Props[SearchDemoServiceActor], "unicorn-demo-service")
+  val service = system.actorOf(Props[RhinoActor], "unicorn-rhino")
 
   implicit val timeout = Timeout(5.seconds)
 

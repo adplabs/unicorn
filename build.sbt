@@ -9,7 +9,7 @@ lazy val commonSettings = Seq(
   scalacOptions in Test ++= Seq("-Yrangepos")
 )
 
-lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, core, console, graph, search, demo)
+lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, core, shell, graph, search, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -33,7 +33,7 @@ lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsO
 
 lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
 
-lazy val console = project.in(file("console")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, cassandra, accumulo)
 
-lazy val demo = project.in(file("demo")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
 
