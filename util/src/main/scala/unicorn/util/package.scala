@@ -20,6 +20,8 @@
  import java.time.format.DateTimeFormatter
 
 /**
+ * Utility functions.
+ *
  * @author Haifeng Li
  */
 package object util {
@@ -29,7 +31,7 @@ package object util {
 
   val utf8 = Charset.forName("UTF-8")
 
-  implicit def pimpedBitArray(bits: Array[Byte]) = new PimpedBitArray(bits)
+  implicit def pimpedByteArray(bits: Array[Byte]) = new ByteArray(bits)
 
   /** Byte array to hexadecimal string. */
   def bytes2Hex(bytes: Array[Byte]): String = {
@@ -48,25 +50,19 @@ package object util {
     bytes
   }
 
+  val md5Encoder = java.security.MessageDigest.getInstance("MD5")
+
   /** MD5 hash function */
-  def md5(bytes: Array[Byte]) = java.security.MessageDigest.getInstance("MD5").digest(bytes)
+  def md5(bytes: Array[Byte]) = md5Encoder.digest(bytes)
 
   /** Byte array ordering */
-  object BytesOrdering extends Ordering[Array[Byte]] {
-    override def compare(x: Array[Byte], y: Array[Byte]): Int = {
-      val n = Math.min(x.length, y.length)
-      for (i <- 0 until n) {
-        val a: Int = x(i) & 0xFF
-        val b: Int = y(i) & 0xFF
-        if (a != b) return a - b
-      }
-      x.length - y.length
+  def compareByteArray(x: Array[Byte], y: Array[Byte]): Int = {
+    val n = Math.min(x.length, y.length)
+    for (i <- 0 until n) {
+      val a: Int = x(i) & 0xFF
+      val b: Int = y(i) & 0xFF
+      if (a != b) return a - b
     }
-  }
-}
-
-package util {
-  private[util] class PimpedBitArray(bits: Array[Byte]) {
-    def unary_~ = bits.map(~_)
+    x.length - y.length
   }
 }

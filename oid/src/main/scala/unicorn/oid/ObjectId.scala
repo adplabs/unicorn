@@ -29,7 +29,7 @@ class ObjectId(val id: Array[Byte]) extends Comparable[ObjectId] {
   }
 
   override def compareTo(o: ObjectId): Int = {
-    BytesOrdering.compare(id, o.id)
+    compareByteArray(id, o.id)
   }
 
   /** Hexadecimal string representation */

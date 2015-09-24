@@ -94,7 +94,7 @@ trait JsonSerializerHelper {
     if (ename.isDefined) cstring(ename.get)
     // We flip the leading bit so that negative values will
     // sort before 0 in ASC order for bit strings. This is
-    // important as integers on JVM all are signed.
+    // important as integers on JVM are all signed.
     buffer.putInt(json.value ^ 0x80000000)
   }
 
@@ -103,7 +103,7 @@ trait JsonSerializerHelper {
     if (ename.isDefined) cstring(ename.get)
     // We flip the leading bit so that negative values will
     // sort before 0 in ASC order for bit strings. This is
-    // important as integers on JVM all are signed.
+    // important as integers on JVM are all signed.
     buffer.putLong(json.value ^ 0x8000000000000000L)
   }
 
