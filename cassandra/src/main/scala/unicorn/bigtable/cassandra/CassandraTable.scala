@@ -41,7 +41,7 @@ import unicorn.util.utf8
 class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable with IntraRowScan {
   val client = db.client
   client.set_keyspace(name)
-  val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
+  override val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
 
   override def close: Unit = () // Client has no close method
 

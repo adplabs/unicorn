@@ -16,22 +16,26 @@
 
 package unicorn.json
 
-import java.nio.{CharBuffer, ByteBuffer}
-import java.nio.charset.Charset
+import java.nio.{ByteBuffer, ByteOrder}
 import unicorn.util.Logging
 
 /**
- * JSON Serialiizer in BSON format as defined by http://bsonspec.org/spec.html.
+ * JSON Serializer in BSON format as defined by http://bsonspec.org/spec.html.
  * This is not fully compatible with BSON spec, where the root must be a document/JsObject.
  * In contrast, the root can be any JsValue in our implementation. Correspondingly, the
  * root will always has the type byte as the first byte.
- *
+ * <p>
  * Not Multi-threading safe. Each thread should have its own BsonSerializer instance.
  * Data size limit to 16MB by default.
+ * <p>
+ * ByteBuffer must use BIG ENDIAN to ensure the correct byte string comparison for
+ * integers and floating numbers.
  *
  * @author Haifeng Li
  */
 class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper with Logging {
+  require(buffer.order == ByteOrder.BIG_ENDIAN)
+
   def serialize(json: JsObject, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_DOCUMENT)
     if (ename.isDefined) cstring(ename.get)

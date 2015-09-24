@@ -38,7 +38,7 @@ class DocumentCollection(table: BigTable, family: String) {
 
   def insert(doc: Document): Unit = {
     val columns = serializer.serialize(doc.value).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
-    table.put(doc.id, columnFamily, columns: _*)
+    table.put(doc.key, columnFamily, columns: _*)
   }
 
   def insert(json: JsValue): Document = {
@@ -47,15 +47,25 @@ class DocumentCollection(table: BigTable, family: String) {
     doc
   }
 
-  def remove(id: String): Unit = {
-    table.delete(id.getBytes(utf8))
+  def remove(key: String): Unit = {
+    remove(key.getBytes(utf8))
   }
 
-  def remove(id: Array[Byte]): Unit = {
-    table.delete(id, columnFamily)
+  def remove(key: Array[Byte]): Unit = {
+    table.delete(key, columnFamily)
   }
 
   def update(doc: Document): Unit = {
 
+  }
+}
+
+trait AppendOnly {
+  def remove(key: Array[Byte]): Unit = {
+    throw new UnsupportedOperationException
+  }
+
+  def update(doc: Document): Unit = {
+    throw new UnsupportedOperationException
   }
 }

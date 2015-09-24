@@ -92,13 +92,19 @@ trait JsonSerializerHelper {
   def serialize(json: JsInt, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_INT32)
     if (ename.isDefined) cstring(ename.get)
-    buffer.putInt(json.value)
+    // We flip the leading bit so that negative values will
+    // sort before 0 in ASC order for bit strings. This is
+    // important as integers on JVM all are signed.
+    buffer.putInt(json.value ^ 0x80000000)
   }
 
   def serialize(json: JsLong, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_INT64)
     if (ename.isDefined) cstring(ename.get)
-    buffer.putLong(json.value)
+    // We flip the leading bit so that negative values will
+    // sort before 0 in ASC order for bit strings. This is
+    // important as integers on JVM all are signed.
+    buffer.putLong(json.value ^ 0x8000000000000000L)
   }
 
   def serialize(json: JsDouble, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
@@ -160,12 +166,14 @@ trait JsonSerializerHelper {
 
   def int()(implicit buffer: ByteBuffer): JsInt = {
     val x = buffer.getInt
-    if (x == 0) JsInt.zero else JsInt(x)
+    // Remember to flip back the leading bit
+    if (x == 0) JsInt.zero else JsInt(x ^ 0x80000000)
   }
 
   def long()(implicit buffer: ByteBuffer): JsLong = {
     val x = buffer.getLong
-    if (x == 0) JsLong.zero else JsLong(x)
+    // Remember to flip back the leading bit
+    if (x == 0) JsLong.zero else JsLong(x ^ 0x8000000000000000L)
   }
 
   def double()(implicit buffer: ByteBuffer): JsDouble = {

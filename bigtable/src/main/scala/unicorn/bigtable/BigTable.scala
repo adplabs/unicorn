@@ -33,9 +33,11 @@ case class Row(row: Array[Byte], families: Seq[ColumnFamily])
  * @author Haifeng Li
  */
 trait BigTable extends AutoCloseable {
-  def db: Database
+  val db: Database
 
-  def name: String
+  val name: String
+
+  val columnFamilies: Seq[String]
 
   /**
    * Get a value.
@@ -320,8 +322,15 @@ trait RowScan {
 
   /**
    * When scanning for a prefix the scan should stop immediately after the the last row that
-   * has the specified prefix. This method calculates the closest next rowKey immediately following
+   * has the specified prefix. This method calculates the closest next row key immediately following
    * the given prefix.
+   * <p>
+   * To scan rows with a given prefix, do
+   * <pre>
+   * {@code
+   * scan(prefix, nextRowKeyForPrefix(prefix))
+   * }
+   * </pre>
    *
    * @param prefix the row key prefix.
    * @return the closest next row key immediately following the given prefix.

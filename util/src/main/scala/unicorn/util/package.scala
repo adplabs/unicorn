@@ -19,7 +19,7 @@
  import java.nio.charset.Charset
  import java.time.format.DateTimeFormatter
 
- /**
+/**
  * @author Haifeng Li
  */
 package object util {
@@ -28,6 +28,8 @@ package object util {
   val iso8601DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]['Z']")
 
   val utf8 = Charset.forName("UTF-8")
+
+  implicit def pimpedBitArray(bits: Array[Byte]) = new PimpedBitArray(bits)
 
   /** Byte array to hexadecimal string. */
   def bytes2Hex(bytes: Array[Byte]): String = {
@@ -60,5 +62,11 @@ package object util {
       }
       x.length - y.length
     }
+  }
+}
+
+package util {
+  private[util] class PimpedBitArray(bits: Array[Byte]) {
+    def unary_~ = bits.map(~_)
   }
 }

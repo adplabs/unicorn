@@ -34,10 +34,10 @@ class UnicornDB(db: unicorn.bigtable.Database) {
   /**
    * Creates a document collection.
    * @param name the name of collection.
-   * @param family the column family that documents resident.
+   * @param families the column family that documents resident.
    */
-  def createCollection(name: String, family: String = DefaultDocumentColumnFamily): Unit = {
-    db.createTable(name, family)
+  def createCollection(name: String, families: Seq[String] = Seq[String](DefaultDocumentColumnFamily)): Unit = {
+    db.createTable(name, families: _*)
   }
 
   /**

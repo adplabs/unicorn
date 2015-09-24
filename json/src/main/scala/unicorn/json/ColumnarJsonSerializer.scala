@@ -16,12 +16,23 @@
 
 package unicorn.json
 
-import java.nio.ByteBuffer
+import java.nio.{ByteBuffer, ByteOrder}
 
 /**
+ * This JSON Serializer recursively encodes each field to a byte string, which can
+ * be saved separately to a column in BigTable. The JsonPath of field can be used
+ * as the column name.
+ * <p>
+ * Not Multi-threading safe. Each thread should have its own ColumnarJsonSerializer instance.
+ * <p>
+ * ByteBuffer must use BIG ENDIAN to ensure the correct byte string comparison for
+ * integers and floating numbers.
+ *
  * @author Haifeng Li
  */
 class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
+  require(buffer.order == ByteOrder.BIG_ENDIAN)
+
   def jsonPath(parent: String, field: String) = "%s.%s".format(parent, field)
 
   def jsonPath(parent: String, index: Int) = "%s[%d]".format(parent, index)
