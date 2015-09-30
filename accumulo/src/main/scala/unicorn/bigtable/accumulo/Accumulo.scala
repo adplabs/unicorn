@@ -68,6 +68,10 @@ class Accumulo(val connector: Connector) extends Database {
     tableOperations.deleteRows(name, null, null)
   }
 
+  override def tableExists(name: String): Boolean = {
+    tableOperations.exists(name)
+  }
+
   override def compactTable(name: String): Unit = {
     tableOperations.compact(name, null, null, true, false)
   }

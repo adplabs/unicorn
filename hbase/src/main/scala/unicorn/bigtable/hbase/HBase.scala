@@ -67,6 +67,10 @@ class HBase(config: Configuration) extends Database {
     admin.truncateTable(TableName.valueOf(name), true)
   }
 
+  override def tableExists(name: String): Boolean = {
+    admin.tableExists(TableName.valueOf(name))
+  }
+
   override def compactTable(name: String): Unit = {
     val tableName = TableName.valueOf(name)
     admin.majorCompact(tableName)

@@ -95,6 +95,10 @@ class Cassandra(transport: TFramedTransport) extends Database with Logging {
     }
   }
 
+  override def tableExists(name: String): Boolean = {
+    client.describe_keyspace(name) != null
+  }
+
   /**
    * Cassandra client API doesn't support compaction.
    * This is actually a nop.

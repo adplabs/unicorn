@@ -14,34 +14,23 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.util
+package unicorn.index
+
+import unicorn.bigtable.Column
 
 /**
- * Pimped byte array.
+ * Suppose the base table row key with tenant id as the prefix. Corresponding, the index
+ * table may have the tenant id as the prefix too to ensure proper sharding. The tenant id
+ * should be of fixed size
+ *
+ * @param tenantIdSize the tenant id size.
  *
  * @author Haifeng Li
  */
-class ByteArray(val bytes: Array[Byte]) extends Comparable[ByteArray] {
-  /** Flip each bit of a byte string */
-  def unary_~ = bytes.map(~_)
-
-  /** Hexadecimal string representation */
-  override def toString = bytes2Hex(bytes)
-
-  override def compareTo(o: ByteArray): Int = compareByteArray(bytes, o.bytes)
-
-  override def equals(o: Any): Boolean = {
-    if (!o.isInstanceOf[ByteArray]) return false
-    
-    val that = o.asInstanceOf[ByteArray]
-    if (this.bytes.size != that.bytes.size) return false
-    
-    compareTo(that) == 0
-  }
-
-  override def hashCode: Int = {
-    var hash = 7
-    bytes.foreach { i => hash = 31 * hash + i }
-    hash
+class TenantRowKeyPrefix(tenantIdSize: Int) extends IndexRowKeyPrefix {
+  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Array[Byte] = {
+    val prefix = new Array[Byte](tenantIdSize)
+    Array.copy(row, 0, prefix, 0, tenantIdSize)
+    prefix
   }
 }

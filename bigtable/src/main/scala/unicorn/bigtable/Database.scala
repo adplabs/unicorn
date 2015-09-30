@@ -66,6 +66,11 @@ trait Database extends AutoCloseable {
   def dropTable(name: String): Unit
 
   /**
+   * Tests if a table exists.
+   */
+  def tableExists(name: String): Boolean
+
+  /**
    * Major compacts a table. Asynchronous operation.
    * @param name the name of table.
    */

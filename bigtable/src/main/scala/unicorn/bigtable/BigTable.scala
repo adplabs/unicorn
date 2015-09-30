@@ -39,6 +39,9 @@ trait BigTable extends AutoCloseable {
 
   val columnFamilies: Seq[String]
 
+  override def toString = name + columnFamilies.mkString("[", ",", "]")
+  override def hashCode = toString.hashCode
+
   /**
    * Get a value.
    */

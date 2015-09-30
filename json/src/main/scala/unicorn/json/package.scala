@@ -121,6 +121,11 @@ package object json {
   }
 
   implicit def json2String(json: JsValue): String = json.toString
+
+  implicit def json2ByteArray(json: JsValue): Array[Byte] = json match {
+    case JsBinary(x) => x
+    case _ => throw new UnsupportedOperationException("convert JsValue to Array[Byte]")
+  }
 }
 
 package json {

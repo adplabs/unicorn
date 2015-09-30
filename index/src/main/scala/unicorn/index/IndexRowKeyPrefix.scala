@@ -14,34 +14,26 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.util
+package unicorn.index
+
+import unicorn.bigtable.Column
 
 /**
- * Pimped byte array.
+ * Optionally, row key in the index table may have specific prefix,
+ * e.g. tenant id, index name (all index in one table), etc.
  *
  * @author Haifeng Li
  */
-class ByteArray(val bytes: Array[Byte]) extends Comparable[ByteArray] {
-  /** Flip each bit of a byte string */
-  def unary_~ = bytes.map(~_)
+trait IndexRowKeyPrefix {
+  def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Array[Byte]
+}
 
-  /** Hexadecimal string representation */
-  override def toString = bytes2Hex(bytes)
-
-  override def compareTo(o: ByteArray): Int = compareByteArray(bytes, o.bytes)
-
-  override def equals(o: Any): Boolean = {
-    if (!o.isInstanceOf[ByteArray]) return false
-    
-    val that = o.asInstanceOf[ByteArray]
-    if (this.bytes.size != that.bytes.size) return false
-    
-    compareTo(that) == 0
-  }
-
-  override def hashCode: Int = {
-    var hash = 7
-    bytes.foreach { i => hash = 31 * hash + i }
-    hash
+/**
+ * By default index has no row key prefix.
+ */
+object NoRowKeyPrefix extends IndexRowKeyPrefix {
+  val empty = Array[Byte]()
+  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Array[Byte] = {
+    empty
   }
 }

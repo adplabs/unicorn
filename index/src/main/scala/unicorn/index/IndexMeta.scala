@@ -14,34 +14,19 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.util
+package unicorn.index
+
+import unicorn.util.utf8
 
 /**
- * Pimped byte array.
+ * Index meta data.
  *
  * @author Haifeng Li
  */
-class ByteArray(val bytes: Array[Byte]) extends Comparable[ByteArray] {
-  /** Flip each bit of a byte string */
-  def unary_~ = bytes.map(~_)
-
-  /** Hexadecimal string representation */
-  override def toString = bytes2Hex(bytes)
-
-  override def compareTo(o: ByteArray): Int = compareByteArray(bytes, o.bytes)
-
-  override def equals(o: Any): Boolean = {
-    if (!o.isInstanceOf[ByteArray]) return false
-    
-    val that = o.asInstanceOf[ByteArray]
-    if (this.bytes.size != that.bytes.size) return false
-    
-    compareTo(that) == 0
-  }
-
-  override def hashCode: Int = {
-    var hash = 7
-    bytes.foreach { i => hash = 31 * hash + i }
-    hash
-  }
+object IndexMeta {
+  val indexColumnFamilies = Array("index", "stat")
+  val indexColumnFamily = "index".getBytes(utf8)
+  val statColumnFamily = "stat".getBytes(utf8)
+  val uniqueIndexColumn = Array[Byte](1)
+  val indexDummyValue = Array[Byte](1)
 }
