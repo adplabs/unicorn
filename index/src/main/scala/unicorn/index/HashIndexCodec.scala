@@ -16,12 +16,14 @@
 
 package unicorn.index
 
+import java.nio.ByteBuffer
+
 import unicorn.bigtable.{Cell, Column}
 import unicorn.util._
 
 /**
  * Calculate the cell in the index table for a composite index (multiple columns) in the base table.
- * Hash index doesn't support unique constraint
+ * Hash index doesn't support unique constraint.
  *
  * @author Haifeng Li
  */
@@ -29,15 +31,22 @@ class HashIndexCodec(index: Index) extends IndexCodec {
   // Hash index doesn't support unique constraint
   require(index.unique == false)
 
+  val suffix = ByteBuffer.allocate(4 * index.columns.size)
+  val empty = Array[Byte]()
+
   override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
+    suffix.reset
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c
-        case None => throw new IllegalArgumentException("missing covered index column")
+        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value
+        case None => empty
       }
-      md5Encoder.update(column.value)
+      md5Encoder.update(column)
+      suffix.putInt(column.size)
     }
+
+    md5Encoder.update(suffix.array)
     val hash = md5Encoder.digest
 
     val key = index.prefixedIndexRowKey(hash, row)

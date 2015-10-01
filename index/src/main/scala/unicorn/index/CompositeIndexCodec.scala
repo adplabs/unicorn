@@ -31,6 +31,7 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
 
   val buffer = ByteBuffer.allocate(64 * 1024)
   val suffix = ByteBuffer.allocate(4 * index.columns.size)
+  val empty = Array[Byte]()
 
   override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
     buffer.reset
@@ -38,11 +39,11 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c
-        case None => throw new IllegalArgumentException("missing covered index column")
+        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value
+        case None => empty
       }
-      buffer.put(column.value)
-      suffix.putInt(column.value.size)
+      buffer.put(column)
+      suffix.putInt(column.size)
     }
 
     val key = index.prefixedIndexRowKey(row, buffer.array ++ suffix.array)
