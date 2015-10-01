@@ -17,24 +17,27 @@
 package unicorn.index
 
 import unicorn.bigtable.{Cell, Column}
+import unicorn.util.ByteArray
 
 /**
  * Calculate the cell in the index table for a single column in the base table.
- * By default index has no row key prefix.
  *
  * @author Haifeng Li
  */
-class SingleColumnIndexCodec(unique: Boolean = false, rowKeyPrefix: IndexRowKeyPrefix = NoRowKeyPrefix) extends IndexCodec {
-  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Cell = {
-    require(columns.size == 1)
-    val column = columns.head
-    val key = rowKeyPrefix(row, family, columns) match {
-      case null => column.value
-      case Array() => column.value
-      case prefix => prefix ++ column.value
+class SingleColumnIndexCodec(index: Index) extends IndexCodec {
+  require(index.columns.size == 1)
+  val indexColumn = index.columns.head
+
+  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Cell = {
+
+    val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+      case Some(c) => c
+      case None => throw new IllegalArgumentException("missing covered index column")
     }
 
-    if (unique)
+    val key = index.prefixedIndexRowKey(column.value, row)
+
+    if (index.unique)
       Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp)
     else
       Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp)

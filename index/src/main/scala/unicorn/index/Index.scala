@@ -16,8 +16,6 @@
 
 package unicorn.index
 
-import scala.collection.mutable.ArrayBuffer
-import unicorn.bigtable._
 import unicorn.json._
 import unicorn.util._
 
@@ -46,7 +44,9 @@ object IndexSortOrder extends Enumeration {
    * and index the hashed value. These indexes permit only
    * equality queries. Internally, this is based on MD5 hash
    * function, which computes a 16-byte value. Therefore, this
-   * is mostly useful for long byte strings/BLOB.
+   * is mostly useful for long byte strings/BLOB. If a column
+   * in a composite index is hashed, the whole index will be hashed.
+   * Hashed index doesn't support unique constraint.
    */
   val Hashed = Value
 }
@@ -54,153 +54,106 @@ object IndexSortOrder extends Enumeration {
 import IndexSortOrder._
 
 /** A column in an index */
-case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending)
+case class IndexColumn(family: Array[Byte], qualifier: Array[Byte], order: IndexSortOrder = Ascending) {
+  override def equals(o: Any): Boolean = {
+    if (!o.isInstanceOf[IndexColumn]) return false
+
+    val that = o.asInstanceOf[IndexColumn]
+    if (this.family.size != that.family.size ||
+        this.qualifier.size != that.qualifier.size ||
+        this.order != that.order) return false
+
+    compareByteArray(family, that.family) == 0 && compareByteArray(qualifier, that.qualifier) == 0
+  }
+
+  override def hashCode: Int = {
+    var hash = 7
+    family.foreach { i => hash = 31 * hash + i }
+    qualifier.foreach { i => hash = 31 * hash + i }
+    hash = 31 * hash + order.id
+    hash
+  }
+}
 
 /**
  * Secondary index. In HBase and Accumulo, the row key is sorted.
  * The secondary index implementation uses this fact and reverts
  * the key and value in the index table.
  * If columns has more than one elements, this is a composite index.
+ * The order of columns is important as it determine the row key
+ * of index table. Only the leading columns of row key can be used for
+ * index scan in case that partial index columns are used in query.
  * If unique is true, the column cannot have duplicated values.
+ * The index row key may have (stackable) prefix (e.g. tenant id).
  *
  * @author Haifeng Li
  */
-case class Index(indexTable: String, family: Array[Byte], columns: Seq[IndexColumn], unique: Boolean = false)
+case class Index(name: String, indexTableName: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
+  require(columns.size > 0)
+
+  val hashed = columns.exists(_.order == Hashed)
+
+  val codec = if (hashed) new HashIndexCodec(this)
+    else if (columns.size == 1) new SingleColumnIndexCodec(this)
+    else new CompositeIndexCodec(this)
+
+  val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
+  /** Returns the non-covered columns */
+  def findNonCoveredColumns(columns: Seq[Array[Byte]]): Seq[Array[Byte]] = {
+    columns.filter(!coveredColumns.contains(_))
+  }
+
+  /** Returns true if both indices cover the same column set (and same order) */
+  def coverSameColumns(that: Index): Boolean = {
+    columns == that.columns.size
+  }
+
+  /** Returns the prefixed index table row key */
+  def prefixedIndexRowKey(indexTableRowKey: Array[Byte], baseTableRowKey: Array[Byte]) = {
+    prefix.foldRight(indexTableRowKey){ (prefix, value) => prefix(this, baseTableRowKey) ++ value }
+  }
+
+  def toJson: JsValue = {
+    JsObject(
+      "name" -> name,
+      "table" -> indexTableName,
+      "columns" -> columns.map { column =>
+        JsObject(
+          "family" -> JsBinary(column.family),
+          "qualifier" -> JsBinary(column.qualifier),
+          "order" -> column.order.toString
+        )
+      },
+      "unique" -> unique,
+      "prefixs" -> JsArray(prefix.map(_.toString))
+    )
+  }
+}
 
 object Index {
   def apply(js: JsValue) = {
+    val name: String = js.name
     val table: String = js.table
-
-    val family: Array[Byte] = js.family
 
     val columns = js.columns match {
       case JsArray(columns) => columns.map { column =>
+        val family: Array[Byte] = column.family
         val qualifier: Array[Byte] = column.qualify
         val order: String = column.order
-        IndexColumn(qualifier, IndexSortOrder.withName(order))
+        IndexColumn(family, qualifier, IndexSortOrder.withName(order))
       }
       case _ => throw new IllegalStateException("columns is not JsArray")
     }
 
     val unique: Boolean = js.unique
 
-    Index(table, family, columns, unique)
-  }
-
-  def toJson(index: Index): JsValue = {
-    JsObject(
-      "table" -> index.indexTable,
-      "family" -> JsBinary(index.family),
-      "columns" -> index.columns.map { column =>
-        JsObject(
-          "qualifier" -> JsBinary(column.qualifier),
-          "order" -> column.order.toString
-        )
-      },
-      "unique" -> index.unique
-    )
-  }
-}
-
-trait Indexing {
-  /** Base table */
-  val baseTable: BigTable with RowScan
-  val db = baseTable.db
-
-  val indexMeta = Indexing.getIndexMeta(baseTable)
-
-  /** Index tables. A column may appears in multiple indices (composite index) */
-  val indexTables = collection.mutable.Map[(ByteArray, ByteArray), ArrayBuffer[(BigTable, Index)]]().withDefaultValue(ArrayBuffer())
-  indexMeta.foreach { case (indexTable, meta) =>
-    meta.columns.foreach { column =>
-      indexTables((meta.family, column.qualifier)).append((indexTable, meta))
-    }
-  }
-
-  /** Close the base table and the index table */
-  def close: Unit = {
-    baseTable.close
-    indexMeta.foreach { case (indexTable, _) => indexTable.close }
-  }
-
-  def createIndex(name: String, index: Index): Unit = {
-    indexMeta.foreach { case (_, meta) =>
-        if (meta.indexTable == name) throw new IllegalArgumentException(s"Index $name exists")
-    }
-    val indexTable = db.createTable(name, Indexing.indexTableIndexColumnFamily, Indexing.indexTableStatColumnFamily)
-    indexMeta.append((indexTable, index))
-    Indexing.addIndex(baseTable, index)
-
-    index.columns.foreach { column =>
-      indexTables((index.family, column.qualifier)).append((indexTable, index))
+    val tenantPrefixPattern = """tenant\((\d+)\)""".r
+    val prefixArray = js.prefix.asInstanceOf[JsArray]
+    val prefix = prefixArray.map { p =>
+      case JsString(tenantPrefixPattern(size)) => new TenantRowKeyPrefix(size.toInt)
+      case _ => throw new IllegalArgumentException("Unsupported index prefix")
     }
 
-    baseTable.scan(baseTable.startRowKey, baseTable.endRowKey, index.family, index.columns.map(_.qualifier)).foreach { row =>
-      indexTable.put(indexRowkey(row.row, row.families.head.columns), Indexing.indexTableIndexColumnFamily, row.row, Indexing.indexValue)
-    }
-  }
-
-  def dropIndex(name: String): Unit = {
-    db.dropTable(name)
-    var i = -1
-    var index: Index = null
-    indexMeta.zipWithIndex.foreach{ case ((indexTable, meta), idx) =>
-        if (meta.indexTable == name) {
-          indexTable.close
-          i = idx
-          index = meta
-        }
-    }
-    indexMeta.remove(i)
-
-    index.columns.foreach { column =>
-      val a = indexTables((index.family, column.qualifier))
-      val i = a.find(_._1.name == name)
-      if (i.isDefined) a.remove()
-    }
-  }
-
-  def indexRowkey(row: Array[Byte], columns: Seq[Column]): Array[Byte] = {
-    row
-  }
-}
-
-object Indexing {
-  val metaTableName = "unicorn.meta.index"
-  val metaTableColumnFamily = "meta"
-  val metaTableColumnFamilyBytes = metaTableColumnFamily.getBytes(utf8)
-  val indexTableIndexColumnFamily = "index"
-  val indexTableStatColumnFamily = "stat"
-  val indexValue = Array[Byte](1)
-
-  /**
-   * Gets the meta of all indices of a base table.
-   * Each row of metaTable encodes the index information for a table
-   * The row key is the base table name. Each column is a BSON object
-   * about the index. The column name is the index name.
-   */
-  def getIndexMeta(table: BigTable): ArrayBuffer[(BigTable, Index)] = {
-    if (table.db.tableExists(metaTableName))
-      table.db.createTable(metaTableName, metaTableColumnFamily)
-
-    /** Index meta data table */
-    val metaTable = table.db(metaTableName)
-
-    /**
-     * Meta data encoded in BSON format.
-     */
-    val bson = new BsonSerializer
-
-    metaTable.get(table.name, metaTableColumnFamily).map { column =>
-      val index = Index(bson.deserialize(collection.immutable.Map("$" -> column.value)))
-      (table.db(index.indexTable), index)
-    }.to[ArrayBuffer]
-  }
-
-  def addIndex(baseTable: BigTable, index: Index): Unit = {
-    val metaTable = baseTable.db(metaTableName)
-    val bson = new BsonSerializer
-    val json = bson.serialize(Index.toJson(index))
-    metaTable.put(baseTable.name.getBytes(utf8), metaTableColumnFamily.getBytes(utf8), index.indexTable.getBytes(utf8), json("$"))
+    Index(name, table, columns, unique, prefix)
   }
 }

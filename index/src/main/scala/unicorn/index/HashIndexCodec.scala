@@ -21,11 +21,15 @@ import unicorn.util._
 
 /**
  * Calculate the cell in the index table for a composite index (multiple columns) in the base table.
+ * Hash index doesn't support unique constraint
  *
  * @author Haifeng Li
  */
-class CompositeIndexCodec(index: Index) extends IndexCodec {
-  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Cell = {
+class HashIndexCodec(index: Index) extends IndexCodec {
+  // Hash index doesn't support unique constraint
+  require(index.unique == false)
+
+  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Cell = {
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
@@ -36,13 +40,8 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
     }
     val hash = md5Encoder.digest
 
-    val key = index.prefixedIndexRowKey(row, hash)
+    val key = index.prefixedIndexRowKey(hash, row)
 
     Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp)
-
-    if (index.unique)
-      Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp)
-    else
-      Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp)
   }
 }

@@ -16,8 +16,6 @@
 
 package unicorn.index
 
-import unicorn.bigtable.Column
-
 /**
  * Suppose the base table row key with tenant id as the prefix. Corresponding, the index
  * table may have the tenant id as the prefix too to ensure proper sharding. The tenant id
@@ -28,9 +26,12 @@ import unicorn.bigtable.Column
  * @author Haifeng Li
  */
 class TenantRowKeyPrefix(tenantIdSize: Int) extends IndexRowKeyPrefix {
-  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Array[Byte] = {
+
+  override def apply(index: Index, baseTableRowKey: Array[Byte]): Array[Byte] = {
     val prefix = new Array[Byte](tenantIdSize)
-    Array.copy(row, 0, prefix, 0, tenantIdSize)
+    Array.copy(baseTableRowKey, 0, prefix, 0, tenantIdSize)
     prefix
   }
+
+  override def toString = s"tenant($tenantIdSize)"
 }

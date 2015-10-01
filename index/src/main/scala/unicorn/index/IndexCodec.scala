@@ -17,12 +17,20 @@
 package unicorn.index
 
 import unicorn.bigtable.{Cell, Column}
+import unicorn.util.ByteArray
 
 /**
- * Calculate the cell in the index table for a given column set in the base table.
+ * Calculate the cell(s) in the index table for a given column set in the base table.
+ * In case of text index, we have multiple index entries (for each word).
  *
  * @author Haifeng Li
  */
 trait IndexCodec {
-  def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Cell
+  /**
+   * Given a row, calculate the index entries.
+   * @param row the row key.
+   * @param columns a map of family to map of qualifier to cell.
+   * @return a seq of index entries.
+   */
+  def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell]
 }
