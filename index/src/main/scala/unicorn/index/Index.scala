@@ -147,13 +147,15 @@ object Index {
 
     val unique: Boolean = js.unique
 
-    val tenantPrefixPattern = """tenant\((\d+)\)""".r
+    val tenantIdPrefixPattern = """tenant\((\d+)\)""".r
+    val indexIdPrefixPattern = """index\((\d+)\)""".r
     val prefixArray = js.prefix.asInstanceOf[JsArray]
-    val prefix = prefixArray.map { p =>
-      case JsString(tenantPrefixPattern(size)) => new TenantRowKeyPrefix(size.toInt)
+    val prefix = prefixArray.map ( _ match {
+      case JsString(tenantIdPrefixPattern(size)) => new TenantIdPrefix(size.toInt)
+      case JsString(indexIdPrefixPattern(id)) => new TenantIdPrefix(id.toInt)
       case _ => throw new IllegalArgumentException("Unsupported index prefix")
-    }
+    }).toSeq
 
-    Index(name, table, columns, unique, prefix)
+    new Index(name, table, columns, unique, prefix)
   }
 }

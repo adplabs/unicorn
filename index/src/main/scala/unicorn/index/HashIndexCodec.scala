@@ -29,7 +29,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
   // Hash index doesn't support unique constraint
   require(index.unique == false)
 
-  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Cell = {
+  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
@@ -42,6 +42,6 @@ class HashIndexCodec(index: Index) extends IndexCodec {
 
     val key = index.prefixedIndexRowKey(hash, row)
 
-    Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp)
+    Seq(Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp))
   }
 }

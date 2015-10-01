@@ -16,33 +16,42 @@
 
 package unicorn.index
 
+import java.nio.ByteBuffer
 import unicorn.bigtable.{Cell, Column}
 import unicorn.util._
 
 /**
  * Calculate the cell in the index table for a composite index (multiple columns) in the base table.
+ * The combined size of index columns should be less than 64KB.
  *
  * @author Haifeng Li
  */
 class CompositeIndexCodec(index: Index) extends IndexCodec {
-  override def apply(row: Array[Byte], family: Array[Byte], columns: Seq[Column]): Cell = {
+  require(index.columns.size > 1)
+
+  val buffer = ByteBuffer.allocate(64 * 1024)
+  val suffix = ByteBuffer.allocate(4 * index.columns.size)
+
+  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
+    buffer.reset
+    suffix.reset
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c
         case None => throw new IllegalArgumentException("missing covered index column")
       }
-      md5Encoder.update(column.value)
+      buffer.put(column.value)
+      suffix.putInt(column.value.size)
     }
-    val hash = md5Encoder.digest
 
-    val key = index.prefixedIndexRowKey(row, hash)
+    val key = index.prefixedIndexRowKey(row, buffer.array ++ suffix.array)
 
     Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp)
 
     if (index.unique)
-      Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp)
+      Seq(Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, timestamp))
     else
-      Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp)
+      Seq(Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp))
   }
 }

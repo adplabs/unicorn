@@ -26,9 +26,10 @@ import unicorn.util.ByteArray
  */
 class SingleColumnIndexCodec(index: Index) extends IndexCodec {
   require(index.columns.size == 1)
+
   val indexColumn = index.columns.head
 
-  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Cell = {
+  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
 
     val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
       case Some(c) => c
@@ -38,8 +39,8 @@ class SingleColumnIndexCodec(index: Index) extends IndexCodec {
     val key = index.prefixedIndexRowKey(column.value, row)
 
     if (index.unique)
-      Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp)
+      Seq(Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp))
     else
-      Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp)
+      Seq(Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp))
   }
 }
