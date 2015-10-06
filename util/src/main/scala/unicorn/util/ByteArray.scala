@@ -21,7 +21,7 @@ package unicorn.util
  *
  * @author Haifeng Li
  */
-class ByteArray(val bytes: Array[Byte]) extends Comparable[ByteArray] {
+case class ByteArray(bytes: Array[Byte]) extends Comparable[ByteArray] {
   /** Flip each bit of a byte string */
   def unary_~ = bytes.map(~_)
 

@@ -18,6 +18,7 @@ package unicorn.index
 
 import java.nio.ByteBuffer
 import unicorn.bigtable.{Cell, Column}
+import unicorn.index.IndexSortOrder._
 import unicorn.util._
 
 /**
@@ -38,11 +39,17 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
     suffix.reset
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
-      val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+      val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value
         case None => empty
       }
-      buffer.put(column)
+
+      indexColumn.order match {
+        case Ascending => buffer.put(column)
+        case Descending => buffer.put(~column)
+        case _ => throw new IllegalStateException(s"CompositeIndexCodec doesn't support the index column order ${indexColumn.order}")
+      }
+
       suffix.putInt(column.size)
     }
 

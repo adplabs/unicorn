@@ -49,26 +49,29 @@ object IndexSortOrder extends Enumeration {
    * Hashed index doesn't support unique constraint.
    */
   val Hashed = Value
+
+  /**
+   * Text indexes are for full text search by keywords.
+   */
+  val Text = Value
 }
 
 import IndexSortOrder._
 
 /** A column in an index */
-case class IndexColumn(family: Array[Byte], qualifier: Array[Byte], order: IndexSortOrder = Ascending) {
+case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending) {
   override def equals(o: Any): Boolean = {
     if (!o.isInstanceOf[IndexColumn]) return false
 
     val that = o.asInstanceOf[IndexColumn]
-    if (this.family.size != that.family.size ||
-        this.qualifier.size != that.qualifier.size ||
+    if (this.qualifier.size != that.qualifier.size ||
         this.order != that.order) return false
 
-    compareByteArray(family, that.family) == 0 && compareByteArray(qualifier, that.qualifier) == 0
+    compareByteArray(qualifier, that.qualifier) == 0
   }
 
   override def hashCode: Int = {
     var hash = 7
-    family.foreach { i => hash = 31 * hash + i }
     qualifier.foreach { i => hash = 31 * hash + i }
     hash = 31 * hash + order.id
     hash
@@ -76,7 +79,8 @@ case class IndexColumn(family: Array[Byte], qualifier: Array[Byte], order: Index
 }
 
 /**
- * Secondary index. In HBase and Accumulo, the row key is sorted.
+ * Secondary index. Index columns must belong to the same column family.
+ * In HBase and Accumulo, the row key is sorted.
  * The secondary index implementation uses this fact and reverts
  * the key and value in the index table.
  * If columns has more than one elements, this is a composite index.
@@ -88,24 +92,32 @@ case class IndexColumn(family: Array[Byte], qualifier: Array[Byte], order: Index
  *
  * @author Haifeng Li
  */
-case class Index(name: String, indexTableName: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
+case class Index(name: String, indexTableName: String, family: Array[Byte], columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
   require(columns.size > 0)
 
-  val hashed = columns.exists(_.order == Hashed)
+  val isHashIndex = columns.exists(_.order == Hashed)
+  val isTextIndex = columns.exists(_.order == Text)
 
-  val codec = if (hashed) new HashIndexCodec(this)
+  val codec = if (isHashIndex) new HashIndexCodec(this)
+    else if (isTextIndex) new TextIndexCodec(this)
     else if (columns.size == 1) new SingleColumnIndexCodec(this)
     else new CompositeIndexCodec(this)
 
   val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
-  /** Returns the non-covered columns */
-  def findNonCoveredColumns(columns: Seq[Array[Byte]]): Seq[Array[Byte]] = {
-    columns.filter(!coveredColumns.contains(_))
+
+  /**
+   * If the index doesn't cover any columns to update, return None.
+   * Otherwise, Returns the non-covered columns.
+   */
+  def findNonCoveredColumns(columns: Seq[Array[Byte]]): Option[Seq[Array[Byte]]] = {
+    val set = columns.map(new ByteArray(_)).toSet
+    if ((coveredColumns & set).isEmpty) return None
+    Some((coveredColumns -- set).map(_.bytes).toSeq)
   }
 
   /** Returns true if both indices cover the same column set (and same order) */
   def coverSameColumns(that: Index): Boolean = {
-    columns == that.columns.size
+    columns == that.columns
   }
 
   /** Returns the prefixed index table row key */
@@ -117,9 +129,9 @@ case class Index(name: String, indexTableName: String, columns: Seq[IndexColumn]
     JsObject(
       "name" -> name,
       "table" -> indexTableName,
+      "family" -> JsBinary(family),
       "columns" -> columns.map { column =>
         JsObject(
-          "family" -> JsBinary(column.family),
           "qualifier" -> JsBinary(column.qualifier),
           "order" -> column.order.toString
         )
@@ -134,13 +146,12 @@ object Index {
   def apply(js: JsValue) = {
     val name: String = js.name
     val table: String = js.table
-
+    val family: Array[Byte] = js.family
     val columns = js.columns match {
       case JsArray(columns) => columns.map { column =>
-        val family: Array[Byte] = column.family
         val qualifier: Array[Byte] = column.qualify
         val order: String = column.order
-        IndexColumn(family, qualifier, IndexSortOrder.withName(order))
+        IndexColumn(qualifier, IndexSortOrder.withName(order))
       }
       case _ => throw new IllegalStateException("columns is not JsArray")
     }
@@ -156,6 +167,6 @@ object Index {
       case _ => throw new IllegalArgumentException("Unsupported index prefix")
     }).toSeq
 
-    new Index(name, table, columns, unique, prefix)
+    new Index(name, table, family, columns, unique, prefix)
   }
 }

@@ -175,14 +175,15 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
-    put(row, new String(family, utf8), column, value)
+  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
+    put(row, new String(family, utf8), column, value, timestamp)
   }
 
-  def put(row: Array[Byte], family: String, column: Array[Byte], value: Array[Byte]): Unit = {
+  def put(row: Array[Byte], family: String, column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(family)
-    val put = new CassandraColumn(ByteBuffer.wrap(column)).setValue(value).setTimestamp(System.currentTimeMillis)
+    val put = new CassandraColumn(ByteBuffer.wrap(column)).setValue(value)
+    if (timestamp != 0) put.setTimestamp(timestamp) else put.setTimestamp(System.currentTimeMillis)
     client.insert(key, parent, put, consistency)
   }
 

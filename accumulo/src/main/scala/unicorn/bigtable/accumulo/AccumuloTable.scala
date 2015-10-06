@@ -123,9 +123,12 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     new AccumuloRowScanner(scanner)
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
+  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long ): Unit = {
     val mutation = new Mutation(row)
-    mutation.put(family, column, cellVisibility, value)
+    if (timestamp != 0)
+      mutation.put(family, column, cellVisibility, timestamp, value)
+    else
+      mutation.put(family, column, cellVisibility, value)
 
     val writer = newBatchWriter(1)
     writer.addMutation(mutation)

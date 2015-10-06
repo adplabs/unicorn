@@ -24,7 +24,7 @@ import unicorn.util.utf8
  * @author Haifeng Li
  */
 object IndexMeta {
-  val indexColumnFamilies = Array("index", "stat")
+  val indexColumnFamilies = Seq("index", "stat")
   val indexColumnFamily = "index".getBytes(utf8)
   val statColumnFamily = "stat".getBytes(utf8)
   val uniqueIndexColumn = Array[Byte](1)

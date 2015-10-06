@@ -57,21 +57,21 @@ trait BigTable extends AutoCloseable {
   // Scala compiler disallows overloaded methods with default arguments
   // because of a deterministic naming-scheme for the methods with
   // default arguments. So instead of define a method like
-  // get(row: Array[Byte], families: Seq[Array[Byte]] = Seq())
+  // get(row: Array[Byte], families: Seq[Array[Byte]])
   // we have to manually define two methods and provide the default
   // parameter by ourselves.
   /**
    * Get the row.
    */
   def get(row: Array[Byte]): Seq[ColumnFamily] = {
-    get(row, Seq())
+    get(row, Seq[Array[Byte]]())
   }
 
   /**
    * Get the row.
    */
   def get(row: String): Seq[ColumnFamily] = {
-    get(row.getBytes(utf8), Seq())
+    get(row.getBytes(utf8), Seq[Array[Byte]]())
   }
 
   /**
@@ -137,7 +137,7 @@ trait BigTable extends AutoCloseable {
   /**
    * Upsert a value.
    */
-  def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit
+  def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long = 0L): Unit
 
   /**
    * Upsert a value.

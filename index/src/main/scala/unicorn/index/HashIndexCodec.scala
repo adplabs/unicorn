@@ -38,7 +38,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
     suffix.reset
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
-      val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+      val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value
         case None => empty
       }

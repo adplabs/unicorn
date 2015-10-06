@@ -155,9 +155,9 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     new HBaseColumnScanner(table.getScanner(scan))
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
+  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
     val put = newPut(row)
-    put.addColumn(family, column, value)
+    if (timestamp != 0) put.addColumn(family, column, timestamp, value) else put.addColumn(family, column, value)
     table.put(put)
   }
 

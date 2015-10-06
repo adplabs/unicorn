@@ -31,7 +31,7 @@ class SingleColumnIndexCodec(index: Index) extends IndexCodec {
 
   override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
 
-    val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+    val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
       case Some(c) => c
       case None => throw new IllegalArgumentException("missing covered index column")
     }

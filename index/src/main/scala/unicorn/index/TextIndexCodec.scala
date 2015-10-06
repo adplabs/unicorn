@@ -17,20 +17,21 @@
 package unicorn.index
 
 import java.nio.ByteBuffer
-
+import java.nio.charset.Charset
 import smile.nlp.dictionary.{EnglishPunctuations, EnglishStopWords}
 import smile.nlp.stemmer.PorterStemmer
 import smile.nlp.tokenizer.{SimpleTokenizer, SimpleSentenceSplitter}
 import unicorn.bigtable.{Cell, Column}
+import unicorn.json.JsonSerializerHelper
 import unicorn.util._
 
 /**
  * Calculate the cell in the index table for a text index (may include multiple columns) in the base table.
- * Natuarlly, text index doesn't support unique constraint. It also ignores the column order specification.
+ * Naturally, text index doesn't support unique constraint. It also ignores the column order specification.
  *
  * @author Haifeng Li
  */
-class TextIndexCodec(index: Index) extends IndexCodec {
+class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) extends IndexCodec {
   // Text index doesn't support unique constraint. Text index also ignores
   // the column order specification.
   require(index.unique == false)
@@ -41,10 +42,10 @@ class TextIndexCodec(index: Index) extends IndexCodec {
 
     var timestamp = 0L
     index.columns.flatMap { indexColumn =>
-      val column = columns.get(indexColumn.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
+      val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
       if (column.isDefined) {
         if (column.get.timestamp > timestamp) timestamp = column.get.timestamp
-        val text = new String(column.get.value, utf8)
+        val text = codec.decode(column.get.value)
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
           val key = index.prefixedIndexRowKey(term.getBytes(utf8), row) ++ row
@@ -104,5 +105,21 @@ class TextIndexCodec(index: Index) extends IndexCodec {
     }
 
     terms
+  }
+}
+
+trait TextCodec {
+  def decode(bytes: Array[Byte]): String
+}
+
+class SimpleTextCodec(charset: Charset = utf8) extends TextCodec {
+  override def decode(bytes: Array[Byte]): String = {
+    new String(bytes, charset)
+  }
+}
+
+class JsStringTextCodec extends TextCodec with JsonSerializerHelper {
+  override def decode(bytes: Array[Byte]): String = {
+    string()(ByteBuffer.wrap(bytes)).value
   }
 }
