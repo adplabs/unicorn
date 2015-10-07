@@ -36,7 +36,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
 
   override def close: Unit = table.close
 
-  override val columnFamilies = table.getTableDescriptor.getColumnFamilies.map(_.getNameAsString)
+  override val columnFamilies = table.getTableDescriptor.getColumnFamilies.map(_.getNameAsString).toSeq
 
   override val startRowKey: Array[Byte] = HConstants.EMPTY_START_ROW
   override val endRowKey: Array[Byte] = HConstants.EMPTY_END_ROW

@@ -23,7 +23,9 @@ package unicorn.util
  */
 case class ByteArray(bytes: Array[Byte]) extends Comparable[ByteArray] {
   /** Flip each bit of a byte string */
-  def unary_~ = bytes.map(~_)
+  def unary_~ : Array[Byte] = {
+    bytes.map { b => (~b).toByte }
+  }
 
   /** Hexadecimal string representation */
   override def toString = bytes2Hex(bytes)

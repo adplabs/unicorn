@@ -31,7 +31,7 @@ import unicorn.bigtable._
 class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with RowScan with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
-  override val columnFamilies = db.tableOperations.getLocalityGroups(name).map(_._1)
+  override val columnFamilies = db.tableOperations.getLocalityGroups(name).map(_._1).toSeq
 
   override val startRowKey: Array[Byte] = null
   override val endRowKey: Array[Byte] = null
