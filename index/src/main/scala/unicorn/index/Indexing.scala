@@ -44,26 +44,20 @@ trait Indexing {
 
   def createIndex(name: String, index: Index): Unit = {
     indexMeta.foreach { case (index, indexTable) =>
-        if (index.indexTableName == name) throw new IllegalArgumentException(s"Index $name exists")
-        if (index.coverSameColumns(index)) throw new IllegalArgumentException(s"Index ${index.name} covers the same columns")
+      if (index.indexTableName == name) throw new IllegalArgumentException(s"Index $name exists")
+      if (index.coverSameColumns(index)) throw new IllegalArgumentException(s"Index ${index.name} covers the same columns")
     }
 
     val indexTable = db.createTable(name, IndexMeta.indexColumnFamilies: _*)
+    baseTable.scan(baseTable.startRowKey, baseTable.endRowKey, index.family, index.columns.map(_.qualifier)).foreach { row =>
+      insertIndex(index, indexTable, row)
+    }
+
     indexMeta.append((index, indexTable))
     Indexing.addIndex(baseTable, index)
 
     index.columns.foreach { column =>
       indexTables((index.family, column.qualifier)).append((index, indexTable))
-    }
-
-    baseTable.scan(baseTable.startRowKey, baseTable.endRowKey, index.family, index.columns.map(_.qualifier)).foreach { row =>
-      val family = row.families.head
-      val columns = family.columns.map { column => (ByteArray(column.qualifier), column) }.toMap
-      val map = Map(ByteArray(index.family) -> columns)
-      val cells = index.codec(row.row, map)
-      cells.foreach { cell =>
-        indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
-      }
     }
   }
 
@@ -82,6 +76,134 @@ trait Indexing {
       db.dropTable(name)
     }
   }
+
+  def insertIndex(index: Index, indexTable: BigTable, row: Row): Unit = {
+    val map = row.families.map { family =>
+      val columns = family.columns.map { column => (ByteArray(column.qualifier), column) }.toMap
+      (ByteArray(family.family), columns)
+    }.toMap
+
+    val cells = index.codec(row.row, map)
+    cells.foreach { cell =>
+      indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
+    }
+  }
+
+  def deleteIndex(index: Index, indexTable: BigTable, row: Row): Unit = {
+    val map = row.families.map { family =>
+      val columns = family.columns.map { column => (ByteArray(column.qualifier), column) }.toMap
+      (ByteArray(family.family), columns)
+    }.toMap
+
+    val cells = index.codec(row.row, map)
+    cells.foreach { cell =>
+      indexTable.delete(cell.row, cell.family, cell.qualifier)
+    }
+  }
+
+  /**
+   * Upsert a value.
+   */
+  def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long = 0L): Unit = {
+    val indexed = indexTables.get((family, column))
+    if (indexed.isDefined) {
+      val old = baseTable.get(row, family, column)
+      if (old.isDefined) {
+        val data = Row(row, Seq(ColumnFamily(family, Seq(Column(column, old.get)))))
+        indexed.get.foreach { case (index, indexTable) =>
+          deleteIndex(index, indexTable, data)
+        }
+      }
+    }
+
+    baseTable.put(row, family, column, value, timestamp)
+
+    if (indexed.isDefined) {
+      val data = Row(row, Seq(ColumnFamily(family, Seq(Column(column, value, timestamp)))))
+      indexed.get.foreach { case (index, indexTable) =>
+          insertIndex(index, indexTable, data)
+      }
+    }
+  }
+
+  /**
+   * Upsert values.
+   */
+  def put(row: Array[Byte], family: Array[Byte], columns: Column*): Unit = {
+    baseTable.put(row, family, columns: _*)
+    val data = Row(row, Seq(ColumnFamily(family, columns)))
+    columns.foreach { column =>
+      val indexed = indexTables.get((family, column.qualifier))
+      if (indexed.isDefined) {
+        indexed.get.foreach { case (index, indexTable) =>
+          insertIndex(index, indexTable, data)
+        }
+      }
+    }
+  }
+
+  /**
+   * Upsert values.
+   */
+  def put(row: Array[Byte], families: ColumnFamily*): Unit = {
+    baseTable.put(row, families: _*)
+    val data = Row(row, families)
+    families.foreach { family =>
+      family.columns.foreach { column =>
+        val indexed = indexTables.get((family.family, column.qualifier))
+        if (indexed.isDefined) {
+          indexed.get.foreach { case (index, indexTable) =>
+            insertIndex(index, indexTable, data)
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Update the values of one or more rows.
+   */
+  def put(rows: Row*): Unit = {
+    baseTable.put(rows: _*)
+    rows.foreach { case Row(row, families) =>
+      val data = Row(row, families)
+      families.foreach { family =>
+        family.columns.foreach { column =>
+          val indexed = indexTables.get((family.family, column.qualifier))
+          if (indexed.isDefined) {
+            indexed.get.foreach { case (index, indexTable) =>
+              insertIndex(index, indexTable, data)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Delete a value.
+   */
+  def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit
+
+  /**
+   * Delete the columns of a row. If families is empty, delete the whole row.
+   */
+  def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit
+
+  /**
+   * Delete the columns of a row. If columns is empty, delete all columns in the family.
+   */
+  def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit
+
+  /**
+   * Delete multiple rows.
+   */
+  def delete(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Unit
+
+  /**
+   * Delete multiple rows.
+   */
+  def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit
 }
 
 object Indexing {
