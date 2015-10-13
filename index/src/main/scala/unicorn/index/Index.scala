@@ -109,7 +109,7 @@ case class Index(name: String, indexTableName: String, family: Array[Byte], colu
    * If the index doesn't cover any columns to update, return None.
    * Otherwise, Returns the non-covered columns.
    */
-  def findNonCoveredColumns(columns: Seq[Array[Byte]]): Option[Seq[Array[Byte]]] = {
+  def findNonCoveredColumns(columns: Array[Byte]*): Option[Seq[Array[Byte]]] = {
     val set = columns.map(new ByteArray(_)).toSet
     if ((coveredColumns & set).isEmpty) return None
     Some((coveredColumns -- set).map(_.bytes).toSeq)

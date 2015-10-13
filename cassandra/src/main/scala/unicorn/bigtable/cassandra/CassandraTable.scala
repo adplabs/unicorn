@@ -30,7 +30,7 @@ import org.apache.cassandra.thrift.SlicePredicate
 import org.apache.cassandra.thrift.SliceRange
 import org.apache.cassandra.thrift.ColumnOrSuperColumn
 import unicorn.bigtable._
-import unicorn.util.utf8
+import unicorn.util._
 
 /**
  * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
@@ -47,11 +47,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
   private val emptyBytes = Array[Byte]()
 
-  override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
-    get(row, new String(family, utf8), column)
-  }
-
-  def get(row: Array[Byte], family: String, column: Array[Byte]): Option[Array[Byte]] = {
+  override def apply(row: ByteArray, family: String, column: ByteArray): Option[ByteArray] = {
     val key = ByteBuffer.wrap(row)
     val path = new ColumnPath(family).setColumn(column)
 
@@ -63,24 +59,32 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def get(row: Array[Byte], families: Seq[Array[Byte]]): Seq[ColumnFamily] = {
-    val f = if (families.isEmpty) columnFamilies else families.map(new String(_, utf8))
-    f.map { family => ColumnFamily(family.getBytes(utf8), get(row, family)) }.filter(!_.columns.isEmpty)
-  }
+  override def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
+    if (columns.isEmpty) {
+      val columns = new ArrayBuffer[Column]
+      var iterator = get(row, family, emptyBytes, emptyBytes, 100).iterator
+      while (iterator.hasNext) {
+        columns.appendAll(iterator)
+        iterator = get(row, family, columns.last.qualifier, emptyBytes, 100).iterator
+        iterator.next // get ride of the first that is the last one of previous bulk
+      }
+      columns
+    } else {
+      val key = ByteBuffer.wrap(row)
+      val parent = new ColumnParent(family)
+      val predicate = new SlicePredicate
+      columns.foreach { column =>
+        predicate.addToColumn_names(ByteBuffer.wrap(column))
+      }
 
-  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
-    get(row, new String(family, utf8))
-  }
-
-  def get(row: Array[Byte], family: String): Seq[Column] = {
-    val columns = new ArrayBuffer[Column]
-    var iterator = get(row, family, emptyBytes, emptyBytes, 100).iterator
-    while (iterator.hasNext) {
-      columns.appendAll(iterator)
-      iterator = get(row, family, columns.last.qualifier, emptyBytes, 100).iterator
-      iterator.next // get ride of the first that is the last one of previous bulk
+      val slice = client.get_slice(key, parent, predicate, consistency)
+      getColumns(slice)
     }
-    columns
+  }
+
+  override def get(row: ByteArray, families: Seq[String]): Seq[ColumnFamily] = {
+    val f = if (families.isEmpty) columnFamilies else families
+    f.map { family => ColumnFamily(family, get(row, family)) }.filter(!_.columns.isEmpty)
   }
 
   /**
@@ -102,52 +106,35 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     getColumns(slice)
   }
 
-  override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
-    get(row, new String(family, utf8), columns)
-  }
-
-  def get(row: Array[Byte], family: String, columns: Seq[Array[Byte]]): Seq[Column] = {
-    val key = ByteBuffer.wrap(row)
-    val parent = new ColumnParent(family)
-    val predicate = new SlicePredicate
-    columns.foreach { column =>
-      predicate.addToColumn_names(ByteBuffer.wrap(column))
-    }
-
-    val slice = client.get_slice(key, parent, predicate, consistency)
-    getColumns(slice)
-  }
-
-  override def get(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], families: Seq[String]): Seq[Row] = {
     rows.map { row =>
       val result = get(row, families)
       Row(row, result)
     }.filter(!_.families.isEmpty)
   }
 
-  override def get(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Row] = {
-    get(rows, new String(family, utf8), columns)
-  }
+  override def getBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Seq[Row] = {
+    if (columns.isEmpty) {
+      rows.map { row =>
+        val result = get(row, family)
+        Row(row, Seq(ColumnFamily(family, result)))
+      }.filter(!_.families.head.columns.isEmpty)
+    } else {
+      val keys = rows.map(ByteBuffer.wrap(_))
+      val parent = new ColumnParent(family)
+      val predicate = new SlicePredicate
+      columns.foreach { column =>
+        predicate.addToColumn_names(ByteBuffer.wrap(column))
+      }
 
-  def get(rows: Seq[Array[Byte]], family: String, columns: Seq[Array[Byte]]): Seq[Row] = {
-    val keys = rows.map(ByteBuffer.wrap(_))
-    val parent = new ColumnParent(family)
-    val predicate = new SlicePredicate
-    columns.foreach { column =>
-      predicate.addToColumn_names(ByteBuffer.wrap(column))
+      val slices = client.multiget_slice(keys, parent, predicate, consistency)
+      slices.map { case (row, slice) =>
+        Row(row.array, Seq(ColumnFamily(family, getColumns(slice))))
+      }.toSeq
     }
-
-    val slices = client.multiget_slice(keys, parent, predicate, consistency)
-    slices.map { case (row, slice) =>
-      Row(row.array, Seq(ColumnFamily(family.getBytes(utf8), getColumns(slice))))
-    }.toSeq
   }
 
-  override def intraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
-    intraRowScan(row, new String(family, utf8), startColumn, stopColumn)
-  }
-
-  def intraRowScan(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
+  override def intraRowScan(row: ByteArray, family: String, startColumn: ByteArray, stopColumn: ByteArray): IntraRowScanner = {
     new IntraRowScanner {
       var iterator = get(row, family, startColumn, stopColumn, 100).iterator
 
@@ -175,11 +162,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
-    put(row, new String(family, utf8), column, value, timestamp)
-  }
-
-  def put(row: Array[Byte], family: String, column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
+  override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(family)
     val put = new CassandraColumn(ByteBuffer.wrap(column)).setValue(value)
@@ -187,11 +170,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     client.insert(key, parent, put, consistency)
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], columns: Column*): Unit = {
-    put(row, new String(family, utf8), columns: _*)
-  }
-
-  def put(row: Array[Byte], family: String, columns: Column*): Unit = {
+  override def put(row: ByteArray, family: String, columns: Column*): Unit = {
     val key = ByteBuffer.wrap(row)
     val parent = family
     val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
@@ -211,13 +190,12 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     client.batch_mutate(updates, consistency)
   }
 
-  override def put(row: Array[Byte], families: ColumnFamily*): Unit = {
+  override def put(row: ByteArray, families: ColumnFamily*): Unit = {
     val key = ByteBuffer.wrap(row)
     val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
 
     families.foreach { case ColumnFamily(family, columns) =>
-      val parent = new String(family, utf8)
-      createMutationMapEntry(updates, key, parent)
+      createMutationMapEntry(updates, key, family)
       columns.foreach { case Column(qualifier, value, timestamp) =>
         val put = new ColumnOrSuperColumn
         put.column = new CassandraColumn(ByteBuffer.wrap(qualifier))
@@ -226,21 +204,20 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
         else put.column.setTimestamp(timestamp)
         val mutation = new Mutation
         mutation.column_or_supercolumn = put
-        updates.get(key).get(parent).add(mutation)
+        updates.get(key).get(family).add(mutation)
       }
     }
 
     client.batch_mutate(updates, consistency)
   }
 
-  override def put(rows: Row*): Unit = {
+  override def putBatch(rows: Row*): Unit = {
     val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
 
     val puts = rows.map { case Row(row, families) =>
       val key = ByteBuffer.wrap(row)
       families.foreach { case ColumnFamily(family, columns) =>
-        val parent = new String(family, utf8)
-        createMutationMapEntry(updates, key, parent)
+        createMutationMapEntry(updates, key, family)
         columns.foreach { case Column(qualifier, value, timestamp) =>
           val put = new ColumnOrSuperColumn
           put.column = new CassandraColumn(ByteBuffer.wrap(qualifier))
@@ -249,7 +226,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
           else put.column.setTimestamp(timestamp)
           val mutation = new Mutation
           mutation.column_or_supercolumn = put
-          updates.get(key).get(parent).add(mutation)
+          updates.get(key).get(family).add(mutation)
         }
       }
     }
@@ -257,25 +234,15 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     client.batch_mutate(updates, consistency)
   }
 
-  override def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
-    delete(row, new String(family, utf8), column)
-  }
-
-  def delete(row: Array[Byte], family: String, column: Array[Byte]): Unit = {
-    val key = ByteBuffer.wrap(row)
-    val path = new ColumnPath(family).setColumn(column)
-    client.remove(key, path, System.currentTimeMillis, consistency)
-  }
-
-  override def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
-    delete(row, new String(family, utf8), columns)
-  }
-
-  def delete(row: Array[Byte], family: String, columns: Seq[Array[Byte]]): Unit = {
+  override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
     val key = ByteBuffer.wrap(row)
 
     if (columns.isEmpty) {
       val path = new ColumnPath(family)
+      client.remove(key, path, System.currentTimeMillis, consistency)
+    } else if (columns.size == 1) {
+      val key = ByteBuffer.wrap(row)
+      val path = new ColumnPath(family).setColumn(columns.head)
       client.remove(key, path, System.currentTimeMillis, consistency)
     } else {
       val parent = family
@@ -297,34 +264,33 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
+  override def delete(row: ByteArray, families: Seq[String]): Unit = {
     val key = ByteBuffer.wrap(row)
-    val f = if (families.isEmpty) columnFamilies else families.map(new String(_, utf8))
+    val f = if (families.isEmpty) columnFamilies else families
     f.foreach { family =>
       val path = new ColumnPath(family)
       client.remove(key, path, System.currentTimeMillis, consistency)
     }
   }
 
-  override def delete(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
     rows.foreach { row =>
       delete(row, families)
     }
   }
 
-  override def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
     if (columns.isEmpty) {
-      val path = new ColumnPath(new String(family, utf8))
+      val path = new ColumnPath(family)
       rows.foreach { row =>
         val key = ByteBuffer.wrap(row)
         client.remove(key, path, System.currentTimeMillis, consistency)
       }
     } else {
       val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
-      val parent = new String(family, utf8)
       rows.foreach { row =>
       val key = ByteBuffer.wrap(row)
-        createMutationMapEntry(updates, key, parent)
+        createMutationMapEntry(updates, key, family)
 
         val predicate = new SlicePredicate
         columns.foreach { column => predicate.addToColumn_names(ByteBuffer.wrap(column)) }
@@ -335,13 +301,12 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
 
         val mutation = new Mutation
         mutation.deletion = deletion
-        updates.get(key).get(parent).add(mutation)
+        updates.get(key).get(family).add(mutation)
       }
 
       client.batch_mutate(updates, consistency)
     }
   }
-
 
   /**
    * Create mutation map entry if necessary.

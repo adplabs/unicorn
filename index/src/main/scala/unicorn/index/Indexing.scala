@@ -22,19 +22,20 @@ import unicorn.json._
 import unicorn.util._
 
 trait Indexing {
+  type IndexTable = BigTable with RowScan with Counter
+
+  val metaTableName = "unicorn.meta.index"
+  val metaTableColumnFamily = "meta"
+  val metaTableColumnFamilyBytes = metaTableColumnFamily.getBytes(utf8)
+  val indexTableIndexColumnFamily = "index"
+  val indexTableStatColumnFamily = "stat"
+  val indexValue = Array[Byte](1)
+
   /** Base table */
-  val baseTable: BigTable with RowScan
-  val db = baseTable.db
+  val baseTable: IndexTable
+  val db: Database[IndexTable]
 
-  val indexMeta = Indexing.getIndexMeta(baseTable)
-
-  /** Index tables. A column may appears in multiple indices (composite index) */
-  val indexTables = collection.mutable.Map[(ByteArray, ByteArray), ArrayBuffer[(Index, BigTable)]]().withDefaultValue(ArrayBuffer())
-  indexMeta.foreach { case (index, indexTable) =>
-    index.columns.foreach { column =>
-      indexTables((index.family, column.qualifier)).append((index, indexTable))
-    }
-  }
+  val indexMeta = getIndexMeta
 
   /** Close the base table and the index table */
   def close: Unit = {
@@ -54,30 +55,19 @@ trait Indexing {
     }
 
     indexMeta.append((index, indexTable))
-    Indexing.addIndex(baseTable, index)
-
-    index.columns.foreach { column =>
-      indexTables((index.family, column.qualifier)).append((index, indexTable))
-    }
+    addIndex(index)
   }
 
   def dropIndex(name: String): Unit = {
-    val i = indexMeta.zipWithIndex.find(_._1._1.indexTableName == name)
+    val index = indexMeta.zipWithIndex.find(_._1._1.indexTableName == name)
 
-    if (i.isDefined) {
-      val index = indexMeta.remove(i.get._2)._1
-
-      index.columns.foreach { column =>
-        val a = indexTables((index.family, column.qualifier))
-        val i = a.zipWithIndex.find(_._1._1.name == name)
-        if (i.isDefined) a.remove(i.get._2)
-      }
-
+    if (index.isDefined) {
+      indexMeta.remove(index.get._2)
       db.dropTable(name)
     }
   }
 
-  def insertIndex(index: Index, indexTable: BigTable, row: Row): Unit = {
+  def insertIndex(index: Index, indexTable: IndexTable, row: Row): Unit = {
     val map = row.families.map { family =>
       val columns = family.columns.map { column => (ByteArray(column.qualifier), column) }.toMap
       (ByteArray(family.family), columns)
@@ -89,7 +79,7 @@ trait Indexing {
     }
   }
 
-  def deleteIndex(index: Index, indexTable: BigTable, row: Row): Unit = {
+  def deleteIndex(index: Index, indexTable: IndexTable, row: Row): Unit = {
     val map = row.families.map { family =>
       val columns = family.columns.map { column => (ByteArray(column.qualifier), column) }.toMap
       (ByteArray(family.family), columns)
@@ -105,7 +95,15 @@ trait Indexing {
    * Upsert a value.
    */
   def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long = 0L): Unit = {
-    val indexed = indexTables.get((family, column))
+    val missing = indexMeta.flatMap { case (index, indexTable) =>
+      if (compareByteArray(family, index.family) == 0) {
+        val missing = index.findNonCoveredColumns(column)
+        missing.getOrElse(Seq())
+      } else Seq()
+    }
+
+    val missingColumns = if (!missing.isEmpty) baseTable.get(row, family, missing) else Seq()
+
     if (indexed.isDefined) {
       val old = baseTable.get(row, family, column)
       if (old.isDefined) {
@@ -204,15 +202,6 @@ trait Indexing {
    * Delete multiple rows.
    */
   def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit
-}
-
-object Indexing {
-  val metaTableName = "unicorn.meta.index"
-  val metaTableColumnFamily = "meta"
-  val metaTableColumnFamilyBytes = metaTableColumnFamily.getBytes(utf8)
-  val indexTableIndexColumnFamily = "index"
-  val indexTableStatColumnFamily = "stat"
-  val indexValue = Array[Byte](1)
 
   /**
    * Gets the meta of all indices of a base table.
@@ -220,29 +209,29 @@ object Indexing {
    * The row key is the base table name. Each column is a BSON object
    * about the index. The column name is the index name.
    */
-  def getIndexMeta(baseTable: BigTable): ArrayBuffer[(Index, BigTable)] = {
-    if (!baseTable.db.tableExists(metaTableName)) ArrayBuffer[(Index, BigTable)]()
+  def getIndexMeta: ArrayBuffer[(Index, IndexTable)] = {
+    if (!db.tableExists(metaTableName)) ArrayBuffer[(Index, IndexTable)]()
 
     // Index meta data table
-    val metaTable = baseTable.db(metaTableName)
+    val metaTable = db(metaTableName)
 
     // Meta data encoded in BSON format.
     val bson = new BsonSerializer
 
     metaTable.get(baseTable.name, metaTableColumnFamily).map { column =>
       val index = Index(bson.deserialize(collection.immutable.Map("$" -> column.value)))
-      val indexTable = baseTable.db(index.indexTableName)
+      val indexTable = db(index.indexTableName)
       (index, indexTable)
     }.to[ArrayBuffer]
   }
 
-  def addIndex(baseTable: BigTable, index: Index): Unit = {
-    if (!baseTable.db.tableExists(metaTableName))
-      baseTable.db.createTable(metaTableName, metaTableColumnFamily)
+  def addIndex(index: Index): Unit = {
+    if (!db.tableExists(metaTableName))
+      db.createTable(metaTableName, metaTableColumnFamily)
 
-    val metaTable = baseTable.db(metaTableName)
+    val metaTable = db(metaTableName)
     val bson = new BsonSerializer
     val json = bson.serialize(index.toJson)
-    metaTable.put(baseTable.name.getBytes(utf8), metaTableColumnFamily.getBytes(utf8), index.name.getBytes(utf8), json("$"))
+    put(baseTable.name.getBytes(utf8), metaTableColumnFamilyBytes, index.name.getBytes(utf8), json("$"))
   }
 }

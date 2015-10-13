@@ -47,13 +47,13 @@ class HBaseSpec extends Specification with BeforeAfterAll {
   "HBase" should {
     "get the put" in {
       table.put("row1", "cf1", "c1", "v1")
-      new String(table.get("row1", "cf1", "c1").get, utf8) === "v1"
+      new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.delete("row1", "cf1", "c1")
-      table.get("row1", "cf1", "c1") === None
+      table("row1", "cf1", "c1") === None
     }
 
     "get the family" in {
-      table.put("row1".getBytes(utf8), "cf1".getBytes(utf8), Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))
+      table.put("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))
       val columns = table.get("row1", "cf1")
       columns.size === 2
       new String(columns(0).value, utf8) === "v1"
@@ -74,16 +74,16 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "get the row" in {
-      table.put("row1".getBytes(utf8),
-        ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-        ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))
+      table.put("row1",
+        ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+        ColumnFamily("cf2", Seq(Column("c3", "v3")))
       )
       val families = table.get("row1")
       families.size === 2
       families(0).columns.size === 2
       families(1).columns.size === 1
-      new String(families(0).family, utf8) === "cf1"
-      new String(families(1).family, utf8) === "cf2"
+      families(0).family === "cf1"
+      families(1).family === "cf2"
 
       new String(families(0).columns(0).value, utf8) === "v1"
       new String(families(0).columns(1).value, utf8) === "v2"
@@ -107,66 +107,69 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "get multiple rows" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-           ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+           ColumnFamily("cf2", Seq(Column("c3", "v3")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      table.put(row1, row2)
+      table.putBatch(row1, row2)
 
-      val keys = Seq("row1", "row2").map(_.getBytes(utf8))
-      val rows = table.get(keys)
+      val keys = Seq("row1", "row2")
+      val rows = table.getBatch(keys)
       rows.size === 2
       rows(0).families.size === 2
       rows(1).families.size === 1
 
-      table.delete(keys)
-      table.get(keys).size === 0
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "scan" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+          ColumnFamily("cf2", Seq(Column("c3", "v3")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      val row3 = Row("row3".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row3 = Row("row3",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      table.put(row1, row2, row3)
+      table.putBatch(row1, row2, row3)
 
       val scanner = table.scan("row1", "row3")
       val r1 = scanner.next
       new String(r1.row, utf8) === "row1"
+      r1.families(0).family === "cf1"
+      r1.families(1).family === "cf2"
+
       val r2 = scanner.next
       new String(r2.row, utf8) === "row2"
       scanner.hasNext === false
       scanner.close
 
-      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
-      table.delete(keys)
-      table.get(keys).size === 0
+      val keys = Seq("row1", "row2", "row3")
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "prefix row scan" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+          ColumnFamily("cf2", Seq(Column("c3", "v3")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      val row3 = Row("row3".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row3 = Row("row3",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      table.put(row1, row2, row3)
+      table.putBatch(row1, row2, row3)
 
-      val prefix = "row".getBytes(utf8)
-      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix))
+      val prefix = "row"
+      val scanner = table.scanPrefix(prefix)
       val r1 = scanner.next
       new String(r1.row, utf8) === "row1"
       val r2 = scanner.next
@@ -176,88 +179,88 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       scanner.hasNext === false
       scanner.close
 
-      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
-      table.delete(keys)
-      table.get(keys).size === 0
+      val keys = Seq("row1", "row2", "row3")
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "scan with basic filter" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "11"), Column("c2", "12"))),
+          ColumnFamily("cf2", Seq(Column("c3", "13")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "21"), Column("c2", "22")))))
 
-      val row3 = Row("row3".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+      val row3 = Row("row3",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "31"), Column("c2", "32")))))
 
-      table.put(row1, row2, row3)
+      table.putBatch(row1, row2, row3)
 
-      val prefix = "row".getBytes(utf8)
+      val prefix = "row"
       import ScanFilter.CompareOperator._
-      val filter = ScanFilter.BasicExpression(Equal, "cf1".getBytes(utf8), "c1".getBytes(utf8), "21".getBytes(utf8))
-      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val filter = ScanFilter.BasicExpression(Equal, "cf1", "c1", "21")
+      val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
       new String(r1.row, utf8) === "row2"
       scanner.hasNext === false
       scanner.close
 
-      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
-      table.delete(keys)
-      table.get(keys).size === 0
+      val keys = Seq("row1", "row2", "row3")
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "scan with and filter" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "11"), Column("c2", "12"))),
+          ColumnFamily("cf2", Seq(Column("c3", "13")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "21"), Column("c2", "22")))))
 
-      val row3 = Row("row3".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+      val row3 = Row("row3",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "31"), Column("c2", "32")))))
 
-      table.put(row1, row2, row3)
+      table.putBatch(row1, row2, row3)
 
-      val prefix = "row".getBytes(utf8)
+      val prefix = "row"
       import ScanFilter.CompareOperator._
       val filter = ScanFilter.And(
-        ScanFilter.BasicExpression(Greater, "cf1".getBytes(utf8), "c1".getBytes(utf8), "11".getBytes(utf8)),
-        ScanFilter.BasicExpression(Greater, "cf1".getBytes(utf8), "c2".getBytes(utf8), "22".getBytes(utf8))
+        ScanFilter.BasicExpression(Greater, "cf1", "c1", "11"),
+        ScanFilter.BasicExpression(Greater, "cf1", "c2", "22")
       )
-      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
       new String(r1.row, utf8) === "row3"
       scanner.hasNext === false
       scanner.close
 
-      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
-      table.delete(keys)
-      table.get(keys).size === 0
+      val keys = Seq("row1", "row2", "row3")
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "scan with or filter" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "11".getBytes(utf8)), Column("c2".getBytes(utf8), "12".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "13".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "11"), Column("c2", "12"))),
+          ColumnFamily("cf2", Seq(Column("c3", "13")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "21".getBytes(utf8)), Column("c2".getBytes(utf8), "22".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "21"), Column("c2", "22")))))
 
-      val row3 = Row("row3".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "31".getBytes(utf8)), Column("c2".getBytes(utf8), "32".getBytes(utf8))))))
+      val row3 = Row("row3",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "31"), Column("c2", "32")))))
 
-      table.put(row1, row2, row3)
+      table.putBatch(row1, row2, row3)
 
-      val prefix = "row".getBytes(utf8)
+      val prefix = "row"
       import ScanFilter.CompareOperator._
       val filter = ScanFilter.Or(
-        ScanFilter.BasicExpression(Less, "cf1".getBytes(utf8), "c1".getBytes(utf8), "21".getBytes(utf8)),
-        ScanFilter.BasicExpression(GreaterOrEqual, "cf1".getBytes(utf8), "c1".getBytes(utf8), "31".getBytes(utf8))
+        ScanFilter.BasicExpression(Less, "cf1", "c1", "21"),
+        ScanFilter.BasicExpression(GreaterOrEqual, "cf1", "c1", "31")
       )
-      val scanner = table.scan(prefix, table.nextRowKeyForPrefix(prefix), filter)
+      val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
       new String(r1.row, utf8) === "row1"
       val r3 = scanner.next
@@ -265,14 +268,14 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       scanner.hasNext === false
       scanner.close
 
-      val keys = Seq("row1", "row2", "row3").map(_.getBytes(utf8))
-      table.delete(keys)
-      table.get(keys).size === 0
+      val keys = Seq("row1", "row2", "row3")
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "intra row scan" in {
       table.put("row1".getBytes(utf8),
-        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+        ColumnFamily("cf1", (1 to 1000).map { i =>
           val bytes = ByteBuffer.allocate(4).putInt(i).array
           Column(bytes, bytes)
         })
@@ -280,7 +283,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
 
       val b103 = ByteBuffer.allocate(4).putInt(103).array
       val b415 = ByteBuffer.allocate(4).putInt(415).array
-      val iterator = table.intraRowScan("row1".getBytes(utf8), "cf1".getBytes(utf8), b103, b415)
+      val iterator = table.intraRowScan("row1", "cf1", b103, b415)
       (103 to 415).foreach { i =>
         iterator.hasNext === true
         val column = iterator.next
@@ -296,21 +299,21 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     "rollback" in {
       table.put("row1", "cf1", "c1", "v1")
       table.put("row1", "cf1", "c1", "v2")
-      new String(table.get("row1", "cf1", "c1").get, utf8) === "v2"
+      new String(table("row1", "cf1", "c1").get, utf8) === "v2"
       table.rollback("row1", "cf1", "c1")
-      new String(table.get("row1", "cf1", "c1").get, utf8) === "v1"
+      new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.rollback("row1", "cf1", "c1")
-      table.get("row1", "cf1", "c1") === None
+      table("row1", "cf1", "c1") === None
       table.delete("row1", "cf1", "c1")
-      table.get("row1", "cf1", "c1") === None
+      table("row1", "cf1", "c1") === None
     }
 
     "append" in {
       table.put("row1", "cf1", "c1", "v1")
-      table.append("row1", "cf1", "c1", "v2".getBytes(utf8))
-      new String(table.get("row1", "cf1", "c1").get, utf8) === "v1v2"
+      table.append("row1", "cf1", "c1", "v2")
+      new String(table("row1", "cf1", "c1").get, utf8) === "v1v2"
       table.delete("row1", "cf1", "c1")
-      table.get("row1", "cf1", "c1") === None
+      table("row1", "cf1", "c1") === None
     }
 
     "counter" in {
@@ -320,7 +323,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       table.addCounter("row1", "cf1", "counter", -5)
       table.getCounter("row1", "cf1", "counter") === 5
       table.delete("row1", "cf1", "counter")
-      table.get("row1", "cf1", "counter") === None
+      table("row1", "cf1", "counter") === None
     }
   }
 }

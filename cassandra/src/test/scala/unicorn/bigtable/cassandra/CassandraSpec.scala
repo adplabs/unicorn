@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable._
-import unicorn.util.utf8
+import unicorn.util._
 
 /**
  * @author Haifeng Li
@@ -50,13 +50,13 @@ class CassandraSpec extends Specification with BeforeAfterAll {
   "Cassandra" should {
     "get the put" in {
       table.put("row1", "cf1", "c1", "v1")
-      new String(table.get("row1", "cf1", "c1").get, utf8) === "v1"
+      new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.delete("row1", "cf1", "c1")
-      table.get("row1", "cf1", "c1") === None
+      table("row1", "cf1", "c1") === None
     }
 
     "get the family" in {
-      table.put("row1".getBytes(utf8), "cf1".getBytes(utf8), Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))
+      table.put("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))
       val columns = table.get("row1", "cf1")
       columns.size === 2
       new String(columns(0).value, utf8) === "v1"
@@ -77,9 +77,9 @@ class CassandraSpec extends Specification with BeforeAfterAll {
     }
 
     "get the row" in {
-      table.put("row1".getBytes(utf8),
-        ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-        ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))
+      table.put("row1",
+        ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+        ColumnFamily("cf2", Seq(Column("c3", "v3")))
       )
       val families = table.get("row1")
       families.size === 2
@@ -110,28 +110,28 @@ class CassandraSpec extends Specification with BeforeAfterAll {
     }
 
     "get multiple rows" in {
-      val row1 = Row("row1".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8)))),
-          ColumnFamily("cf2".getBytes(utf8), Seq(Column("c3".getBytes(utf8), "v3".getBytes(utf8))))))
+      val row1 = Row("row1",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
+          ColumnFamily("cf2", Seq(Column("c3", "v3")))))
 
-      val row2 = Row("row2".getBytes(utf8),
-        Seq(ColumnFamily("cf1".getBytes(utf8), Seq(Column("c1".getBytes(utf8), "v1".getBytes(utf8)), Column("c2".getBytes(utf8), "v2".getBytes(utf8))))))
+      val row2 = Row("row2",
+        Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2")))))
 
-      table.put(row1, row2)
+      table.putBatch(row1, row2)
 
-      val keys = Seq("row1", "row2").map(_.getBytes(utf8))
-      val rows = table.get(keys)
+      val keys = Seq("row1", "row2")
+      val rows = table.getBatch(keys)
       rows.size === 2
       rows(0).families.size === 2
       rows(1).families.size === 1
 
-      table.delete(keys)
-      table.get(keys).size === 0
+      table.deleteBatch(keys)
+      table.getBatch(keys).size === 0
     }
 
     "get the long row" in {
-      table.put("row1".getBytes(utf8),
-        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+      table.put("row1",
+        ColumnFamily("cf1", (1 to 1000).map { i =>
           val bytes = ByteBuffer.allocate(4).putInt(i).array
           Column(bytes, bytes)
         })
@@ -151,7 +151,7 @@ class CassandraSpec extends Specification with BeforeAfterAll {
 
     "intra row scan" in {
       table.put("row1".getBytes(utf8),
-        ColumnFamily("cf1".getBytes(utf8), (1 to 1000).map { i =>
+        ColumnFamily("cf1", (1 to 1000).map { i =>
           val bytes = ByteBuffer.allocate(4).putInt(i).array
           Column(bytes, bytes)
         })
@@ -159,7 +159,7 @@ class CassandraSpec extends Specification with BeforeAfterAll {
 
       val b103 = ByteBuffer.allocate(4).putInt(103).array
       val b415 = ByteBuffer.allocate(4).putInt(415).array
-      val iterator = table.intraRowScan("row1".getBytes(utf8), "cf1", b103, b415)
+      val iterator = table.intraRowScan("row1", "cf1", b103, b415)
       (103 to 415).foreach { i =>
         iterator.hasNext === true
         val column = iterator.next

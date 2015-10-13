@@ -24,12 +24,12 @@ import java.util.Properties
  * 
  * @author Haifeng Li
  */
-trait Database extends AutoCloseable {
+trait Database[T <: BigTable] extends AutoCloseable {
   /**
    * Returns a table.
    * @param name the name of table.
    */
-  def apply(name: String): BigTable
+  def apply(name: String): T
   /**
    * Creates a table.
    * @param name the name of table.
@@ -39,7 +39,7 @@ trait Database extends AutoCloseable {
    *   In some NoSQL solutions (e.g. HBase), column families are static
    *   and should be created when creating the table.
    */
-  def createTable(name: String, families: String*): BigTable = {
+  def createTable(name: String, families: String*): T = {
     createTable(name, new Properties(), families: _*)
   }
 
@@ -53,7 +53,7 @@ trait Database extends AutoCloseable {
    *   In some NoSQL solutions (e.g. HBase), column families are static
    *   and should be created when creating the table.
    */
-  def createTable(name: String, props: Properties, families: String*): BigTable
+  def createTable(name: String, props: Properties, families: String*): T
 
   /**
    * Truncates a table

@@ -33,7 +33,7 @@ import unicorn.util.Logging
  *
  * @author Haifeng Li
  */
-class Cassandra(transport: TFramedTransport) extends Database with Logging {
+class Cassandra(transport: TFramedTransport) extends Database[CassandraTable] with Logging {
   val protocol = new TBinaryProtocol(transport)
   val client = new Client(protocol)
 

@@ -31,15 +31,16 @@ import unicorn.util._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with ScanFilter with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with CellLevelSecurity with Appendable with Rollback with Counter {
+
   val table = db.connection.getTable(TableName.valueOf(name))
 
   override def close: Unit = table.close
 
   override val columnFamilies = table.getTableDescriptor.getColumnFamilies.map(_.getNameAsString).toSeq
 
-  override val startRowKey: Array[Byte] = HConstants.EMPTY_START_ROW
-  override val endRowKey: Array[Byte] = HConstants.EMPTY_END_ROW
+  override val startRowKey: ByteArray = HConstants.EMPTY_START_ROW
+  override val endRowKey: ByteArray = HConstants.EMPTY_END_ROW
 
   var cellVisibility: Option[CellVisibility] = None
   var authorizations: Option[Authorizations] = None
@@ -61,34 +62,30 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     else Seq()
   }
 
-  override def get(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Option[Array[Byte]] = {
+  override def apply(row: ByteArray, family: String, column: ByteArray): Option[ByteArray] = {
     val get = newGet(row)
     get.addColumn(family, column)
-    Option(table.get(get).getValue(family, column))
+    Option(table.get(get).getValue(family, column)).map(ByteArray(_))
   }
 
-  override def get(row: Array[Byte], families: Seq[Array[Byte]]): Seq[ColumnFamily] = {
+  override def get(row: ByteArray, families: Seq[String]): Seq[ColumnFamily] = {
     val get = newGet(row)
     families.foreach { family => get.addFamily(family) }
     HBaseTable.getRow(table.get(get)).families
   }
 
-  override def get(row: Array[Byte], family: Array[Byte]): Seq[Column] = {
+  override def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
     val get = newGet(row)
-    get.addFamily(family)
+    if (columns.isEmpty)
+      get.addFamily(family)
+    else
+      columns.foreach { column => get.addColumn(family, column) }
 
     val result = HBaseTable.getRow(table.get(get))
     if (result.families.isEmpty) Seq() else result.families.head.columns
   }
 
-  override def get(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Column] = {
-    val get = newGet(row)
-    columns.foreach { column => get.addColumn(family, column) }
-    val result = HBaseTable.getRow(table.get(get))
-    if (result.families.isEmpty) Seq() else result.families.head.columns
-  }
-
-  override def get(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], families: Seq[String]): Seq[Row] = {
     val gets = rows.map { row =>
       val get = newGet(row)
       families.foreach { family => get.addFamily(family) }
@@ -98,39 +95,48 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def get(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Seq[Row] = {
     val gets = rows.map { row =>
       val get = newGet(row)
-      columns.foreach { column => get.addColumn(family, column) }
+      if (columns.isEmpty)
+        get.addFamily(family)
+      else
+        columns.foreach { column => get.addColumn(family, column) }
       get
     }
 
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): RowScanner = {
+  override def scan(startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
     val scan = newScan(startRow, stopRow)
-    columns.foreach { column => scan.addColumn(family, column) }
+    if (columns.isEmpty)
+      scan.addFamily(family)
+    else
+      columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], families: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner = {
+  override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[String]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     scan.setFilter(hbaseFilter(filter))
     families.foreach { family => scan.addFamily(family) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def scan(startRow: Array[Byte], stopRow: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]], filter: ScanFilter.Expression): RowScanner = {
+  override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
     val scan = newScan(startRow, stopRow)
     scan.setFilter(hbaseFilter(filter))
-    columns.foreach { column => scan.addColumn(family, column) }
+    if (columns.isEmpty)
+      scan.addFamily(family)
+    else
+      columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
@@ -150,18 +156,18 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     case Or(left, right) => new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFilter(left), hbaseFilter(right))
   }
 
-  override def intraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte]): IntraRowScanner = {
+  override def intraRowScan(row: ByteArray, family: String, startColumn: ByteArray, stopColumn: ByteArray): IntraRowScanner = {
     val scan = newIntraRowScan(row, family, startColumn, stopColumn, 100)
     new HBaseColumnScanner(table.getScanner(scan))
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte], timestamp: Long): Unit = {
+  override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit = {
     val put = newPut(row)
     if (timestamp != 0) put.addColumn(family, column, timestamp, value) else put.addColumn(family, column, value)
     table.put(put)
   }
 
-  override def put(row: Array[Byte], family: Array[Byte], columns: Column*): Unit = {
+  override def put(row: ByteArray, family: String, columns: Column*): Unit = {
     val put = newPut(row)
     columns.foreach { case Column(qualifier, value, timestamp) =>
       if (timestamp == 0)
@@ -172,7 +178,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.put(put)
   }
 
-  override def put(row: Array[Byte], families: ColumnFamily*): Unit = {
+  override def put(row: ByteArray, families: ColumnFamily*): Unit = {
     val put = newPut(row)
     families.foreach { case ColumnFamily(family, columns) =>
       columns.foreach { case Column(qualifier, value, timestamp) =>
@@ -185,7 +191,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.put(put)
   }
 
-  override def put(rows: Row*): Unit = {
+  override def putBatch(rows: Row*): Unit = {
     val puts = rows.map { case Row(row, families) =>
       val put = newPut(row)
       families.foreach { case ColumnFamily(family, columns) =>
@@ -201,26 +207,20 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.put(puts)
   }
 
-  override def delete(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
-    val deleter = newDelete(row)
-    deleter.addColumns(family, column)
-    table.delete(deleter)
-  }
-
-  override def delete(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+  override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
     val deleter = newDelete(row)
     if (columns.isEmpty) deleter.addFamily(family)
     else columns.foreach { column => deleter.addColumns(family, column) }
     table.delete(deleter)
   }
 
-  override def delete(row: Array[Byte], families: Seq[Array[Byte]]): Unit = {
+  override def delete(row: ByteArray, families: Seq[String]): Unit = {
     val deleter = newDelete(row)
     families.foreach { family => deleter.addFamily(family) }
     table.delete(deleter)
   }
 
-  override def delete(rows: Seq[Array[Byte]], families: Seq[Array[Byte]]): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
     val deletes = rows.map { row =>
       val deleter = newDelete(row)
       families.foreach { family => deleter.addFamily(family)}
@@ -231,7 +231,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.delete(deletes.toBuffer)
   }
 
-  override def delete(rows: Seq[Array[Byte]], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
     val deletes = rows.map { row =>
       val deleter = newDelete(row)
       if (columns.isEmpty) deleter.addFamily(family)
@@ -241,34 +241,28 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.delete(deletes)
   }
 
-  override def rollback(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Unit = {
+  override def rollback(row: ByteArray, family: String, columns: ByteArray*): Unit = {
+    require(!columns.isEmpty)
+
     val deleter = newDelete(row)
-    deleter.addColumn(family, column)
+    columns.foreach { column => deleter.addColumn(family, column) }
     table.delete(deleter)
   }
 
-  override def rollback(row: Array[Byte], family: Array[Byte], columns: Seq[Array[Byte]]): Unit = {
-    if (!columns.isEmpty) {
-      val deleter = newDelete(row)
-      columns.foreach { column => deleter.addColumn(family, column) }
-      table.delete(deleter)
-    }
-  }
-
-  override def append(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Array[Byte]): Unit = {
+  override def append(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
     val append = newAppend(row)
     append.add(family, column, value)
     table.append(append)
   }
 
-  override def addCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte], value: Long): Unit = {
+  override def addCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit = {
     val increment = newIncrement(row)
     increment.addColumn(family, column, value)
     table.increment(increment)
   }
 
-  override def getCounter(row: Array[Byte], family: Array[Byte], column: Array[Byte]): Long = {
-    val value = get(row, family, column)
+  override def getCounter(row: ByteArray, family: String, column: ByteArray): Long = {
+    val value = apply(row, family, column)
     value.map { x => Bytes.toLong(x) }.getOrElse(0)
   }
 
@@ -289,13 +283,6 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     val scan = new Scan(startRow, stopRow)
     scan.setCacheBlocks(cacheBlocks)
     scan.setCaching(caching)
-    if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
-    scan
-  }
-
-  private def newPrefixScan(prefix: Array[Byte]): Scan = {
-    val scan = new Scan
-    scan.setRowPrefixFilter(prefix)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
     scan
   }
@@ -350,7 +337,7 @@ object HBaseTable {
           Column(column, value, timestamp)
         }
       }.toSeq
-      ColumnFamily(family, values)
+      ColumnFamily(new String(family, utf8), values)
     }.toSeq
     Row(result.getRow, families)
   }

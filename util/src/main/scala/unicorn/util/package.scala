@@ -31,7 +31,12 @@ package object util {
 
   val utf8 = Charset.forName("UTF-8")
 
-  implicit def pimpedByteArray(bits: Array[Byte]) = new ByteArray(bits)
+  implicit def boxByteArray(x: Array[Byte]) = new ByteArray(x)
+  implicit def unboxByteArray(x: ByteArray) = x.bytes
+  implicit def string2Bytes(x: String) = x.getBytes(utf8)
+  implicit def string2ByteArray(x: String) = new ByteArray(x.getBytes(utf8))
+  implicit def bytesSeq2ByteArray(x: Seq[Array[Byte]]) = x.map { bytes => new ByteArray(bytes) }
+  implicit def stringSeq2ByteArray(x: Seq[String]) = x.map { s => new ByteArray(s.getBytes(utf8)) }
 
   /** Byte array to hexadecimal string. */
   def bytes2Hex(bytes: Array[Byte]): String = {

@@ -28,7 +28,10 @@ case class ByteArray(bytes: Array[Byte]) extends Comparable[ByteArray] {
   }
 
   /** Hexadecimal string representation */
-  override def toString = bytes2Hex(bytes)
+  def hex = bytes2Hex(bytes)
+
+  /** Covert UTF-8 bytes back to string */
+  override def toString = new String(bytes, utf8)
 
   override def compareTo(o: ByteArray): Int = compareByteArray(bytes, o.bytes)
 
