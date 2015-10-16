@@ -38,8 +38,7 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) exten
 
   val buffer = ByteBuffer.allocate(64 * 1024)
 
-  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
-
+  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
     var timestamp = 0L
     index.columns.flatMap { indexColumn =>
       val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
@@ -48,10 +47,10 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) exten
         val text = codec.decode(column.get.value)
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
-          val key = index.prefixedIndexRowKey(term.getBytes(utf8), row) ++ row
+          val key = index.prefixedIndexRowKey(term.getBytes(utf8), row).bytes ++ row.bytes
           buffer.reset
           pos.foreach(buffer.putInt(_))
-          Cell(key, IndexMeta.indexColumnFamily, indexColumn.qualifier, buffer.array, timestamp)
+          Cell(key, IndexColumnFamily, indexColumn.qualifier, buffer.array, timestamp)
         }
       } else Seq()
     }

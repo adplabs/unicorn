@@ -14,19 +14,27 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.index
+package unicorn
 
-import unicorn.util.utf8
+import unicorn.bigtable.{Column, Counter, RowScan, BigTable}
+import unicorn.util._
 
 /**
- * Index meta data.
- *
  * @author Haifeng Li
  */
-object IndexMeta {
-  val indexColumnFamilies = Seq("index", "stat")
-  val indexColumnFamily = "index".getBytes(utf8)
-  val statColumnFamily = "stat".getBytes(utf8)
-  val uniqueIndexColumn = Array[Byte](1)
-  val indexDummyValue = Array[Byte](1)
+package object index {
+  type IndexTable = BigTable with RowScan with Counter
+  type RowMap = Map[String, collection.mutable.Map[ByteArray, Column]]
+
+  private[index] val IndexMetaTableName = "unicorn.meta.index"
+  private[index] val IndexMetaTableColumnFamily = "meta"
+
+  private[index] val IndexColumnFamily = "index"
+  private[index] val StatColumnFamily = "stat"
+  private[index] val IndexColumnFamilies = Seq(IndexColumnFamily, StatColumnFamily)
+
+  private[index] val IndexTableStatColumnCount: ByteArray = "count"
+
+  private[index] val IndexDummyValue = Array[Byte](1)
+  private[index] val UniqueIndexColumnQualifier = Array[Byte](1)
 }

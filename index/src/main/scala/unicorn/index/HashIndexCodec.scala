@@ -34,12 +34,12 @@ class HashIndexCodec(index: Index) extends IndexCodec {
   val suffix = ByteBuffer.allocate(4 * index.columns.size)
   val empty = Array[Byte]()
 
-  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
     suffix.reset
     var timestamp = 0L
     index.columns.foreach { indexColumn =>
       val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value
+        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value.bytes
         case None => empty
       }
       md5Encoder.update(column)
@@ -51,6 +51,6 @@ class HashIndexCodec(index: Index) extends IndexCodec {
 
     val key = index.prefixedIndexRowKey(hash, row)
 
-    Seq(Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, timestamp))
+    Seq(Cell(key, IndexColumnFamily, row, IndexDummyValue, timestamp))
   }
 }

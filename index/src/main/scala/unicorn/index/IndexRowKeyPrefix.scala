@@ -17,6 +17,7 @@
 package unicorn.index
 
 import java.nio.ByteBuffer
+import unicorn.util._
 
 /**
  * Optionally, row key in the index table may have specific prefix,
@@ -31,7 +32,7 @@ trait IndexRowKeyPrefix {
    * @param baseTableRowKey the row key of base table.
    * @return optional index table row key prefix.
    */
-  def apply(index: Index, baseTableRowKey: Array[Byte]): Array[Byte]
+  def apply(index: Index, baseTableRowKey: ByteArray): ByteArray
 }
 
 /**
@@ -45,7 +46,7 @@ trait IndexRowKeyPrefix {
  */
 class TenantIdPrefix(tenantIdSize: Int) extends IndexRowKeyPrefix {
 
-  override def apply(index: Index, baseTableRowKey: Array[Byte]): Array[Byte] = {
+  override def apply(index: Index, baseTableRowKey: ByteArray): ByteArray = {
     val prefix = new Array[Byte](tenantIdSize)
     Array.copy(baseTableRowKey, 0, prefix, 0, tenantIdSize)
     prefix
@@ -66,7 +67,7 @@ class TenantIdPrefix(tenantIdSize: Int) extends IndexRowKeyPrefix {
 class IndexIdPrefix(id: Int) extends IndexRowKeyPrefix {
   val prefix = ByteBuffer.allocate(4).putInt(id).array
 
-  override def apply(index: Index, baseTableRowKey: Array[Byte]): Array[Byte] = {
+  override def apply(index: Index, baseTableRowKey: ByteArray): ByteArray = {
     prefix
   }
 

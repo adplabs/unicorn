@@ -92,27 +92,29 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending
  *
  * @author Haifeng Li
  */
-case class Index(name: String, indexTableName: String, family: Array[Byte], columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
+case class Index(name: String, indexTableName: String, family: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
   require(columns.size > 0)
 
   val isHashIndex = columns.exists(_.order == Hashed)
   val isTextIndex = columns.exists(_.order == Text)
 
-  val codec = if (isHashIndex) new HashIndexCodec(this)
-    else if (isTextIndex) new TextIndexCodec(this)
-    else if (columns.size == 1) new SingleColumnIndexCodec(this)
-    else new CompositeIndexCodec(this)
-
   val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
 
   /**
-   * If the index doesn't cover any columns to update, return None.
-   * Otherwise, Returns the non-covered columns.
+   * Returns true if the index covers some of given columns.
    */
-  def findNonCoveredColumns(columns: Array[Byte]*): Option[Seq[Array[Byte]]] = {
-    val set = columns.map(new ByteArray(_)).toSet
-    if ((coveredColumns & set).isEmpty) return None
-    Some((coveredColumns -- set).map(_.bytes).toSeq)
+  def cover(family: String, columns: ByteArray*): Boolean = {
+    this.family == family && !(coveredColumns & columns.toSet).isEmpty
+  }
+
+  /**
+   * If the index doesn't cover any columns to update, return empty set.
+   * Otherwise, returns the covered columns of this index.
+   */
+  def findCoveredColumns(family: String, columns: ByteArray*): Set[ByteArray] = {
+    if (isTextIndex) coveredColumns & columns.toSet
+    else if (cover(family, columns: _*)) coveredColumns
+    else Set.empty
   }
 
   /** Returns true if both indices cover the same column set (and same order) */
@@ -121,15 +123,15 @@ case class Index(name: String, indexTableName: String, family: Array[Byte], colu
   }
 
   /** Returns the prefixed index table row key */
-  def prefixedIndexRowKey(indexTableRowKey: Array[Byte], baseTableRowKey: Array[Byte]) = {
-    prefix.foldRight(indexTableRowKey){ (prefix, value) => prefix(this, baseTableRowKey) ++ value }
+  def prefixedIndexRowKey(indexTableRowKey: ByteArray, baseTableRowKey: ByteArray) = {
+    prefix.foldRight(indexTableRowKey){ (prefix, value) => prefix(this, baseTableRowKey).bytes ++ value.bytes }
   }
 
   def toJson: JsValue = {
     JsObject(
       "name" -> name,
       "table" -> indexTableName,
-      "family" -> JsBinary(family),
+      "family" -> family,
       "columns" -> columns.map { column =>
         JsObject(
           "qualifier" -> JsBinary(column.qualifier),
@@ -146,7 +148,7 @@ object Index {
   def apply(js: JsValue) = {
     val name: String = js.name
     val table: String = js.table
-    val family: Array[Byte] = js.family
+    val family: String = js.family
     val columns = js.columns match {
       case JsArray(columns) => columns.map { column =>
         val qualifier: Array[Byte] = column.qualify

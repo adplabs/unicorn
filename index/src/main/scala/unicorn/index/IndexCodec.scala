@@ -32,5 +32,5 @@ trait IndexCodec {
    * @param columns a map of family to map of qualifier to cell.
    * @return a seq of index entries.
    */
-  def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell]
+  def apply(row: ByteArray, columns: RowMap): Seq[Cell]
 }

@@ -29,18 +29,18 @@ class SingleColumnIndexCodec(index: Index) extends IndexCodec {
 
   val indexColumn = index.columns.head
 
-  override def apply(row: Array[Byte], columns: Map[ByteArray, Map[ByteArray, Column]]): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
 
     val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
       case Some(c) => c
       case None => throw new IllegalArgumentException("missing covered index column")
     }
 
-    val key = index.prefixedIndexRowKey(column.value, row)
+    val key = index.prefixedIndexRowKey(column.value.bytes, row)
 
     if (index.unique)
-      Seq(Cell(key, IndexMeta.indexColumnFamily, IndexMeta.uniqueIndexColumn, row, column.timestamp))
+      Seq(Cell(key, IndexColumnFamily, UniqueIndexColumnQualifier, row, column.timestamp))
     else
-      Seq(Cell(key, IndexMeta.indexColumnFamily, row, IndexMeta.indexDummyValue, column.timestamp))
+      Seq(Cell(key, IndexColumnFamily, row, IndexDummyValue, column.timestamp))
   }
 }
