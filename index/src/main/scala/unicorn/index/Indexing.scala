@@ -103,6 +103,13 @@ trait Indexing {
    * Upsert a value.
    */
   def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
+    put(row, family, column, value)
+  }
+
+  /**
+   * Upsert a value.
+   */
+  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit = {
     val coveredColumns = builders.flatMap { builder =>
       if (builder.index.family == family) {
         builder.index.findCoveredColumns(family, column)
@@ -110,20 +117,20 @@ trait Indexing {
     }.distinct
 
     if (coveredColumns.isEmpty) {
-      baseTable.update(row, family, column, value)
+      baseTable.put(row, family, column, value)
     } else {
       val values = baseTable.get(row, family, coveredColumns: _*)
       val oldValue = RowMap(family, values: _*)
       val newValue = RowMap(family, values: _*)
 
-      baseTable.update(row, family, column, value)
+      baseTable.put(row, family, column, value)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase support key only read by filter.
       newValue(family)(column) = Column(column, value)
 
       builders.foreach { builder =>
-        if (builder.index.cover(family, value)) {
+        if (builder.index.cover(family, column)) {
           builder.deleteIndex(row, oldValue)
           builder.insertIndex(row, newValue)
         }
@@ -132,14 +139,40 @@ trait Indexing {
   }
 
   /**
-   * Upsert a value.
-   */
-  //def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit
-
-  /**
    * Upsert values.
    */
-  //def put(row: ByteArray, family: String, columns: Column*): Unit
+  def put(row: ByteArray, family: String, columns: Column*): Unit = {
+    val qualifiers = columns.map(_.qualifier)
+
+    val coveredColumns = builders.flatMap { builder =>
+      if (builder.index.family == family) {
+        builder.index.findCoveredColumns(family, qualifiers: _*)
+      } else Seq.empty
+    }.distinct
+
+    if (coveredColumns.isEmpty) {
+      baseTable.put(row, family, columns: _*)
+    } else {
+      val values = baseTable.get(row, family, coveredColumns: _*)
+      val oldValue = RowMap(family, values: _*)
+      val newValue = RowMap(family, values: _*)
+
+      baseTable.put(row, family, columns: _*)
+
+      // TODO to use the same timestamp as the base cell, we need to read it back.
+      // HBase support key only read by filter.
+      columns.foreach { column =>
+        newValue(family)(column.qualifier) = column
+      }
+
+      builders.foreach { builder =>
+        if (builder.index.cover(family, qualifiers: _*)) {
+          builder.deleteIndex(row, oldValue)
+          builder.insertIndex(row, newValue)
+        }
+      }
+    }
+  }
 
   /**
    * Upsert values.
