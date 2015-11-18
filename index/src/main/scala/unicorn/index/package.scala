@@ -23,7 +23,7 @@ import unicorn.util._
  * @author Haifeng Li
  */
 package object index {
-  type IndexTable = BigTable with RowScan with Counter
+  type IndexableTable = BigTable with RowScan with Counter
   type RowMap = Map[String, collection.mutable.Map[ByteArray, Column]]
 
   private[index] val IndexMetaTableName = "unicorn.meta.index"

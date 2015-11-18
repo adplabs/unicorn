@@ -25,19 +25,21 @@ import unicorn.util._
  * Index manager. A BigTable with Indexing trait will automatically maintain
  * secondary index.
  *
+ * Use the stackable trait pattern by "abstract override".
+ * See details at http://www.artima.com/scalazine/articles/stackable_trait_pattern.html
+ *
  * @author Haifeng Li
  */
-trait Indexing {
-  /** Base table */
-  val baseTable: IndexTable
-  val db: Database[IndexTable]
+trait Indexing extends BigTable with RowScan with Counter {
+  val db: Database[IndexableTable]
 
   var builders = getIndexBuilders
 
   /** Close the base table and the index table */
-  def close: Unit = {
-    baseTable.close
+  abstract override def close(): Unit = {
+    super.close
     builders.foreach(_.close)
+    ()
   }
 
   /**
@@ -47,7 +49,7 @@ trait Indexing {
    * about the index. The column name is the index name.
    */
   def getIndexBuilders: Seq[IndexBuilder] = {
-    if (!db.tableExists(IndexMetaTableName)) ArrayBuffer[(Index, IndexTable)]()
+    if (!db.tableExists(IndexMetaTableName)) return Seq[IndexBuilder]()
 
     // Index meta data table
     val metaTable = db(IndexMetaTableName)
@@ -55,7 +57,7 @@ trait Indexing {
     // Meta data encoded in BSON format.
     val bson = new BsonSerializer
 
-    metaTable.get(baseTable.name, IndexMetaTableColumnFamily).map { column =>
+    metaTable.get(name, IndexMetaTableColumnFamily).map { column =>
       val index = Index(bson.deserialize(collection.immutable.Map("$" -> column.value.bytes)))
       val indexTable = db(index.indexTableName)
       IndexBuilder(index, indexTable)
@@ -69,7 +71,7 @@ trait Indexing {
     val metaTable = db(IndexMetaTableName)
     val bson = new BsonSerializer
     val json = bson.serialize(index.toJson)
-    metaTable.put(baseTable.name.getBytes(utf8), IndexMetaTableColumnFamily, index.name, json("$"))
+    metaTable.put(name.getBytes(utf8), IndexMetaTableColumnFamily, index.name, json("$"))
   }
 
   def createIndex(name: String, index: Index): Unit = {
@@ -80,7 +82,7 @@ trait Indexing {
 
     val indexTable = db.createTable(name, IndexColumnFamilies: _*)
     val builder = IndexBuilder(index, indexTable)
-    baseTable.scan(baseTable.startRowKey, baseTable.endRowKey, index.family, index.columns.map(_.qualifier): _*).foreach { case Row(row, families) =>
+    scan(startRowKey, endRowKey, index.family, index.columns.map(_.qualifier): _*).foreach { case Row(row, families) =>
       builder.insertIndex(row, RowMap(families: _*))
     }
 
@@ -93,7 +95,7 @@ trait Indexing {
 
     if (index.isDefined) {
       val metaTable = db(IndexMetaTableName)
-      metaTable.delete(baseTable.name.getBytes(utf8), IndexMetaTableColumnFamily, name)
+      metaTable.delete(name.getBytes(utf8), IndexMetaTableColumnFamily, name)
       db.dropTable(name)
       builders = getIndexBuilders
     }
@@ -102,14 +104,14 @@ trait Indexing {
   /**
    * Upsert a value.
    */
-  def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
+  abstract override def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
     put(row, family, column, value)
   }
 
   /**
    * Upsert a value.
    */
-  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit = {
+  abstract override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit = {
     val coveredColumns = builders.flatMap { builder =>
       if (builder.index.family == family) {
         builder.index.findCoveredColumns(family, column)
@@ -117,13 +119,13 @@ trait Indexing {
     }.distinct
 
     if (coveredColumns.isEmpty) {
-      baseTable.put(row, family, column, value)
+      super.put(row, family, column, value)
     } else {
-      val values = baseTable.get(row, family, coveredColumns: _*)
+      val values = get(row, family, coveredColumns: _*)
       val oldValue = RowMap(family, values: _*)
       val newValue = RowMap(family, values: _*)
 
-      baseTable.put(row, family, column, value)
+      super.put(row, family, column, value)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase support key only read by filter.
@@ -141,7 +143,7 @@ trait Indexing {
   /**
    * Upsert values.
    */
-  def put(row: ByteArray, family: String, columns: Column*): Unit = {
+  abstract override def put(row: ByteArray, family: String, columns: Column*): Unit = {
     val qualifiers = columns.map(_.qualifier)
 
     val coveredColumns = builders.flatMap { builder =>
@@ -151,13 +153,13 @@ trait Indexing {
     }.distinct
 
     if (coveredColumns.isEmpty) {
-      baseTable.put(row, family, columns: _*)
+      super.put(row, family, columns: _*)
     } else {
-      val values = baseTable.get(row, family, coveredColumns: _*)
+      val values = get(row, family, coveredColumns: _*)
       val oldValue = RowMap(family, values: _*)
       val newValue = RowMap(family, values: _*)
 
-      baseTable.put(row, family, columns: _*)
+      super.put(row, family, columns: _*)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase support key only read by filter.

@@ -21,9 +21,11 @@ lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*).de
 
 lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable, json)
 
+lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util)
+
 lazy val core = project.in(file("core")).settings(commonSettings: _*).dependsOn(json, bigtable)
 
-lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable)
+lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable, index)
 
 lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(bigtable)
 

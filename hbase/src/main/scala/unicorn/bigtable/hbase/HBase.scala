@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.TableName
 import unicorn.bigtable._
+import unicorn.index.Indexing
 
 /**
  * HBase server adapter.
@@ -39,6 +40,10 @@ class HBase(config: Configuration) extends Database[HBaseTable] {
 
   override def apply(name: String): HBaseTable = {
     new HBaseTable(this, name)
+  }
+
+  def getTableWithIndex(name: String): HBaseTable with Indexing = {
+    new HBaseTable(this, name) with Indexing
   }
 
   override def createTable(name: String, props: Properties, families: String*): HBaseTable = {

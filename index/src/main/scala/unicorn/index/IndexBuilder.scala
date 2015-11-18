@@ -24,7 +24,7 @@ import unicorn.util.ByteArray
  *
  * @author Haifeng Li
  */
-case class IndexBuilder(index: Index, indexTable: IndexTable) {
+case class IndexBuilder(index: Index, indexTable: IndexableTable) {
   val codec = if (index.isHashIndex) new HashIndexCodec(index)
     else if (index.isTextIndex) new TextIndexCodec(index)
     else if (index.columns.size == 1) new SingleColumnIndexCodec(index)

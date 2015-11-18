@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{CellUtil, HConstants}
 import unicorn.bigtable._, ScanFilter._
 import unicorn.util._
+import unicorn.index.Indexing
 
 /**
  * HBase table adapter.
@@ -34,8 +35,9 @@ import unicorn.util._
 class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
+  val self = this
 
-  override def close: Unit = table.close
+  override def close(): Unit = table.close
 
   override val columnFamilies = table.getTableDescriptor.getColumnFamilies.map(_.getNameAsString).toSeq
 

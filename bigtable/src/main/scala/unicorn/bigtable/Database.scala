@@ -24,7 +24,7 @@ import java.util.Properties
  * 
  * @author Haifeng Li
  */
-trait Database[T <: BigTable] extends AutoCloseable {
+trait Database[+T <: BigTable] extends AutoCloseable {
   /**
    * Returns a table.
    * @param name the name of table.
