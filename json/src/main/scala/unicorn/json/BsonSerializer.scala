@@ -148,7 +148,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
           case TYPE_DATETIME   => json(ename) = date
           case TYPE_STRING     => json(ename) = string
           case TYPE_OBJECTID   => json(ename) = objectId
-          case TYPE_BINARY     => buffer.get; json(ename) = binary
+          case TYPE_BINARY     => json(ename) = binary
           case TYPE_NULL       => json(ename) = JsNull
           case TYPE_UNDEFINED  => json(ename) = JsUndefined
           case TYPE_DOCUMENT   => val doc = JsObject(); json(ename) = deserialize(doc)

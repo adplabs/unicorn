@@ -64,23 +64,23 @@ trait Indexing extends BigTable with RowScan with Counter {
     }
   }
 
-  def addIndex(index: Index): Unit = {
+  private def addIndex(index: Index): Unit = {
     if (!db.tableExists(IndexMetaTableName))
       db.createTable(IndexMetaTableName, IndexMetaTableColumnFamily)
 
     val metaTable = db(IndexMetaTableName)
     val bson = new BsonSerializer
     val json = bson.serialize(index.toJson)
-    metaTable.put(name.getBytes(utf8), IndexMetaTableColumnFamily, index.name, json("$"))
+    metaTable.put(name, IndexMetaTableColumnFamily, index.name, json("$"))
   }
 
-  def createIndex(name: String, index: Index): Unit = {
+  def createIndex(index: Index): Unit = {
     builders.foreach { builder =>
-      if (builder.index.indexTableName == name) throw new IllegalArgumentException(s"Index $name exists")
+      if (builder.index.name == index.name) throw new IllegalArgumentException(s"Index ${index.name} exists")
       if (builder.index.coverSameColumns(index)) throw new IllegalArgumentException(s"Index ${index.name} covers the same columns")
     }
 
-    val indexTable = db.createTable(name, IndexColumnFamilies: _*)
+    val indexTable = db.createTable(index.indexTableName, IndexColumnFamilies: _*)
     val builder = IndexBuilder(index, indexTable)
     scan(startRowKey, endRowKey, index.family, index.columns.map(_.qualifier): _*).foreach { case Row(row, families) =>
       builder.insertIndex(row, RowMap(families: _*))
@@ -90,13 +90,13 @@ trait Indexing extends BigTable with RowScan with Counter {
     builders = getIndexBuilders
   }
 
-  def dropIndex(name: String): Unit = {
-    val index = builders.find(_.index.indexTableName == name)
+  def dropIndex(indexName: String): Unit = {
+    val indexBuilder = builders.find(_.index.name == indexName)
 
-    if (index.isDefined) {
+    if (indexBuilder.isDefined) {
       val metaTable = db(IndexMetaTableName)
-      metaTable.delete(name.getBytes(utf8), IndexMetaTableColumnFamily, name)
-      db.dropTable(name)
+      metaTable.delete(name, IndexMetaTableColumnFamily, indexName)
+      db.dropTable(indexBuilder.get.index.indexTableName)
       builders = getIndexBuilders
     }
   }
@@ -133,7 +133,7 @@ trait Indexing extends BigTable with RowScan with Counter {
 
       builders.foreach { builder =>
         if (builder.index.cover(family, column)) {
-          builder.deleteIndex(row, oldValue)
+          if (!values.isEmpty) builder.deleteIndex(row, oldValue)
           builder.insertIndex(row, newValue)
         }
       }

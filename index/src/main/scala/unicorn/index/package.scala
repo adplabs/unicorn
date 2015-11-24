@@ -29,6 +29,7 @@ package object index {
   private[index] val IndexMetaTableName = "unicorn.meta.index"
   private[index] val IndexMetaTableColumnFamily = "meta"
 
+  private[index] val IndexTableNamePrefix = "unicorn.index."
   private[index] val IndexColumnFamily = "index"
   private[index] val StatColumnFamily = "stat"
   private[index] val IndexColumnFamilies = Seq(IndexColumnFamily, StatColumnFamily)

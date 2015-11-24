@@ -25,7 +25,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{CellUtil, HConstants}
 import unicorn.bigtable._, ScanFilter._
 import unicorn.util._
-import unicorn.index.Indexing
 
 /**
  * HBase table adapter.

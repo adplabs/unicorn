@@ -76,6 +76,11 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending
     hash = 31 * hash + order.id
     hash
   }
+
+  override def toString: String = {
+    val hex = bytes2Hex(qualifier)
+    s"""($hex, $order)"""
+  }
 }
 
 /**
@@ -92,13 +97,15 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending
  *
  * @author Haifeng Li
  */
-case class Index(name: String, indexTableName: String, family: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix]) {
+case class Index(name: String, family: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix] = Seq.empty) {
   require(columns.size > 0)
 
   val isHashIndex = columns.exists(_.order == Hashed)
   val isTextIndex = columns.exists(_.order == Text)
 
   val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
+
+  val indexTableName = IndexTableNamePrefix + name
 
   /**
    * Returns true if the index covers some of given columns.
@@ -130,7 +137,6 @@ case class Index(name: String, indexTableName: String, family: String, columns: 
   def toJson: JsValue = {
     JsObject(
       "name" -> name,
-      "table" -> indexTableName,
       "family" -> family,
       "columns" -> columns.map { column =>
         JsObject(
@@ -139,7 +145,7 @@ case class Index(name: String, indexTableName: String, family: String, columns: 
         )
       },
       "unique" -> unique,
-      "prefixs" -> JsArray(prefix.map(_.toString))
+      "prefix" -> prefix.map(_.toString)
     )
   }
 }
@@ -147,11 +153,10 @@ case class Index(name: String, indexTableName: String, family: String, columns: 
 object Index {
   def apply(js: JsValue) = {
     val name: String = js.name
-    val table: String = js.table
     val family: String = js.family
     val columns = js.columns match {
       case JsArray(columns) => columns.map { column =>
-        val qualifier: Array[Byte] = column.qualify
+        val qualifier: Array[Byte] = column.qualifier
         val order: String = column.order
         IndexColumn(qualifier, IndexSortOrder.withName(order))
       }
@@ -169,6 +174,6 @@ object Index {
       case _ => throw new IllegalArgumentException("Unsupported index prefix")
     }).toSeq
 
-    new Index(name, table, family, columns, unique, prefix)
+    new Index(name, family, columns, unique, prefix)
   }
 }

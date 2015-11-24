@@ -46,5 +46,25 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       table.delete("row1", "cf1", "c1")
       table("row1", "cf1", "c1") === None
     }
+    "get the put with index" in {
+      val index = Index("test-index-c1", "cf1", Seq(IndexColumn("c1")))
+      table.createIndex(index)
+      table.put("row1", "cf1", "c1", "v1")
+      new String(table("row1", "cf1", "c1").get, utf8) === "v1"
+
+      val indexTable = hbase("unicorn.index.test-index-c1")
+      indexTable("v1", "index", "row1").isDefined === true
+
+      table.put("row1", "cf1", "c1", "v2")
+      indexTable("v1", "index", "row1").isDefined === false
+      indexTable("v2", "index", "row1").isDefined === true
+
+      table.delete("row1", "cf1", "c1")
+      //indexTable("v2", "index", "row1").isDefined === false
+
+      table.dropIndex(index.name)
+
+      table("row1", "cf1", "c1") === None
+    }
   }
 }
