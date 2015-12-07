@@ -28,6 +28,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
   val hbase = HBase()
   val tableName = "unicorn_test"
   var table: HBaseTable with Indexing = null
+  val index = Index("test-index-c1", "cf1", Seq(IndexColumn("c1")))
 
   override def beforeAll = {
     hbase.createTable(tableName, "cf1", "cf2")
@@ -35,7 +36,10 @@ class IndexingSpec extends Specification with BeforeAfterAll {
   }
 
   override def afterAll = {
-    if (table != null) table.close
+    if (table != null) {
+      table.dropIndex(index.name)
+      table.close
+    }
     hbase.dropTable(tableName)
   }
 
@@ -47,7 +51,6 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       table("row1", "cf1", "c1") === None
     }
     "get the put with index" in {
-      val index = Index("test-index-c1", "cf1", Seq(IndexColumn("c1")))
       table.createIndex(index)
       table.put("row1", "cf1", "c1", "v1")
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"

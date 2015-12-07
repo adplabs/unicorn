@@ -36,6 +36,6 @@ package object index {
 
   private[index] val IndexTableStatColumnCount: ByteArray = "count"
 
-  private[index] val IndexDummyValue = Array[Byte](1)
-  private[index] val UniqueIndexColumnQualifier = Array[Byte](1)
+  private[index] val IndexDummyValue = ByteArray(Array[Byte](1))
+  private[index] val UniqueIndexColumnQualifier = ByteArray(Array[Byte](1))
 }

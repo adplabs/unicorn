@@ -16,7 +16,6 @@
 
 package unicorn.index
 
-import scala.collection.mutable.ArrayBuffer
 import unicorn.bigtable._
 import unicorn.json._
 import unicorn.util._
@@ -39,7 +38,6 @@ trait Indexing extends BigTable with RowScan with Counter {
   abstract override def close(): Unit = {
     super.close
     builders.foreach(_.close)
-    ()
   }
 
   /**
@@ -48,7 +46,7 @@ trait Indexing extends BigTable with RowScan with Counter {
    * The row key is the base table name. Each column is a BSON object
    * about the index. The column name is the index name.
    */
-  def getIndexBuilders: Seq[IndexBuilder] = {
+  private def getIndexBuilders: Seq[IndexBuilder] = {
     if (!db.tableExists(IndexMetaTableName)) return Seq[IndexBuilder]()
 
     // Index meta data table
@@ -64,7 +62,9 @@ trait Indexing extends BigTable with RowScan with Counter {
     }
   }
 
+  /** Add an index to meta data.    */
   private def addIndex(index: Index): Unit = {
+    // If the index meta data table doesn't exist, create it.
     if (!db.tableExists(IndexMetaTableName))
       db.createTable(IndexMetaTableName, IndexMetaTableColumnFamily)
 
@@ -74,6 +74,7 @@ trait Indexing extends BigTable with RowScan with Counter {
     metaTable.put(name, IndexMetaTableColumnFamily, index.name, json("$"))
   }
 
+  /** Create an index. */
   def createIndex(index: Index): Unit = {
     builders.foreach { builder =>
       if (builder.index.name == index.name) throw new IllegalArgumentException(s"Index ${index.name} exists")
@@ -90,6 +91,7 @@ trait Indexing extends BigTable with RowScan with Counter {
     builders = getIndexBuilders
   }
 
+  /** Drop an index. */
   def dropIndex(indexName: String): Unit = {
     val indexBuilder = builders.find(_.index.name == indexName)
 

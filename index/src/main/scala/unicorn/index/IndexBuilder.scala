@@ -20,13 +20,14 @@ import unicorn.bigtable.{Column, ColumnFamily, Row}
 import unicorn.util.ByteArray
 
 /**
- * Index builder.
+ * Index builder. Because of the sparse natural of BigTable, all indices are sparse.
+ * That is, omit references to rows that do not include the indexed field.
  *
  * @author Haifeng Li
  */
 case class IndexBuilder(index: Index, indexTable: IndexableTable) {
-  val codec = if (index.isHashIndex) new HashIndexCodec(index)
-    else if (index.isTextIndex) new TextIndexCodec(index)
+  val codec = if (index.indexType == IndexType.Hashed) new HashIndexCodec(index)
+    else if (index.indexType == IndexType.Text) new TextIndexCodec(index)
     else if (index.columns.size == 1) new SingleColumnIndexCodec(index)
     else new CompositeIndexCodec(index)
 

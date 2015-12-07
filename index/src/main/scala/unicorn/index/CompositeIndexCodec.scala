@@ -17,7 +17,7 @@
 package unicorn.index
 
 import java.nio.ByteBuffer
-import unicorn.bigtable.{Cell, Column}
+import unicorn.bigtable.Cell
 import unicorn.index.IndexSortOrder._
 import unicorn.util._
 
@@ -25,41 +25,61 @@ import unicorn.util._
  * Calculate the cell in the index table for a composite index (multiple columns) in the base table.
  * The combined size of index columns should be less than 64KB.
  *
+ * In case of range search, composite index can only be used for fixed-width columns
+ * (except the last one, which can be of variable length).
+ * Otherwise, it can only be used for equality queries. In relational database,
+ * this problem is solved by padding varchar to the maximal length. We don't employ
+ * this approach because we don't want to limit the data size.
+ * It is the user's responsibility to use it correctly.
+ *
+ * If any field of index is missing we won't index the row.
+ *
  * @author Haifeng Li
  */
 class CompositeIndexCodec(index: Index) extends IndexCodec {
   require(index.columns.size > 1)
 
   val buffer = ByteBuffer.allocate(64 * 1024)
-  val suffix = ByteBuffer.allocate(4 * index.columns.size)
-  val empty = Array[Byte]()
 
   override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
-    buffer.reset
-    suffix.reset
-    var timestamp = 0L
-    index.columns.foreach { indexColumn =>
-      val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value.bytes
-        case None => empty
+    val hasUndefinedColumn = index.columns.exists { indexColumn =>
+      columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+        case Some(_) => false
+        case None => true
       }
+    }
+
+    if (hasUndefinedColumn) return Seq.empty
+
+    val hasZeroTimestamp = index.columns.exists { indexColumn =>
+      columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+        case Some(c) => c.timestamp == 0L
+        case None => false
+      }
+    }
+
+    val timestamp = if (hasZeroTimestamp) 0L else index.columns.foldLeft(0L) { (b, indexColumn) =>
+      val ts = columns(index.family)(indexColumn.qualifier).timestamp
+      Math.max(b, ts)
+    }
+
+    buffer.reset
+    index.columns.foreach { indexColumn =>
+      val column = columns(index.family)(indexColumn.qualifier).value
 
       indexColumn.order match {
         case Ascending => buffer.put(column)
         case Descending => buffer.put(~column)
-        case _ => throw new IllegalStateException(s"CompositeIndexCodec doesn't support the index column order ${indexColumn.order}")
       }
-
-      suffix.putInt(column.size)
     }
 
-    val key = index.prefixedIndexRowKey(row, buffer.array ++ suffix.array)
+    val key = index.prefixedIndexRowKey(buffer.array, row)
 
-    Cell(key, IndexColumnFamily, row, IndexDummyValue, timestamp)
+    val (qualifier, indexValue) = index.indexType match {
+      case IndexType.Unique => (UniqueIndexColumnQualifier, row)
+      case _ => (row, IndexDummyValue)
+    }
 
-    if (index.unique)
-      Seq(Cell(key, IndexColumnFamily, UniqueIndexColumnQualifier, row, timestamp))
-    else
-      Seq(Cell(key, IndexColumnFamily, row, IndexDummyValue, timestamp))
+    Seq(Cell(key, IndexColumnFamily, qualifier, indexValue, timestamp))
   }
 }

@@ -24,6 +24,7 @@ import unicorn.util._
  * meaningful for fixed-width columns (except the last one, which
  * can be of variable length) in case of range search.
  * Otherwise, it can only be used for equality queries.
+ * It is the user's responsibility
  */
 object IndexSortOrder extends Enumeration {
   type IndexSortOrder = Value
@@ -38,6 +39,23 @@ object IndexSortOrder extends Enumeration {
    * We flip every bit of values as the row keys of index table.
    */
   val Descending = Value
+}
+
+/**
+ * Index type.
+ */
+object IndexType extends Enumeration {
+  type IndexType = Value
+
+  /**
+   * A regular index allowing duplicates, not hashed, not text.
+   */
+  val Default = Value
+
+  /**
+   * Unique index/constraint, where the column cannot have duplicated values.
+   */
+  val Unique = Value
 
   /**
    * Hashed indexes compute a hash of the value of a field
@@ -56,10 +74,11 @@ object IndexSortOrder extends Enumeration {
   val Text = Value
 }
 
-import IndexSortOrder._
+import IndexSortOrder.IndexSortOrder
+import IndexType.IndexType
 
 /** A column in an index */
-case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending) {
+case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = IndexSortOrder.Ascending) {
   override def equals(o: Any): Boolean = {
     if (!o.isInstanceOf[IndexColumn]) return false
 
@@ -92,16 +111,12 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = Ascending
  * The order of columns is important as it determine the row key
  * of index table. Only the leading columns of row key can be used for
  * index scan in case that partial index columns are used in query.
- * If unique is true, the column cannot have duplicated values.
  * The index row key may have (stackable) prefix (e.g. tenant id).
  *
  * @author Haifeng Li
  */
-case class Index(name: String, family: String, columns: Seq[IndexColumn], unique: Boolean = false, prefix: Seq[IndexRowKeyPrefix] = Seq.empty) {
+case class Index(name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default, prefix: Seq[IndexRowKeyPrefix] = Seq.empty) {
   require(columns.size > 0)
-
-  val isHashIndex = columns.exists(_.order == Hashed)
-  val isTextIndex = columns.exists(_.order == Text)
 
   val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
 
@@ -119,7 +134,7 @@ case class Index(name: String, family: String, columns: Seq[IndexColumn], unique
    * Otherwise, returns the covered columns of this index.
    */
   def findCoveredColumns(family: String, columns: ByteArray*): Set[ByteArray] = {
-    if (isTextIndex) coveredColumns & columns.toSet
+    if (indexType == IndexType.Text) coveredColumns & columns.toSet
     else if (cover(family, columns: _*)) coveredColumns
     else Set.empty
   }
@@ -144,7 +159,7 @@ case class Index(name: String, family: String, columns: Seq[IndexColumn], unique
           "order" -> column.order.toString
         )
       },
-      "unique" -> unique,
+      "indexType" -> indexType.toString,
       "prefix" -> prefix.map(_.toString)
     )
   }
@@ -163,7 +178,7 @@ object Index {
       case _ => throw new IllegalStateException("columns is not JsArray")
     }
 
-    val unique: Boolean = js.unique
+    val indexType: String = js.indexType
 
     val tenantIdPrefixPattern = """tenant\((\d+)\)""".r
     val indexIdPrefixPattern = """index\((\d+)\)""".r
@@ -174,6 +189,6 @@ object Index {
       case _ => throw new IllegalArgumentException("Unsupported index prefix")
     }).toSeq
 
-    new Index(name, family, columns, unique, prefix)
+    new Index(name, family, columns, IndexType.withName(indexType), prefix)
   }
 }

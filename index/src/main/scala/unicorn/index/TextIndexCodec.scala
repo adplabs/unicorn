@@ -32,27 +32,32 @@ import unicorn.util._
  * @author Haifeng Li
  */
 class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) extends IndexCodec {
-  // Text index doesn't support unique constraint. Text index also ignores
-  // the column order specification.
-  require(index.unique == false)
+  require(index.indexType == IndexType.Text)
 
-  val buffer = ByteBuffer.allocate(64 * 1024)
+  val qualiferBuffer = ByteBuffer.allocate(64 * 1024)
+  val valueBuffer = ByteBuffer.allocate(64 * 1024)
 
   override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
-    var timestamp = 0L
     index.columns.flatMap { indexColumn =>
       val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
       if (column.isDefined) {
-        if (column.get.timestamp > timestamp) timestamp = column.get.timestamp
+        val timestamp = column.get.timestamp
         val text = codec.decode(column.get.value)
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
-          val key = index.prefixedIndexRowKey(term.getBytes(utf8), row).bytes ++ row.bytes
-          buffer.reset
-          pos.foreach(buffer.putInt(_))
-          Cell(key, IndexColumnFamily, indexColumn.qualifier, buffer.array, timestamp)
+          val key = index.prefixedIndexRowKey(term.getBytes(utf8), row)
+          qualiferBuffer.reset
+          qualiferBuffer.putInt(row.bytes.size)
+          qualiferBuffer.putInt(indexColumn.qualifier.size)
+          qualiferBuffer.put(row.bytes)
+          qualiferBuffer.put(indexColumn.qualifier)
+          qualiferBuffer.putInt(pos.size)
+
+          valueBuffer.reset
+          pos.foreach(valueBuffer.putInt(_))
+          Cell(key, IndexColumnFamily, qualiferBuffer.array, valueBuffer.array, timestamp)
         }
-      } else Seq()
+      } else Seq.empty
     }
   }
 

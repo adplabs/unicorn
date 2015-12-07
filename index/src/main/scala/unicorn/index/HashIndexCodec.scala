@@ -18,7 +18,8 @@ package unicorn.index
 
 import java.nio.ByteBuffer
 
-import unicorn.bigtable.{Cell, Column}
+import unicorn.bigtable.Cell
+import unicorn.index.IndexSortOrder._
 import unicorn.util._
 
 /**
@@ -28,29 +29,49 @@ import unicorn.util._
  * @author Haifeng Li
  */
 class HashIndexCodec(index: Index) extends IndexCodec {
-  // Hash index doesn't support unique constraint
-  require(index.unique == false)
+  require(index.indexType == IndexType.Hashed)
 
-  val suffix = ByteBuffer.allocate(4 * index.columns.size)
-  val empty = Array[Byte]()
+  val buffer = ByteBuffer.allocate(64 * 1024)
 
   override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
-    suffix.reset
-    var timestamp = 0L
-    index.columns.foreach { indexColumn =>
-      val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-        case Some(c) => if (c.timestamp > timestamp) timestamp = c.timestamp; c.value.bytes
-        case None => empty
+    val hasUndefinedColumn = index.columns.exists { indexColumn =>
+      columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+        case Some(_) => false
+        case None => true
       }
-      md5Encoder.update(column)
-      suffix.putInt(column.size)
     }
 
-    md5Encoder.update(suffix.array)
-    val hash = md5Encoder.digest
+    if (hasUndefinedColumn) return Seq.empty
 
-    val key = index.prefixedIndexRowKey(hash, row)
+    val hasZeroTimestamp = index.columns.exists { indexColumn =>
+      columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+        case Some(c) => c.timestamp == 0L
+        case None => false
+      }
+    }
 
-    Seq(Cell(key, IndexColumnFamily, row, IndexDummyValue, timestamp))
+    val timestamp = if (hasZeroTimestamp) 0L else index.columns.foldLeft(0L) { (b, indexColumn) =>
+      val ts = columns(index.family)(indexColumn.qualifier).timestamp
+      Math.max(b, ts)
+    }
+
+    buffer.reset
+    index.columns.foreach { indexColumn =>
+      val column = columns(index.family)(indexColumn.qualifier).value
+
+      indexColumn.order match {
+        case Ascending => buffer.put(column)
+        case Descending => buffer.put(~column)
+      }
+    }
+
+    val key = index.prefixedIndexRowKey(md5(buffer.array), row)
+
+    val (qualifier: ByteArray, indexValue: ByteArray) = index.indexType match {
+      case IndexType.Unique => (UniqueIndexColumnQualifier, row)
+      case _ => (row, IndexDummyValue)
+    }
+
+    Seq(Cell(key, IndexColumnFamily, qualifier, indexValue, timestamp))
   }
 }

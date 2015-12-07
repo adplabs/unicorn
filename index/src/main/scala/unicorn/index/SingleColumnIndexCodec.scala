@@ -16,8 +16,9 @@
 
 package unicorn.index
 
-import unicorn.bigtable.{Cell, Column}
-import unicorn.util.ByteArray
+import unicorn.bigtable.Cell
+import unicorn.index.IndexSortOrder._
+import unicorn.util._
 
 /**
  * Calculate the cell in the index table for a single column in the base table.
@@ -30,16 +31,22 @@ class SingleColumnIndexCodec(index: Index) extends IndexCodec {
   val indexColumn = index.columns.head
 
   override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
-    val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
-      case Some(c) => c
-      case None => throw new IllegalArgumentException("missing covered index column")
+    columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
+      case None => Seq.empty
+      case Some(column) =>
+        val value = indexColumn.order match {
+          case Ascending => column.value
+          case Descending => ~column.value
+        }
+
+        val key = index.prefixedIndexRowKey(value, row)
+
+        val (qualifier, indexValue) = index.indexType match {
+          case IndexType.Unique => (UniqueIndexColumnQualifier, row)
+          case _ => (row, IndexDummyValue)
+        }
+
+        Seq(Cell(key, IndexColumnFamily, qualifier, indexValue, column.timestamp))
     }
-
-    val key = index.prefixedIndexRowKey(column.value.bytes, row)
-
-    if (index.unique)
-      Seq(Cell(key, IndexColumnFamily, UniqueIndexColumnQualifier, row, column.timestamp))
-    else
-      Seq(Cell(key, IndexColumnFamily, row, IndexDummyValue, column.timestamp))
   }
 }
