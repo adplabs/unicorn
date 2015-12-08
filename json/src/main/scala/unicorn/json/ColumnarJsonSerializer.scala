@@ -17,6 +17,7 @@
 package unicorn.json
 
 import java.nio.{ByteBuffer, ByteOrder}
+import unicorn.util._
 
 /**
  * This JSON Serializer recursively encodes each field to a byte string, which can

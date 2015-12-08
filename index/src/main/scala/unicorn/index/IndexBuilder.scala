@@ -36,6 +36,7 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
   def insertIndex(row: ByteArray, map: RowMap): Unit = {
     val cells = codec(row, map)
     cells.foreach { cell =>
+      println(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
       indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
     }
   }

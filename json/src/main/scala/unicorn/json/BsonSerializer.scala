@@ -17,7 +17,7 @@
 package unicorn.json
 
 import java.nio.{ByteBuffer, ByteOrder}
-import unicorn.util.Logging
+import unicorn.util._
 
 /**
  * JSON Serializer in BSON format as defined by http://bsonspec.org/spec.html.
@@ -107,7 +107,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case JsNull        => buffer.put(TYPE_NULL)
       case JsUndefined   => buffer.put(TYPE_UNDEFINED)
     }
-    Map(jsonPath -> buffer2Bytes(buffer))
+    Map(jsonPath -> buffer)
   }
 
   override def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String): JsValue = {
@@ -155,7 +155,6 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
           case TYPE_ARRAY      => val doc = JsObject(); val field = ename(); deserialize(doc); json(field) = JsArray(doc.fields.map { case (k, v) => (k.toInt, v) }.toSeq.sortBy(_._1).map(_._2): _*)
           case x               => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
         }
-        //println(json)
       }
     }
 

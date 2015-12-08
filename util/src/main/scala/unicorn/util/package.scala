@@ -16,6 +16,7 @@
 
  package unicorn
 
+ import java.nio.ByteBuffer
  import java.nio.charset.Charset
  import java.time.format.DateTimeFormatter
 
@@ -37,6 +38,17 @@ package object util {
   implicit def string2ByteArray(x: String) = new ByteArray(x.getBytes(utf8))
   implicit def bytesSeq2ByteArray(x: Seq[Array[Byte]]) = x.map { bytes => new ByteArray(bytes) }
   implicit def stringSeq2ByteArray(x: Seq[String]) = x.map { s => new ByteArray(s.getBytes(utf8)) }
+
+  /**
+   * Helper function convert ByteBuffer to Array[Byte]
+   */
+  implicit def byteBuffer2ByteArray(buffer: ByteBuffer): Array[Byte] = {
+    val bytes = new Array[Byte](buffer.position)
+    buffer.position(0)
+    buffer.get(bytes)
+    bytes
+  }
+
 
   /** Byte array to hexadecimal string. */
   def bytes2Hex(bytes: Array[Byte]): String = {

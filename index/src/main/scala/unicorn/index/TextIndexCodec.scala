@@ -19,9 +19,9 @@ package unicorn.index
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import smile.nlp.dictionary.{EnglishPunctuations, EnglishStopWords}
-import smile.nlp.stemmer.PorterStemmer
+import smile.nlp.stemmer.{PorterStemmer, Stemmer}
 import smile.nlp.tokenizer.{SimpleTokenizer, SimpleSentenceSplitter}
-import unicorn.bigtable.{Cell, Column}
+import unicorn.bigtable.Cell
 import unicorn.json.JsonSerializerHelper
 import unicorn.util._
 
@@ -31,7 +31,7 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) extends IndexCodec {
+class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec, stemmer: Option[Stemmer] = Some(new PorterStemmer)) extends IndexCodec {
   require(index.indexType == IndexType.Text)
 
   val qualiferBuffer = ByteBuffer.allocate(64 * 1024)
@@ -46,16 +46,17 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) exten
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
           val key = index.prefixedIndexRowKey(term.getBytes(utf8), row)
-          qualiferBuffer.reset
+          qualiferBuffer.clear
           qualiferBuffer.putInt(row.bytes.size)
           qualiferBuffer.putInt(indexColumn.qualifier.size)
           qualiferBuffer.put(row.bytes)
           qualiferBuffer.put(indexColumn.qualifier)
           qualiferBuffer.putInt(pos.size)
 
-          valueBuffer.reset
+          valueBuffer.clear
           pos.foreach(valueBuffer.putInt(_))
-          Cell(key, IndexColumnFamily, qualiferBuffer.array, valueBuffer.array, timestamp)
+
+          Cell(key, IndexColumnFamily, byteBuffer2ByteArray(qualiferBuffer), byteBuffer2ByteArray(valueBuffer), timestamp)
         }
       } else Seq.empty
     }
@@ -73,9 +74,6 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) exten
   /** Punctuation. */
   val punctuations = EnglishPunctuations.getInstance
 
-  /** Optional word stemmer. */
-  val stemmer = new PorterStemmer
-
   /**
    * Process each token (after filtering stop words, numbers, and optional stemming).
    */
@@ -90,7 +88,10 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec) exten
           stopWords.contains(lower) ||
           lower.length == 1 ||
           lower.matches("[0-9\\.\\-\\+\\|\\(\\)]+"))) {
-          val word = stemmer.stem(lower)
+          val word = stemmer match {
+            case Some(stemmer) => stemmer.stem(lower)
+            case None => lower
+          }
           f(word, pos)
         }
       }

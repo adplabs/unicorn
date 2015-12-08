@@ -63,7 +63,7 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    buffer.reset
+    buffer.clear
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 
@@ -73,7 +73,7 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
       }
     }
 
-    val key = index.prefixedIndexRowKey(buffer.array, row)
+    val key = index.prefixedIndexRowKey(ByteArray(buffer), row)
 
     val (qualifier, indexValue) = index.indexType match {
       case IndexType.Unique => (UniqueIndexColumnQualifier, row)

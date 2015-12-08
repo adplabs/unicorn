@@ -67,16 +67,6 @@ trait JsonSerializerHelper {
   /** string encoder/decoder */
   val charset = Charset.forName("UTF-8")
 
-  /**
-   * Helper function convert ByteBuffer to Array[Byte]
-   */
-  implicit def buffer2Bytes(buffer: ByteBuffer): Array[Byte] = {
-    val bytes = new Array[Byte](buffer.position)
-    buffer.position(0)
-    buffer.get(bytes)
-    bytes
-  }
-
   def cstring(string: String)(implicit buffer: ByteBuffer): Unit = {
     val bytes = string.getBytes(charset)
     buffer.put(bytes)

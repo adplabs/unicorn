@@ -55,7 +55,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    buffer.reset
+    buffer.clear
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 
@@ -65,7 +65,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
       }
     }
 
-    val key = index.prefixedIndexRowKey(md5(buffer.array), row)
+    val key = index.prefixedIndexRowKey(md5(buffer), row)
 
     val (qualifier: ByteArray, indexValue: ByteArray) = index.indexType match {
       case IndexType.Unique => (UniqueIndexColumnQualifier, row)
