@@ -82,9 +82,11 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def get(row: ByteArray, families: Seq[String]): Seq[ColumnFamily] = {
-    val f = if (families.isEmpty) columnFamilies else families
-    f.map { family => ColumnFamily(family, get(row, family)) }.filter(!_.columns.isEmpty)
+  override def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Seq[ColumnFamily] = {
+    if (families.isEmpty)
+      columnFamilies.map { family => ColumnFamily(family, get(row, family)) }.filter(!_.columns.isEmpty)
+    else
+      families.map { case (family, columns) => ColumnFamily(family, get(row, family, columns: _*)) }.filter(!_.columns.isEmpty)
   }
 
   /**
@@ -106,7 +108,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     getColumns(slice)
   }
 
-  override def getBatch(rows: Seq[ByteArray], families: Seq[String]): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], families: Seq[(String, Seq[ByteArray])]): Seq[Row] = {
     rows.map { row =>
       val result = get(row, families)
       Row(row, result)

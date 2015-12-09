@@ -51,7 +51,8 @@ trait BigTable extends AutoCloseable {
   }
 
   /**
-   * Update a value.
+   * Update a value. With it, one may use the syntactic sugar
+   * table(row, family, column) = value
    */
   def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
     put(row, family, column, value)
@@ -65,19 +66,21 @@ trait BigTable extends AutoCloseable {
   /**
    * Get all columns in one or more column families. If families is empty, get all column families.
    */
-  def get(row: ByteArray, families: Seq[String] = Seq()): Seq[ColumnFamily]
+  def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
   /**
    * Get multiple rows for given columns. If columns is empty, get all columns of the column family.
    * The implementation may or may not optimize the batch operations.
+   * In particular, Accumulo does optimize it.
    */
   def getBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Seq[Row]
 
   /**
    * Get multiple rows for given column families. If families is empty, get all column families.
    * The implementation may or may not optimize the batch operations.
+   * In particular, Accumulo does optimize it.
    */
-  def getBatch(rows: Seq[ByteArray], families: Seq[String] = Seq()): Seq[Row]
+  def getBatch(rows: Seq[ByteArray], families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[Row]
 
   /**
    * Upsert a value.
@@ -97,6 +100,7 @@ trait BigTable extends AutoCloseable {
   /**
    * Update the values of one or more rows.
    * The implementation may or may not optimize the batch operations.
+   * In particular, Accumulo does optimize it.
    */
   def putBatch(rows: Row*): Unit
 
@@ -108,19 +112,21 @@ trait BigTable extends AutoCloseable {
   /**
    * Delete the columns of a row. If families is empty, delete the whole row.
    */
-  def delete(row: ByteArray, families: Seq[String] = Seq()): Unit
+  def delete(row: ByteArray, families: Seq[String] = Seq.empty): Unit
 
   /**
    * Delete multiple rows.
    * The implementation may or may not optimize the batch operations.
+   * In particular, Accumulo does optimize it.
    */
   def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit
 
   /**
    * Delete multiple rows.
    * The implementation may or may not optimize the batch operations.
+   * In particular, Accumulo does optimize it.
    */
-  def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq()): Unit
+  def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq.empty): Unit
 }
 
 /** Row scan iterator */
@@ -183,7 +189,7 @@ trait RowScan extends ScanBase {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq()): RowScanner
+  def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq.empty): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
@@ -195,7 +201,7 @@ trait RowScan extends ScanBase {
   /**
    * Scan the whole table.
    */
-  def scanAll(families: Seq[String] = Seq()): RowScanner = {
+  def scanAll(families: Seq[String] = Seq.empty): RowScanner = {
     scan(startRowKey, endRowKey, families)
   }
 
@@ -209,7 +215,7 @@ trait RowScan extends ScanBase {
   /**
    * Scan the rows whose key starts with the given prefix.
    */
-  def scanPrefix(prefix: ByteArray, families: Seq[String] = Seq()): RowScanner = {
+  def scanPrefix(prefix: ByteArray, families: Seq[String] = Seq.empty): RowScanner = {
     scan(prefix, nextRowKeyForPrefix(prefix), families)
   }
 
@@ -257,7 +263,7 @@ trait FilterScan extends ScanBase {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq()): RowScanner
+  def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq.empty): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
@@ -270,7 +276,7 @@ trait FilterScan extends ScanBase {
   /**
    * Scan the whole table.
    */
-  def filterScanAll(filter: ScanFilter.Expression, families: Seq[String] = Seq()): RowScanner = {
+  def filterScanAll(filter: ScanFilter.Expression, families: Seq[String] = Seq.empty): RowScanner = {
     filterScan(filter, startRowKey, endRowKey, families)
   }
 
@@ -284,7 +290,7 @@ trait FilterScan extends ScanBase {
   /**
    * Scan the rows whose key starts with the given prefix.
    */
-  def filterScanPrefix(filter: ScanFilter.Expression, prefix: ByteArray, families: Seq[String] = Seq()): RowScanner = {
+  def filterScanPrefix(filter: ScanFilter.Expression, prefix: ByteArray, families: Seq[String] = Seq.empty): RowScanner = {
     filterScan(filter, prefix, nextRowKeyForPrefix(prefix), families)
   }
 

@@ -60,7 +60,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
 
   override def getAuthorizations: Seq[String] = {
     if (authorizations.isDefined) authorizations.get.getLabels
-    else Seq()
+    else Seq.empty
   }
 
   override def apply(row: ByteArray, family: String, column: ByteArray): Option[ByteArray] = {
@@ -69,27 +69,31 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     Option(table.get(get).getValue(family, column)).map(ByteArray(_))
   }
 
-  override def get(row: ByteArray, families: Seq[String]): Seq[ColumnFamily] = {
+  private def getColumns(get: Get, family: String, columns: Seq[ByteArray]): Unit = {
+    if (columns.isEmpty)
+      get.addFamily(family)
+    else
+      columns.foreach { column => get.addColumn(family, column) }
+  }
+
+  override def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Seq[ColumnFamily] = {
     val get = newGet(row)
-    families.foreach { family => get.addFamily(family) }
+    families.foreach { case (family, columns) => getColumns(get, family, columns) }
     HBaseTable.getRow(table.get(get)).families
   }
 
   override def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
     val get = newGet(row)
-    if (columns.isEmpty)
-      get.addFamily(family)
-    else
-      columns.foreach { column => get.addColumn(family, column) }
+    getColumns(get, family, columns)
 
     val result = HBaseTable.getRow(table.get(get))
-    if (result.families.isEmpty) Seq() else result.families.head.columns
+    if (result.families.isEmpty) Seq.empty else result.families.head.columns
   }
 
-  override def getBatch(rows: Seq[ByteArray], families: Seq[String]): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], families: Seq[(String, Seq[ByteArray])]): Seq[Row] = {
     val gets = rows.map { row =>
       val get = newGet(row)
-      families.foreach { family => get.addFamily(family) }
+      families.foreach { case (family, columns) => getColumns(get, family, columns) }
       get
     }
 
@@ -330,7 +334,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
 object HBaseTable {
   def getRow(result: Result): Row = {
     val valueMap = result.getMap
-    if (valueMap == null) return Row(result.getRow, Seq())
+    if (valueMap == null) return Row(result.getRow, Seq.empty)
 
     val families = valueMap.map { case (family, columns) =>
       val values = columns.flatMap { case (column, ver) =>

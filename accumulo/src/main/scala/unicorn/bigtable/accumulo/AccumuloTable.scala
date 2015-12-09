@@ -65,33 +65,37 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     else None
   }
 
-  override def get(row: ByteArray, families: Seq[String]): Seq[ColumnFamily] = {
+  private def getColumns(scanner: ScannerBase, family: String, columns: Seq[ByteArray]): Unit = {
+    val familyText = new Text(family)
+    if (columns.isEmpty)
+      scanner.fetchColumnFamily(familyText)
+    else
+      columns.foreach { column => scanner.fetchColumn(familyText, new Text(column)) }
+  }
+
+  override def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Seq[ColumnFamily] = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(row)))
-    families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
+    families.foreach { case (family, columns) => getColumns(scanner, family, columns) }
     val rowScanner = new AccumuloRowScanner(scanner)
-    if (rowScanner.hasNext) rowScanner.next.families else Seq()
+    if (rowScanner.hasNext) rowScanner.next.families else Seq.empty
   }
 
   override def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
     val scanner = newScanner
     scanner.setRange(new Range(new Text(row)))
-
-    if (columns.isEmpty)
-      scanner.fetchColumnFamily(new Text(family))
-    else
-      columns.foreach { column => scanner.fetchColumn(new Text(family), new Text(column)) }
+    getColumns(scanner, family, columns)
 
     scanner.map { cell =>
       Column(cell.getKey.getColumnQualifier.copyBytes, cell.getValue.get, cell.getKey.getTimestamp)
     }.toSeq
   }
 
-  override def getBatch(rows: Seq[ByteArray], families: Seq[String] = Seq()): Seq[Row] = {
+  override def getBatch(rows: Seq[ByteArray], families: Seq[(String, Seq[ByteArray])]): Seq[Row] = {
     val scanner = newBatchScanner(numBatchThreads(rows))
     val ranges = rows.map { row => new Range(new Text(row)) }
     scanner.setRanges(ranges)
-    families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
+    families.foreach { case (family, columns) => getColumns(scanner, family, columns) }
     val rowScanner = new AccumuloRowScanner(scanner)
     rowScanner.toSeq
   }
@@ -218,7 +222,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     deleter.delete
   }
 
-  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq()): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
     val deleter = newBatchDeleter(numBatchThreads(rows))
     val ranges = rows.flatMap { row =>
       if (families.isEmpty)
