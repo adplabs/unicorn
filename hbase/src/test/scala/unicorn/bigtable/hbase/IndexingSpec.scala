@@ -67,7 +67,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable("v2", "index", "row1").isDefined === true
 
       table.delete("row1", "cf1", "c1")
-      //indexTable("v2", "index", "row1").isDefined === false
+      indexTable("v2", "index", "row1").isDefined === false
 
       table.dropIndex(index.name)
 
@@ -90,7 +90,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable("v3v2", "index", "row1").isDefined === true
 
       table.delete("row1", "cf1", "c1")
-      //indexTable("v2", "index", "row1").isDefined === false
+      indexTable("v3v2", "index", "row1").isDefined === false
 
       table.dropIndex(index.name)
 
@@ -109,7 +109,8 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable.get("rock", "index").size === 1
 
       table.delete("row1", "cf1", "c1")
-      //indexTable("v2", "index", "row1").isDefined === false
+      indexTable.get("adp", "index").size === 1
+      indexTable.get("payrol", "index").size === 0
 
       table.dropIndex(index.name)
 
@@ -131,7 +132,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable(md5("v3v2"), "index", "row1").isDefined === true
 
       table.delete("row1", "cf1", "c1")
-      //indexTable("v2", "index", "row1").isDefined === false
+      indexTable(md5("v3v2"), "index", "row1").isDefined  === false
 
       table.dropIndex(index.name)
 

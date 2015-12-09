@@ -181,7 +181,41 @@ trait Indexing extends BigTable with RowScan with Counter {
   /**
    * Upsert values.
    */
-  //def put(row: ByteArray, families: ColumnFamily*): Unit
+  /*
+  abstract override def put(row: ByteArray, families: ColumnFamily*): Unit = {
+    val qualifiers = columns.map(_.qualifier)
+
+    val coveredColumns = builders.flatMap { builder =>
+      if (builder.index.family == family) {
+        builder.index.findCoveredColumns(family, qualifiers: _*)
+      } else Seq.empty
+    }.distinct
+
+    if (coveredColumns.isEmpty) {
+      super.put(row, families: _*)
+    } else {
+      val values = get(row, family, coveredColumns: _*)
+      val oldValue = RowMap(family, values: _*)
+      val newValue = RowMap(family, values: _*)
+
+      super.put(row, families: _*)
+
+      // TODO to use the same timestamp as the base cell, we need to read it back.
+      // HBase support key only read by filter.
+      columns.foreach { column =>
+        newValue(family)(column.qualifier) = column
+      }
+
+      builders.foreach { builder =>
+        if (builder.index.cover(family, qualifiers: _*)) {
+          builder.deleteIndex(row, oldValue)
+          builder.insertIndex(row, newValue)
+        }
+      }
+    }
+  }
+  */
+
 
   /**
    * Update the values of one or more rows.
@@ -192,7 +226,29 @@ trait Indexing extends BigTable with RowScan with Counter {
   /**
    * Delete the columns of a row. If columns is empty, delete all columns in the family.
    */
-  //def delete(row: ByteArray, family: String, columns: ByteArray*): Unit
+  abstract override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
+
+    val coveredColumns = builders.flatMap { builder =>
+      if (builder.index.family == family) {
+        builder.index.findCoveredColumns(family, columns: _*)
+      } else Seq.empty
+    }.distinct
+
+    if (coveredColumns.isEmpty) {
+      super.delete(row, family, columns: _*)
+    } else {
+      val values = get(row, family, coveredColumns: _*)
+      val rowMap = RowMap(family, values: _*)
+
+      super.delete(row, family, columns: _*)
+
+      builders.foreach { builder =>
+        if (builder.index.cover(family, columns: _*)) {
+          builder.deleteIndex(row, rowMap)
+        }
+      }
+    }
+  }
 
   /**
    * Delete the columns of a row. If families is empty, delete the whole row.
