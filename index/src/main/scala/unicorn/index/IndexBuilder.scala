@@ -36,7 +36,7 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
   def insertIndex(row: ByteArray, map: RowMap): Unit = {
     val cells = codec(row, map)
     cells.foreach { cell =>
-      println(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
+      //println("Index entry: ", cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
       indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
     }
   }
@@ -51,14 +51,13 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
 
 object RowMap {
   def apply(families: ColumnFamily*): RowMap = {
-    families.map { family =>
-      val columns = collection.mutable.Map(family.columns.map { column => (ByteArray(column.qualifier), column) }: _*)
-      (family.family, columns)
-    }.toMap
+    collection.mutable.Map(families.map { case ColumnFamily(family, columns) =>
+      (family, collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
+    }: _*)
   }
 
   def apply(family: String, columns: Column*): RowMap = {
-    Map(family -> collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
+    collection.mutable.Map(family -> collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
   }
 
   def apply(row: Row): RowMap = {

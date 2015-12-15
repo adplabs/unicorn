@@ -166,7 +166,7 @@ trait Indexing extends BigTable with RowScan with Counter {
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase supports key only read by filter.
       columns.foreach { column =>
-        newValue(family)(column.qualifier) = column
+        newValue.getOrElseUpdate(family, collection.mutable.Map.empty)(column.qualifier) = column
       }
 
       builders.foreach { builder =>
@@ -181,47 +181,55 @@ trait Indexing extends BigTable with RowScan with Counter {
   /**
    * Upsert values.
    */
-  /*
   abstract override def put(row: ByteArray, families: ColumnFamily*): Unit = {
-    val qualifiers = columns.map(_.qualifier)
-
-    val coveredColumns = builders.flatMap { builder =>
-      if (builder.index.family == family) {
-        builder.index.findCoveredColumns(family, qualifiers: _*)
-      } else Seq.empty
-    }.distinct
+    val coveredColumns = families.map { case ColumnFamily(family, columns) =>
+      val qualifiers = columns.map(_.qualifier)
+      val c = builders.flatMap { builder =>
+        if (builder.index.family == family) {
+          builder.index.findCoveredColumns(family, qualifiers: _*)
+        } else Seq.empty
+      }.distinct
+      (family, c)
+    }
 
     if (coveredColumns.isEmpty) {
       super.put(row, families: _*)
     } else {
-      val values = get(row, family, coveredColumns: _*)
-      val oldValue = RowMap(family, values: _*)
-      val newValue = RowMap(family, values: _*)
+      val values = get(row, coveredColumns)
+      val oldValue = RowMap(values: _*)
+      val newValue = RowMap(values: _*)
 
       super.put(row, families: _*)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase supports key only read by filter.
-      columns.foreach { column =>
-        newValue(family)(column.qualifier) = column
+      families.foreach { case ColumnFamily(family, columns) =>
+        columns.foreach { column =>
+          newValue.getOrElseUpdate(family, collection.mutable.Map.empty)(column.qualifier) = column
+        }
       }
 
-      builders.foreach { builder =>
-        if (builder.index.cover(family, qualifiers: _*)) {
-          builder.deleteIndex(row, oldValue)
-          builder.insertIndex(row, newValue)
+      families.foreach { case ColumnFamily(family, columns) =>
+        val qualifiers = columns.map(_.qualifier)
+        builders.foreach { builder =>
+          if (builder.index.cover(family, qualifiers: _*)) {
+            builder.deleteIndex(row, oldValue)
+            builder.insertIndex(row, newValue)
+          }
         }
       }
     }
   }
-  */
-
 
   /**
    * Update the values of one or more rows.
    * The implementation may or may not optimize the batch operations.
    */
-  //def putBatch(rows: Row*): Unit
+  abstract override def putBatch(rows: Row*): Unit = {
+    rows.foreach { case Row(row, families) =>
+      put(row, families: _*)
+    }
+  }
 
   /**
    * Delete the columns of a row. If columns is empty, delete all columns in the family.
@@ -229,7 +237,8 @@ trait Indexing extends BigTable with RowScan with Counter {
   abstract override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
     val coveredColumns = builders.flatMap { builder =>
       if (builder.index.family == family) {
-        builder.index.findCoveredColumns(family, columns: _*)
+        if (columns.isEmpty) builder.index.coveredColumns
+        else builder.index.findCoveredColumns(family, columns: _*)
       } else Seq.empty
     }.distinct
 
@@ -242,8 +251,10 @@ trait Indexing extends BigTable with RowScan with Counter {
       super.delete(row, family, columns: _*)
 
       builders.foreach { builder =>
-        if (builder.index.cover(family, columns: _*)) {
-          builder.deleteIndex(row, rowMap)
+        if (builder.index.family == family) {
+          if (columns.isEmpty || builder.index.cover(family, columns: _*)) {
+            builder.deleteIndex(row, rowMap)
+          }
         }
       }
     }
@@ -265,14 +276,16 @@ trait Indexing extends BigTable with RowScan with Counter {
     if (coveredColumns.isEmpty) {
       super.delete(row, families)
     } else {
-      val values = get(row, families)
-      val rowMap = RowMap(family, values: _*)
+      val values = get(row, coveredColumns)
+      val rowMap = RowMap(values: _*)
 
-      super.delete(row, family, columns: _*)
+      super.delete(row, families)
 
-      builders.foreach { builder =>
-        if (builder.index.cover(family, columns: _*)) {
-          builder.deleteIndex(row, rowMap)
+      families.map { family =>
+        builders.foreach { builder =>
+          if (builder.index.family == family) {
+            builder.deleteIndex(row, rowMap)
+          }
         }
       }
     }
@@ -280,13 +293,21 @@ trait Indexing extends BigTable with RowScan with Counter {
 
   /**
    * Delete multiple rows.
-   * The implementation may or may not optimize the batch operations.
+   * The implementation currently doesn't optimize the batch operations.
    */
-  //def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit
+  abstract override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
+    rows.foreach { row =>
+      delete(row, family, columns: _*)
+    }
+  }
 
   /**
    * Delete multiple rows.
-   * The implementation may or may not optimize the batch operations.
+   * The implementation currently doesn't optimize the batch operations.
    */
-  //def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq()): Unit
+  abstract override def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq.empty): Unit = {
+    rows.foreach { row =>
+      delete(row, families)
+    }
+  }
 }
