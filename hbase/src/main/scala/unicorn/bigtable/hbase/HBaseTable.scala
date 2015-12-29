@@ -112,10 +112,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   override def getBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Seq[Row] = {
     val gets = rows.map { row =>
       val get = newGet(row)
-      if (columns.isEmpty)
-        get.addFamily(family)
-      else
-        columns.foreach { column => get.addColumn(family, column) }
+      getColumns(get, family, columns)
       get
     }
 
@@ -146,10 +143,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
 
   override def scan(startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
     val scan = newScan(startRow, stopRow)
-    if (columns.isEmpty)
-      scan.addFamily(family)
-    else
-      columns.foreach { column => scan.addColumn(family, column) }
+    scanColumns(scan, family, columns)
     new HBaseRowScanner(table.getScanner(scan))
   }
 
@@ -163,10 +157,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
     val scan = newScan(startRow, stopRow)
     scan.setFilter(hbaseFilter(filter))
-    if (columns.isEmpty)
-      scan.addFamily(family)
-    else
-      columns.foreach { column => scan.addColumn(family, column) }
+    scanColumns(scan, family, columns)
     new HBaseRowScanner(table.getScanner(scan))
   }
 

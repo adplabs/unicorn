@@ -16,10 +16,12 @@
 
 package unicorn.core
 
+import unicorn.bigtable.BigTable
+
 /**
  * @author Haifeng Li
  */
-class UnicornDB(db: unicorn.bigtable.Database) {
+class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
   val DefaultDocumentColumnFamily = "doc"
 
   /**

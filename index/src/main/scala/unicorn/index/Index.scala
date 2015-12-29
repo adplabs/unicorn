@@ -112,10 +112,12 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = IndexSort
  * of index table. Only the leading columns of row key can be used for
  * index scan in case that partial index columns are used in query.
  * The index row key may have (stackable) prefix (e.g. tenant id).
+ * An index is used in the search only it requires Get operations
+ * less than a given threshold (100 by defult).
  *
  * @author Haifeng Li
  */
-case class Index(name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default, prefix: Seq[IndexRowKeyPrefix] = Seq.empty) {
+case class Index(name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default, prefix: Seq[IndexRowKeyPrefix] = Seq.empty, getThreshold: Int = 100) {
   require(columns.size > 0)
 
   val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
@@ -160,7 +162,8 @@ case class Index(name: String, family: String, columns: Seq[IndexColumn], indexT
         )
       },
       "indexType" -> indexType.toString,
-      "prefix" -> prefix.map(_.toString)
+      "prefix" -> prefix.map(_.toString),
+      "getThreshold" -> getThreshold
     )
   }
 }
@@ -189,6 +192,8 @@ object Index {
       case _ => throw new IllegalArgumentException("Unsupported index prefix")
     }).toSeq
 
-    new Index(name, family, columns, IndexType.withName(indexType), prefix)
+    val getThreshold: Int = js.getThreshold
+
+    new Index(name, family, columns, IndexType.withName(indexType), prefix, getThreshold)
   }
 }

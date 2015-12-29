@@ -114,11 +114,17 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     rowScanner.toSeq
   }
 
-  override def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String]): RowScanner = {
+  override def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])]): RowScanner = {
     val scanner = newScanner
     // from startRow inclusive to endRow exclusive.
     scanner.setRange(new Range(rowKey(startRow), true, rowKey(stopRow), false))
-    families.foreach { family => scanner.fetchColumnFamily(new Text(family)) }
+    families.foreach { case (family, columns) =>
+      if (columns.isEmpty)
+        scanner.fetchColumnFamily(new Text(family))
+      else
+        columns.foreach { column => scanner.fetchColumn(new Text(family), new Text(column)) }
+    }
+
     new AccumuloRowScanner(scanner)
   }
 
