@@ -310,4 +310,10 @@ trait Indexing extends BigTable with RowScan with Counter {
       delete(row, families)
     }
   }
+
+  abstract override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])]): RowScanner = {
+  }
+
+  abstract override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
+  }
 }

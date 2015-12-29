@@ -16,6 +16,8 @@
 
 package unicorn.bigtable.hbase
 
+import java.util.Date
+
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
@@ -31,7 +33,7 @@ import unicorn.util._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
   val self = this
@@ -76,6 +78,13 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
       columns.foreach { column => get.addColumn(family, column) }
   }
 
+  private def scanColumns(scan: Scan, family: String, columns: Seq[ByteArray]): Unit = {
+    if (columns.isEmpty)
+      scan.addFamily(family)
+    else
+      columns.foreach { column => scan.addColumn(family, column) }
+  }
+
   override def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Seq[ColumnFamily] = {
     val get = newGet(row)
     families.foreach { case (family, columns) => getColumns(get, family, columns) }
@@ -113,9 +122,25 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String]): RowScanner = {
+  override def get(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
+    val get = newGet(row)
+    get.setTimeRange(0, asOfDate.getTime)
+    getColumns(get, family, columns)
+
+    val result = HBaseTable.getRow(table.get(get))
+    if (result.families.isEmpty) Seq.empty else result.families.head.columns
+  }
+
+  override def get(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily] = {
+    val get = newGet(row)
+    get.setTimeRange(0, asOfDate.getTime)
+    families.foreach { case (family, columns) => getColumns(get, family, columns) }
+    HBaseTable.getRow(table.get(get)).families
+  }
+
+  override def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])]): RowScanner = {
     val scan = newScan(startRow, stopRow)
-    families.foreach { family => scan.addFamily(family) }
+    families.foreach { case (family, columns) => scanColumns(scan, family, columns) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
@@ -128,10 +153,10 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     new HBaseRowScanner(table.getScanner(scan))
   }
 
-  override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[String]): RowScanner = {
+  override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])]): RowScanner = {
     val scan = newScan(startRow, stopRow)
     scan.setFilter(hbaseFilter(filter))
-    families.foreach { family => scan.addFamily(family) }
+    families.foreach { case (family, columns) => scanColumns(scan, family, columns) }
     new HBaseRowScanner(table.getScanner(scan))
   }
 
@@ -143,6 +168,23 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     else
       columns.foreach { column => scan.addColumn(family, column) }
     new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  override def filterGet(filter: ScanFilter.Expression, row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Option[Seq[ColumnFamily]] = {
+    val get = newGet(row)
+    get.setFilter(hbaseFilter(filter))
+    families.foreach { case (family, columns) => getColumns(get, family, columns) }
+    val result = HBaseTable.getRow(table.get(get)).families
+    if (result.isEmpty) None else Some(result)
+  }
+
+  override def filterGet(filter: ScanFilter.Expression, row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]] = {
+    val get = newGet(row)
+    get.setFilter(hbaseFilter(filter))
+    getColumns(get, family, columns)
+
+    val result = HBaseTable.getRow(table.get(get))
+    if (result.families.isEmpty) None else Some(result.families.head.columns)
   }
 
   private def hbaseFilter(filter: ScanFilter.Expression): org.apache.hadoop.hbase.filter.Filter = filter match {

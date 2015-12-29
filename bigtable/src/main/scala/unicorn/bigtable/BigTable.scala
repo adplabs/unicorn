@@ -16,6 +16,7 @@
 
 package unicorn.bigtable
 
+import java.util.Date
 import unicorn.util._
 
 /** Key of Cell */
@@ -129,6 +130,19 @@ trait BigTable extends AutoCloseable {
   def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq.empty): Unit
 }
 
+trait TimeTravel {
+  /**
+   * Get one or more columns of a column family. If columns is empty, get all columns in the column family.
+   */
+  def get(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
+
+  /**
+   * Get all columns in one or more column families. If families is empty, get all column families.
+   */
+  def get(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
+
+}
+
 /** Row scan iterator */
 trait RowScanner extends Iterator[Row] {
   def close: Unit
@@ -189,7 +203,7 @@ trait RowScan extends ScanBase {
    * @param startRow row to start scanner at or after (inclusive)
    * @param stopRow row to stop scanner before (exclusive)
    */
-  def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq.empty): RowScanner
+  def scan(startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
@@ -201,7 +215,7 @@ trait RowScan extends ScanBase {
   /**
    * Scan the whole table.
    */
-  def scanAll(families: Seq[String] = Seq.empty): RowScanner = {
+  def scanAll(families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner = {
     scan(startRowKey, endRowKey, families)
   }
 
@@ -215,7 +229,7 @@ trait RowScan extends ScanBase {
   /**
    * Scan the rows whose key starts with the given prefix.
    */
-  def scanPrefix(prefix: ByteArray, families: Seq[String] = Seq.empty): RowScanner = {
+  def scanPrefix(prefix: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner = {
     scan(prefix, nextRowKeyForPrefix(prefix), families)
   }
 
@@ -263,7 +277,7 @@ trait FilterScan extends ScanBase {
    * @param stopRow row to stop scanner before (exclusive)
    * @param filter filter expression
    */
-  def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[String] = Seq.empty): RowScanner
+  def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner
 
   /**
    * Scan one or more columns. If columns is empty, get all columns in the column family.
@@ -274,9 +288,21 @@ trait FilterScan extends ScanBase {
   def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner
 
   /**
+   * Get the range for all columns in one or more column families. If families is empty, get all column families.
+   * @param filter filter expression
+   */
+  def filterGet(filter: ScanFilter.Expression, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Option[Seq[ColumnFamily]]
+
+  /**
+   * Get one or more columns. If columns is empty, get all columns in the column family.
+   * @param filter filter expression
+   */
+  def filterGet(filter: ScanFilter.Expression, row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]]
+
+  /**
    * Scan the whole table.
    */
-  def filterScanAll(filter: ScanFilter.Expression, families: Seq[String] = Seq.empty): RowScanner = {
+  def filterScanAll(filter: ScanFilter.Expression, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner = {
     filterScan(filter, startRowKey, endRowKey, families)
   }
 
@@ -290,7 +316,7 @@ trait FilterScan extends ScanBase {
   /**
    * Scan the rows whose key starts with the given prefix.
    */
-  def filterScanPrefix(filter: ScanFilter.Expression, prefix: ByteArray, families: Seq[String] = Seq.empty): RowScanner = {
+  def filterScanPrefix(filter: ScanFilter.Expression, prefix: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner = {
     filterScan(filter, prefix, nextRowKeyForPrefix(prefix), families)
   }
 

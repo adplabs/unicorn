@@ -22,14 +22,9 @@ import com.typesafe.config.ConfigFactory
  * @author Haifeng Li
  */
 object Config {
-  // a util function, returns development or production or local
-  // environment can be passed as jvm args and read from System properties
-  def deployEnvironment =
-    System.getProperty("unicorn.env", "local")
 
   def config = {
     val configNamespace = "unicorn"
-    val mergedCfg = ConfigFactory.load().getConfig(configNamespace)
-    mergedCfg.getConfig(deployEnvironment)
+    ConfigFactory.load().getConfig(configNamespace)
   }
 }

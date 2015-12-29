@@ -38,6 +38,7 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
     cells.foreach { cell =>
       //println("Index entry: ", cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
       indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
+      indexTable.addCounter(cell.row, IndexStatColumnFamily, IndexTableStatColumnCount, 1)
     }
   }
 
@@ -45,6 +46,7 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
     val cells = codec(row, map)
     cells.foreach { cell =>
       indexTable.delete(cell.row, cell.family, cell.qualifier)
+      indexTable.addCounter(cell.row, IndexStatColumnFamily, IndexTableStatColumnCount, -1)
     }
   }
 }
