@@ -134,12 +134,12 @@ trait TimeTravel {
   /**
    * Get one or more columns of a column family. If columns is empty, get all columns in the column family.
    */
-  def get(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
+  def getAsOf(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
 
   /**
    * Get all columns in one or more column families. If families is empty, get all column families.
    */
-  def get(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
+  def getAsOf(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
 }
 

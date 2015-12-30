@@ -29,7 +29,7 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-trait Indexing extends BigTable with RowScan with Counter {
+trait Indexing extends BigTable with RowScan with FilterScan with Counter {
   val db: Database[IndexableTable]
 
   var builders = getIndexBuilders
@@ -312,8 +312,10 @@ trait Indexing extends BigTable with RowScan with Counter {
   }
 
   abstract override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])]): RowScanner = {
+    super.filterScan(filter, startRow, stopRow, families)
   }
 
   abstract override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {
+    super.filterScan(filter, startRow, stopRow, family, columns: _*)
   }
 }

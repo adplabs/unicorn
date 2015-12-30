@@ -36,7 +36,6 @@ import unicorn.util._
 class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
-  val self = this
 
   override def close(): Unit = table.close
 
@@ -119,7 +118,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     HBaseTable.getRows(table.get(gets))
   }
 
-  override def get(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
+  override def getAsOf(asOfDate: Date, row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
     val get = newGet(row)
     get.setTimeRange(0, asOfDate.getTime)
     getColumns(get, family, columns)
@@ -128,7 +127,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     if (result.families.isEmpty) Seq.empty else result.families.head.columns
   }
 
-  override def get(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily] = {
+  override def getAsOf(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily] = {
     val get = newGet(row)
     get.setTimeRange(0, asOfDate.getTime)
     families.foreach { case (family, columns) => getColumns(get, family, columns) }

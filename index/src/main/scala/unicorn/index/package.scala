@@ -16,14 +16,14 @@
 
 package unicorn
 
-import unicorn.bigtable.{Column, Counter, RowScan, BigTable}
+import unicorn.bigtable._
 import unicorn.util._
 
 /**
  * @author Haifeng Li
  */
 package object index {
-  type IndexableTable = BigTable with RowScan with Counter
+  type IndexableTable = BigTable with RowScan with FilterScan with Counter
   type RowMap = collection.mutable.Map[String, collection.mutable.Map[ByteArray, Column]]
 
   private[index] val IndexMetaTableName = "unicorn.meta.index"
