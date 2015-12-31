@@ -48,10 +48,12 @@ class Bucket(table: BigTable, meta: JsObject) {
     map
   }
 
+  /** Get a document. */
   def apply(id: String): Document = {
     apply(id.getBytes(utf8))
   }
 
+  /** Get a document. */
   def apply(id: Array[Byte]): Document = {
     val objects = table.get(id, families).map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
@@ -69,6 +71,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     new Document(id, doc)
   }
 
+  /** Upsert a document. If a document with same key exists, it will overwritten. */
   def upsert(doc: Document): Unit = {
     val groups = doc.value.fields.toSeq.groupBy { case (field, value) => locality(field) }
 
@@ -81,25 +84,31 @@ class Bucket(table: BigTable, meta: JsObject) {
     table.put(doc.key, families: _*)
   }
 
-  def upsert(json: JsObject): Document = {
+  /** Insert a document. Automatically generate a random UUID. */
+  def insert(json: JsObject): Document = {
     val doc = Document(json)
     upsert(doc)
     doc
   }
 
+  /** Remove a document. */
   def remove(key: String): Unit = {
     remove(key.getBytes(utf8))
   }
 
+  /** Remove a document. */
   def remove(key: Array[Byte]): Unit = {
     table.delete(key, families)
   }
 
+  /** Update a document. */
   def update(doc: Document): Unit = {
-
+    remove(doc.key)
+    upsert(doc)
   }
 }
 
+/** If a bucket is append only, remove and update operations will throw exceptions. */
 trait AppendOnly {
   def remove(key: Array[Byte]): Unit = {
     throw new UnsupportedOperationException
