@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.core
+package unicorn.unibase
 
 import unicorn.bigtable.{Column, BigTable}
 import unicorn.json._

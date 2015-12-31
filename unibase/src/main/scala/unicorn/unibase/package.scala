@@ -19,7 +19,7 @@ package unicorn
 /**
  * @author Haifeng Li
  */
-package object core {
+package object unibase {
   private[core] val BucketMetaTableName = "unicorn.meta.bucket"
   private[core] val BucketMetaTableColumnFamily = "meta"
 

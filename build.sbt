@@ -9,7 +9,7 @@ lazy val commonSettings = Seq(
   scalacOptions in Test ++= Seq("-Yrangepos")
 )
 
-lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, core, shell, graph, search, rhino)
+lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, shell, graph, search, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -23,7 +23,7 @@ lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsO
 
 lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util)
 
-lazy val core = project.in(file("core")).settings(commonSettings: _*).dependsOn(json, bigtable)
+lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, bigtable)
 
 lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable, index)
 
@@ -31,11 +31,11 @@ lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).de
 
 lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
-lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(core)
+lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase)
 
-lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(core)
+lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(commonSettings: _*).dependsOn(core, graph, search, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(commonSettings: _*).dependsOn(unibase, graph, search, hbase, cassandra, accumulo)
 
-lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(core, graph, search, cassandra)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(unibase, graph, search, cassandra)
 
