@@ -19,32 +19,33 @@ package unicorn.core
 import java.nio._
 import java.util.UUID
 import unicorn.json._
+import unicorn.util.{ByteArray, utf8}
 
 /**
  * A document is a JSON value with a unique key.
  * 
  * @author Haifeng Li
  */
-case class Document(val key: Array[Byte], value: JsValue)
+case class Document(val key: ByteArray, value: JsObject)
 
 object Document {
-  def apply(json: JsValue): Document = apply(UUID.randomUUID, json)
+  def apply(json: JsObject): Document = apply(UUID.randomUUID, json)
 
-  def apply(key: String, json: JsValue): Document = new Document(key.getBytes("UTF-8"), json)
+  def apply(key: String, json: JsObject): Document = new Document(key.getBytes(utf8), json)
 
-  def apply(key: Int, json: JsValue): Document = {
+  def apply(key: Int, json: JsObject): Document = {
     val buffer = new Array[Byte](4)
     ByteBuffer.wrap(buffer).putInt(key)
     new Document(buffer, json)
   }
 
-  def apply(key: Long, json: JsValue): Document = {
+  def apply(key: Long, json: JsObject): Document = {
     val buffer = new Array[Byte](8)
     ByteBuffer.wrap(buffer).putLong(key)
     new Document(buffer, json)
   }
 
-  def apply(key: UUID, json: JsValue): Document = {
+  def apply(key: UUID, json: JsObject): Document = {
     val buffer = new Array[Byte](16)
     ByteBuffer.wrap(buffer).putLong(key.getMostSignificantBits)
     ByteBuffer.wrap(buffer).putLong(key.getLeastSignificantBits)

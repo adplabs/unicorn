@@ -16,9 +16,13 @@
 
 package unicorn.core
 
-import unicorn.bigtable.BigTable
+import unicorn.bigtable.{Column, BigTable}
+import unicorn.json._
+import unicorn.util._
 
 /**
+ * A Unibase is a database of documents. A collection of documents are called bucket.
+ *
  * @author Haifeng Li
  */
 class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
@@ -27,25 +31,66 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
   /**
    * Returns a document collection.
    * @param name the name of collection/table.
-   * @param family the column family that documents resident.
    */
-  def apply(name: String, family: String = DefaultDocumentColumnFamily): DocumentCollection = {
-    new DocumentCollection(db(name), family)
+  def apply(name: String): Bucket = {
+
+    // Bucket meta data table
+    val metaTable = db(BucketMetaTableName)
+    val serializer = new ColumnarJsonSerializer
+    val map = metaTable.get(name, BucketMetaTableColumnFamily).map { case Column(qualifier, value, _) => (new String(qualifier, utf8), value.bytes) }.toMap
+    val meta = serializer.deserialize(map).asInstanceOf[JsObject]
+
+    new Bucket(db(name), meta)
   }
 
   /**
-   * Creates a document collection.
-   * @param name the name of collection.
+   * Returns a document collection.
+   * @param name the name of document bucket.
+   * @param meta the meta data of document bucket.
+   */
+  def apply(name: String, meta: JsObject): Bucket = {
+    new Bucket(db(name), meta)
+  }
+
+  /**
+   * Creates a document bucket.
+   * @param name the name of bucket.
    * @param families the column family that documents resident.
+   * @param locality a map of document fields to column families for storing of sets of fields in column families
+   *                 separately to allow clients to scan over fields that are frequently used together efficient
+   *                 and to avoid scanning over column families that are not requested.
    */
-  def createCollection(name: String, families: Seq[String] = Seq[String](DefaultDocumentColumnFamily)): Unit = {
+  def createBucket(name: String, families: Seq[String] = Seq[String](DefaultDocumentColumnFamily), locality: Map[String, String] = Map().withDefaultValue(DefaultDocumentColumnFamily)): Bucket = {
     db.createTable(name, families: _*)
+
+    // If the meta data table doesn't exist, create it.
+    if (!db.tableExists(BucketMetaTableName))
+      db.createTable(BucketMetaTableName, BucketMetaTableColumnFamily)
+
+    // Bucket meta data table
+    val metaTable = db(BucketMetaTableName)
+    val serializer = new ColumnarJsonSerializer
+    val meta = BucketMeta(families, locality)
+    val columns = serializer.serialize(meta).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+    metaTable.put(name, BucketMetaTableColumnFamily, columns: _*)
+
+    apply(name, meta)
   }
 
   /**
-   * Drops a document collection. All column families in the table will be dropped.
+   * Drops a document bucket. All column families in the table will be dropped.
    */
-  def dropCollection(name: String): Unit = {
+  def dropBucket(name: String): Unit = {
     db.dropTable(name)
+  }
+}
+
+private object BucketMeta {
+  def apply(families: Seq[String], locality: Map[String, String]): JsObject = {
+    JsObject(
+      "families" -> JsArray(families),
+      "locality" -> JsObject(locality.mapValues(JsString(_))),
+      DefaultLocalityField -> locality("") // hacking the default value of a map
+    )
   }
 }

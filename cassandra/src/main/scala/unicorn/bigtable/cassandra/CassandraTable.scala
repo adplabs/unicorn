@@ -266,47 +266,24 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  override def delete(row: ByteArray, families: Seq[String]): Unit = {
+  override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
     val key = ByteBuffer.wrap(row)
-    val f = if (families.isEmpty) columnFamilies else families
-    f.foreach { family =>
-      val path = new ColumnPath(family)
-      client.remove(key, path, System.currentTimeMillis, consistency)
-    }
-  }
 
-  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
-    rows.foreach { row =>
-      delete(row, families)
-    }
-  }
-
-  override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
-    if (columns.isEmpty) {
-      val path = new ColumnPath(family)
-      rows.foreach { row =>
-        val key = ByteBuffer.wrap(row)
+    if (families.isEmpty) {
+      columnFamilies.foreach { family =>
+        val path = new ColumnPath(family)
         client.remove(key, path, System.currentTimeMillis, consistency)
       }
     } else {
-      val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
-      rows.foreach { row =>
-      val key = ByteBuffer.wrap(row)
-        createMutationMapEntry(updates, key, family)
-
-        val predicate = new SlicePredicate
-        columns.foreach { column => predicate.addToColumn_names(ByteBuffer.wrap(column)) }
-
-        val deletion = new Deletion
-        deletion.setTimestamp(System.currentTimeMillis)
-        deletion.setPredicate(predicate)
-
-        val mutation = new Mutation
-        mutation.deletion = deletion
-        updates.get(key).get(family).add(mutation)
+      families.foreach { case (family, columns) =>
+        delete(row, family, columns: _*)
       }
+    }
+  }
 
-      client.batch_mutate(updates, consistency)
+  override def deleteBatch(rows: Seq[ByteArray]): Unit = {
+    rows.foreach { row =>
+      delete(row)
     }
   }
 

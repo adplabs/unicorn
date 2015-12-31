@@ -33,7 +33,7 @@ import unicorn.util._
  * 
  * @author Haifeng Li
  */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CheckAndPut with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
 
@@ -244,6 +244,30 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.put(puts)
   }
 
+  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Unit = {
+    val put = newPut(row)
+    columns.foreach { case Column(qualifier, value, timestamp) =>
+      if (timestamp == 0)
+        put.addColumn(family, qualifier, value)
+      else
+        put.addColumn(family, qualifier, timestamp, value)
+    }
+    table.checkAndPut(row, checkFamily, checkColumn, null, put)
+  }
+
+  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Unit = {
+    val put = newPut(row)
+    families.foreach { case ColumnFamily(family, columns) =>
+      columns.foreach { case Column(qualifier, value, timestamp) =>
+        if (timestamp == 0)
+          put.addColumn(family, qualifier, value)
+        else
+          put.addColumn(family, qualifier, timestamp, value)
+      }
+    }
+    table.checkAndPut(row, checkFamily, checkColumn, null, put)
+  }
+
   override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
     val deleter = newDelete(row)
     if (columns.isEmpty) deleter.addFamily(family)
@@ -251,31 +275,30 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.delete(deleter)
   }
 
-  override def delete(row: ByteArray, families: Seq[String]): Unit = {
-    val deleter = newDelete(row)
-    families.foreach { family => deleter.addFamily(family) }
-    table.delete(deleter)
+  override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
+    if (families.isEmpty) {
+      val deleter = newDelete(row)
+      columnFamilies.foreach { family =>
+        deleter.addFamily(family)
+      }
+      table.delete(deleter)
+    } else {
+      val deleter = newDelete(row)
+      families.foreach { case (family, columns) =>
+        if (columns.isEmpty)
+          deleter.addFamily(family)
+        else
+          columns.foreach { column => deleter.addColumn(family, column) }
+      }
+      table.delete(deleter)
+    }
   }
 
-  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
-    val deletes = rows.map { row =>
-      val deleter = newDelete(row)
-      families.foreach { family => deleter.addFamily(family)}
-      deleter
-    }
+  override def deleteBatch(rows: Seq[ByteArray]): Unit = {
+    val deletes = rows.map(newDelete(_))
     // HTable modifies the input parameter deletes.
     // Make sure we pass in a mutable collection.
     table.delete(deletes.toBuffer)
-  }
-
-  override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
-    val deletes = rows.map { row =>
-      val deleter = newDelete(row)
-      if (columns.isEmpty) deleter.addFamily(family)
-      else columns.foreach { column => deleter.addColumns(family, column) }
-      deleter
-    }
-    table.delete(deletes)
   }
 
   override def rollback(row: ByteArray, family: String, columns: ByteArray*): Unit = {

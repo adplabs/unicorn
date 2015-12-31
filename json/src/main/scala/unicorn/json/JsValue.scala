@@ -145,7 +145,7 @@ object JsDouble {
 }
 
 case class JsString(value: String) extends JsValue {
-  override def toString = value.toString
+  override def toString = value
 }
 
 object JsString {

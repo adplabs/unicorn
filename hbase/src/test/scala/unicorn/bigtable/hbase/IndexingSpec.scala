@@ -94,7 +94,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable("v3", "index", "row1").isDefined === false
       indexTable("v3v2", "index", "row1").isDefined === true
 
-      table.delete("row1", Seq("cf1", "cf2")) // delete multiple column families
+      table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
       indexTable("v3v2", "index", "row1").isDefined === false
 
       table.put("row1", ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))), ColumnFamily("cf2", Seq(Column("c3", "v3"))))
@@ -102,7 +102,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       val indexTable2 = hbase("unicorn.index." + indexName2)
       indexTable2("v3", "index", "row1").isDefined === true
 
-      table.delete("row1", Seq("cf1", "cf2")) // delete multiple column families
+      table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
       indexTable("v1v2", "index", "row1").isDefined === false
       indexTable2("v3", "index", "row1").isDefined === false
 

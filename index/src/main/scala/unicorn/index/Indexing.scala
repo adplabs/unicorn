@@ -263,28 +263,39 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
   /**
    * Delete the columns of a row. If families is empty, delete the whole row.
    */
-  abstract override def delete(row: ByteArray, families: Seq[String]): Unit = {
-    val coveredColumns = families.map { family =>
-      val columns = builders.flatMap { builder =>
-        if (builder.index.family == family) {
-          builder.index.coveredColumns
-        } else Seq.empty
-      }.distinct
-      (family, columns)
-    }.filter(!_._2.isEmpty)
+  abstract override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
+    val coveredFamilies = if (families.isEmpty) {
+      builders.map { builder => (builder.index.family, builder.index.coveredColumns.toSeq) }
+    } else {
+      families.map { case (family, columns) =>
+        val coveredColumns = builders.flatMap { builder =>
+          if (builder.index.family == family) {
+            if (columns.isEmpty) builder.index.coveredColumns
+            else builder.index.findCoveredColumns(family, columns: _*)
+          } else Seq.empty
+        }.distinct
+        (family, coveredColumns)
+      }.filter(!_._2.isEmpty)
+    }
 
-    if (coveredColumns.isEmpty) {
+    if (coveredFamilies.isEmpty) {
       super.delete(row, families)
     } else {
-      val values = get(row, coveredColumns)
+      val values = get(row, coveredFamilies)
       val rowMap = RowMap(values: _*)
 
       super.delete(row, families)
 
-      families.map { family =>
+      if (families.isEmpty) {
         builders.foreach { builder =>
-          if (builder.index.family == family) {
-            builder.deleteIndex(row, rowMap)
+          builder.deleteIndex(row, rowMap)
+        }
+      } else {
+        families.map { case (family, _) =>
+          builders.foreach { builder =>
+            if (builder.index.family == family) {
+              builder.deleteIndex(row, rowMap)
+            }
           }
         }
       }
@@ -295,19 +306,9 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
    * Delete multiple rows.
    * The implementation currently doesn't optimize the batch operations.
    */
-  abstract override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
+  abstract override def deleteBatch(rows: Seq[ByteArray]): Unit = {
     rows.foreach { row =>
-      delete(row, family, columns: _*)
-    }
-  }
-
-  /**
-   * Delete multiple rows.
-   * The implementation currently doesn't optimize the batch operations.
-   */
-  abstract override def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq.empty): Unit = {
-    rows.foreach { row =>
-      delete(row, families)
+      delete(row)
     }
   }
 

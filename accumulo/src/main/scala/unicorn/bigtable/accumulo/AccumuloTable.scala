@@ -217,37 +217,21 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     }
   }
 
-  override def delete(row: ByteArray, families: Seq[String]): Unit = {
-    val deleter = newBatchDeleter(1)
-    val ranges = if (families.isEmpty)
-      Seq(Range.exact(new Text(row)))
-    else
-      families.map { family => Range.exact(new Text(row), new Text(family)) }
-
-    deleter.setRanges(ranges)
-    deleter.delete
+  override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
+    if (families.isEmpty) {
+      columnFamilies.foreach { family =>
+        delete(row, family)
+      }
+    } else {
+      families.foreach { case (family, columns) =>
+        delete(row, family, columns: _*)
+      }
+    }
   }
 
-  override def deleteBatch(rows: Seq[ByteArray], families: Seq[String]): Unit = {
+  override def deleteBatch(rows: Seq[ByteArray]): Unit = {
     val deleter = newBatchDeleter(numBatchThreads(rows))
-    val ranges = rows.flatMap { row =>
-      if (families.isEmpty)
-        Seq(Range.exact(new Text(row)))
-      else
-        families.map { family => Range.exact(new Text(row), new Text(family)) }
-    }
-    deleter.setRanges(ranges)
-    deleter.delete
-  }
-
-  override def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit = {
-    val deleter = newBatchDeleter(numBatchThreads(rows))
-    val ranges = rows.flatMap { row =>
-      if (columns.isEmpty)
-        Seq(Range.exact(new Text(row), new Text(family)))
-      else
-        columns.map { column => Range.exact(new Text(row), new Text(family), new Text(column)) }
-    }
+    val ranges = rows.flatMap { row => Seq(Range.exact(new Text(row))) }
     deleter.setRanges(ranges)
     deleter.delete
   }

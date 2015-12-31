@@ -69,6 +69,7 @@ trait BigTable extends AutoCloseable {
    */
   def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
+
   /**
    * Get multiple rows for given columns. If columns is empty, get all columns of the column family.
    * The implementation may or may not optimize the batch operations.
@@ -113,23 +114,17 @@ trait BigTable extends AutoCloseable {
   /**
    * Delete the columns of a row. If families is empty, delete the whole row.
    */
-  def delete(row: ByteArray, families: Seq[String] = Seq.empty): Unit
+  def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Unit
 
   /**
    * Delete multiple rows.
    * The implementation may or may not optimize the batch operations.
    * In particular, Accumulo does optimize it.
    */
-  def deleteBatch(rows: Seq[ByteArray], family: String, columns: ByteArray*): Unit
-
-  /**
-   * Delete multiple rows.
-   * The implementation may or may not optimize the batch operations.
-   * In particular, Accumulo does optimize it.
-   */
-  def deleteBatch(rows: Seq[ByteArray], families: Seq[String] = Seq.empty): Unit
+  def deleteBatch(rows: Seq[ByteArray]): Unit
 }
 
+/** Get a row at a given time point. */
 trait TimeTravel {
   /**
    * Get one or more columns of a column family. If columns is empty, get all columns in the column family.
@@ -141,6 +136,19 @@ trait TimeTravel {
    */
   def getAsOf(asOfDate: Date, row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
+}
+
+/** Check and put. Put a row only if the given column doesn't exist. */
+trait CheckAndPut {
+  /**
+   * Insert values.
+   */
+  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Unit
+
+  /**
+   * Insert values.
+   */
+  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Unit
 }
 
 /** Row scan iterator */
