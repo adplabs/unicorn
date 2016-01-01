@@ -85,17 +85,17 @@ class UnibaseSpec extends Specification with BeforeAfterAll {
   "Unibase" should {
     "get the put" in {
       val bucket = db(tableName)
-      val doc = bucket.insert(json)
-      val obj = bucket(doc.key)
-      obj.get.value === doc.value
+      bucket.upsert(json)
+      val obj = bucket(json("_id"))
+      obj.get === json
 
-      bucket.delete(doc.key)
-      bucket(doc.key) === None
+      bucket.delete(json("_id"))
+      bucket(json("_id")) === None
     }
     "append only" in {
       val bucket = db.createBucket("unicorn_append_only", appendOnly = true)
       bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
-      bucket.update(Document(JsObject("a" -> JsInt(1)))) must throwA[UnsupportedOperationException]
+      bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]
       db.dropBucket("unicorn_append_only")
       1 === 1
     }

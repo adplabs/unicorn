@@ -16,8 +16,10 @@
 
 package unicorn.unibase
 
+import java.util.{Date, UUID}
 import unicorn.json._
 import unicorn.bigtable._
+import unicorn.oid.BsonObjectId
 import unicorn.util.{ByteArray, utf8}
 
 /**
@@ -48,20 +50,42 @@ class Bucket(table: BigTable, meta: JsObject) {
     map.withDefaultValue(default)
   }
 
-  /** Get a document. */
-  def apply(id: String): Option[Document] = {
-    apply(id.getBytes(utf8))
-  }
+  /** True if the bucket is append only. */
+  val appendOnly: Boolean = meta.appendOnly
 
-  /** Serialize key. */
-  private def key2Bytes(key: JsValue): Array[Byte] = {
-    keySerializer.serialize(key)("$")
+  /** Get a document. */
+  def apply(id: Int): Option[JsObject] = {
+    apply(JsLong(id))
   }
 
   /** Get a document. */
-  def apply(id: JsValue): Option[Document] = {
+  def apply(id: Long): Option[JsObject] = {
+    apply(JsLong(id))
+  }
+
+  /** Get a document. */
+  def apply(id: String): Option[JsObject] = {
+    apply(JsString(id))
+  }
+
+  /** Get a document. */
+  def apply(id: Date): Option[JsObject] = {
+    apply(JsDate(id))
+  }
+
+  /** Get a document. */
+  def apply(id: UUID): Option[JsObject] = {
+    apply(JsUUID(id))
+  }
+
+  /** Get a document. */
+  def apply(id: BsonObjectId): Option[JsObject] = {
+    apply(JsObjectId(id))
+  }
+
+  /** Get a document. */
+  def apply(id: JsValue): Option[JsObject] = {
     val data = table.get(key2Bytes(id), families)
-    if (data.isEmpty) return None
 
     val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
@@ -71,24 +95,36 @@ class Bucket(table: BigTable, meta: JsObject) {
       json.asInstanceOf[JsObject]
     }
 
-    if (objects.size == 0) None
-    else if (objects.size == 1) Some(new Document(id, objects(0)))
+    if (objects.size == 0)
+      None
+    else if (objects.size == 1)
+      Some(objects(0))
     else {
-      val one = objects.foldLeft(JsObject()) { (doc, family) =>
+      val merged = objects.foldLeft(JsObject()) { (doc, family) =>
         doc.fields ++= family.fields
         doc
       }
-      Some(new Document(id, one))
+      Some(merged)
     }
+  }
+
+  /** Serialize key. */
+  private def key2Bytes(key: JsValue): Array[Byte] = {
+    keySerializer.serialize(key)("$")
   }
 
   /**
    * Upsert a document. If a document with same key exists, it will overwritten.
-   * The field _id of document key will be inserted into the JsObject of document value.
+   * The _id field of document will be used as the primary key in bucket.
+   * If the document doesn't have _id field, a random UUID will be generated as _id.
    */
-  def upsert(doc: Document): Unit = {
-    doc.value.update("_id", doc.key)
-    val groups = doc.value.fields.toSeq.groupBy { case (field, value) => locality(field) }
+  def upsert(doc: JsObject): Unit = {
+    val id = doc("_id")
+    val key = if (id == JsUndefined || id == JsNull) {
+      doc("_id") = UUID.randomUUID
+    } else id
+
+    val groups = doc.fields.toSeq.groupBy { case (field, value) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
@@ -96,35 +132,22 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(key2Bytes(doc.key), families: _*)
+    table.put(key2Bytes(key), families: _*)
   }
 
-  /** Insert a document. Automatically generate a random UUID. */
-  def insert(json: JsObject): Document = {
-    val doc = Document(json)
-    upsert(doc)
-    doc
-  }
-
- /** Remove a document. */
+  /** Remove a document. */
   def delete(key: JsValue): Unit = {
-    table.delete(key2Bytes(key))
+    if (appendOnly)
+      throw new UnsupportedOperationException
+    else
+      table.delete(key2Bytes(key))
   }
 
   /** Update a document. */
-  def update(doc: Document): Unit = {
-    delete(doc.key)
-    upsert(doc)
-  }
-}
-
-/** If a bucket is append only, remove and update operations will throw exceptions. */
-class AppendOnlyBucket(table: BigTable, meta: JsObject) extends Bucket(table: BigTable, meta: JsObject) {
-  override def delete(key: JsValue): Unit = {
-    throw new UnsupportedOperationException
-  }
-
-  override def update(doc: Document): Unit = {
-    throw new UnsupportedOperationException
+  def update(doc: JsObject): Unit = {
+    if (appendOnly)
+      throw new UnsupportedOperationException
+    else
+      upsert(doc)
   }
 }

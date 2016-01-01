@@ -42,10 +42,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
    * @param meta the meta data of document bucket.
    */
   private def apply(name: String, meta: JsObject): Bucket = {
-    if (meta.appendOnly)
-      new AppendOnlyBucket(db(name), meta)
-    else
-      new Bucket(db(name), meta)
+    new Bucket(db(name), meta)
   }
 
   /**
@@ -106,7 +103,7 @@ private object BucketMeta {
   }
 
   /**
-   * Retrieve the meta data of a bucket.
+   * Retrieves the meta data of a bucket.
    * @param db the host database.
    * @param name bucket name.
    * @return JsObject of bucket meta data.
