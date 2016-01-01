@@ -87,8 +87,7 @@ class Bucket(table: BigTable, meta: JsObject) {
    * The field _id of document key will be inserted into the JsObject of document value.
    */
   def upsert(doc: Document): Unit = {
-    //doc.value("_id") = doc.key
-    //println(doc.value("_id"))
+    doc.value.update("_id", doc.key)
     val groups = doc.value.fields.toSeq.groupBy { case (field, value) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>

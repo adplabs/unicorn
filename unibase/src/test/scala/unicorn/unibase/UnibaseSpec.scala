@@ -86,7 +86,6 @@ class UnibaseSpec extends Specification with BeforeAfterAll {
     "get the put" in {
       val bucket = db(tableName)
       val doc = bucket.insert(json)
-      println(doc)
       val obj = bucket(doc.key)
       obj.get.value === doc.value
 
