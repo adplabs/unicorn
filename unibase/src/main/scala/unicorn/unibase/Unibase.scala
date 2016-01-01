@@ -16,7 +16,7 @@
 
 package unicorn.unibase
 
-import unicorn.bigtable.{Column, BigTable}
+import unicorn.bigtable.{Column, BigTable, Database}
 import unicorn.json._
 import unicorn.util._
 
@@ -25,7 +25,7 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
+class Unibase[+T <: BigTable](db: Database[T]) {
   val DefaultDocumentColumnFamily = "doc"
 
   /**
@@ -33,14 +33,7 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
    * @param name the name of collection/table.
    */
   def apply(name: String): Bucket = {
-
-    // Bucket meta data table
-    val metaTable = db(BucketMetaTableName)
-    val serializer = new ColumnarJsonSerializer
-    val map = metaTable.get(name, BucketMetaTableColumnFamily).map { case Column(qualifier, value, _) => (new String(qualifier, utf8), value.bytes) }.toMap
-    val meta = serializer.deserialize(map).asInstanceOf[JsObject]
-
-    new Bucket(db(name), meta)
+    apply(name, BucketMeta(db, name))
   }
 
   /**
@@ -48,8 +41,11 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
    * @param name the name of document bucket.
    * @param meta the meta data of document bucket.
    */
-  def apply(name: String, meta: JsObject): Bucket = {
-    new Bucket(db(name), meta)
+  private def apply(name: String, meta: JsObject): Bucket = {
+    if (meta.appendOnly)
+      new AppendOnlyBucket(db(name), meta)
+    else
+      new Bucket(db(name), meta)
   }
 
   /**
@@ -60,7 +56,10 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
    *                 separately to allow clients to scan over fields that are frequently used together efficient
    *                 and to avoid scanning over column families that are not requested.
    */
-  def createBucket(name: String, families: Seq[String] = Seq[String](DefaultDocumentColumnFamily), locality: Map[String, String] = Map().withDefaultValue(DefaultDocumentColumnFamily)): Bucket = {
+  def createBucket(name: String,
+                   families: Seq[String] = Seq[String](DefaultDocumentColumnFamily),
+                   locality: Map[String, String] = Map().withDefaultValue(DefaultDocumentColumnFamily),
+                   appendOnly: Boolean = false): Bucket = {
     db.createTable(name, families: _*)
 
     // If the meta data table doesn't exist, create it.
@@ -70,8 +69,10 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
     // Bucket meta data table
     val metaTable = db(BucketMetaTableName)
     val serializer = new ColumnarJsonSerializer
-    val meta = BucketMeta(families, locality)
-    val columns = serializer.serialize(meta).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+    val meta = BucketMeta(families, locality, appendOnly)
+    val columns = serializer.serialize(meta).map {
+      case (path, value) => Column(path.getBytes(utf8), value)
+    }.toSeq
     metaTable.put(name, BucketMetaTableColumnFamily, columns: _*)
 
     apply(name, meta)
@@ -86,11 +87,37 @@ class Unibase[+T <: BigTable](db: unicorn.bigtable.Database[T]) {
 }
 
 private object BucketMeta {
-  def apply(families: Seq[String], locality: Map[String, String]): JsObject = {
+  /**
+   * Creates JsObject of bucket meta data.
+   *
+   * @param families Column families of document store. There may be other column families in the underlying table
+   *                 for meta data or index.
+   * @param locality Locality map of document fields to column families.
+   * @param appendOnly True if the bucket is append only.
+   * @return JsObject of meta data.
+   */
+  def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean): JsObject = {
     JsObject(
-      "families" -> JsArray(families),
-      "locality" -> JsObject(locality.mapValues(JsString(_))),
-      DefaultLocalityField -> locality("") // hacking the default value of a map
+      "families" -> families,
+      "locality" -> locality.mapValues(JsString(_)),
+      DefaultLocalityField -> locality(""), // hacking the default value of a map
+      "appendOnly" -> appendOnly
     )
+  }
+
+  /**
+   * Retrieve the meta data of a bucket.
+   * @param db the host database.
+   * @param name bucket name.
+   * @return JsObject of bucket meta data.
+   */
+  def apply(db: Database[BigTable], name: String): JsObject = {
+    // Bucket meta data table
+    val metaTable = db(BucketMetaTableName)
+    val serializer = new ColumnarJsonSerializer
+    val meta = metaTable.get(name, BucketMetaTableColumnFamily).map {
+      case Column(qualifier, value, _) => (new String(qualifier, utf8), value.bytes)
+    }.toMap
+    serializer.deserialize(meta).asInstanceOf[JsObject]
   }
 }

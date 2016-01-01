@@ -26,7 +26,8 @@ import unicorn.util.{ByteArray, utf8}
  * @author Haifeng Li
  */
 class Bucket(table: BigTable, meta: JsObject) {
-  val serializer = new ColumnarJsonSerializer
+  val keySerializer = new BsonSerializer
+  val valueSerializer = new ColumnarJsonSerializer
 
   /**
    * Column families storing document fields. There may be other column families in the table
@@ -45,43 +46,58 @@ class Bucket(table: BigTable, meta: JsObject) {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
     map.withDefaultValue(default)
-    map
   }
 
   /** Get a document. */
-  def apply(id: String): Document = {
+  def apply(id: String): Option[Document] = {
     apply(id.getBytes(utf8))
   }
 
+  /** Serialize key. */
+  private def key2Bytes(key: JsValue): Array[Byte] = {
+    keySerializer.serialize(key)("$")
+  }
+
   /** Get a document. */
-  def apply(id: Array[Byte]): Document = {
-    val objects = table.get(id, families).map { case ColumnFamily(family, columns) =>
+  def apply(id: JsValue): Option[Document] = {
+    val data = table.get(key2Bytes(id), families)
+    if (data.isEmpty) return None
+
+    val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
         (new String(qualifier, utf8), value.bytes)
       }.toMap
-      val json = serializer.deserialize(map)
+      val json = valueSerializer.deserialize(map)
       json.asInstanceOf[JsObject]
     }
 
-    val doc = objects.foldLeft(JsObject()) { (doc, family) =>
-      doc.fields ++= family.fields
-      doc
+    if (objects.size == 0) None
+    else if (objects.size == 1) Some(new Document(id, objects(0)))
+    else {
+      val one = objects.foldLeft(JsObject()) { (doc, family) =>
+        doc.fields ++= family.fields
+        doc
+      }
+      Some(new Document(id, one))
     }
-
-    new Document(id, doc)
   }
 
-  /** Upsert a document. If a document with same key exists, it will overwritten. */
+  /**
+   * Upsert a document. If a document with same key exists, it will overwritten.
+   * The field _id of document key will be inserted into the JsObject of document value.
+   */
   def upsert(doc: Document): Unit = {
+    //doc.value("_id") = doc.key
+    //println(doc.value("_id"))
     val groups = doc.value.fields.toSeq.groupBy { case (field, value) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
-      val columns = serializer.serialize(json).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+      val columns = valueSerializer.serialize(json).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
       ColumnFamily(family, columns)
     }
 
-    table.put(doc.key, families: _*)
+    table.put(key2Bytes(doc.key), families: _*)
   }
 
   /** Insert a document. Automatically generate a random UUID. */
@@ -91,30 +107,25 @@ class Bucket(table: BigTable, meta: JsObject) {
     doc
   }
 
-  /** Remove a document. */
-  def remove(key: String): Unit = {
-    remove(key.getBytes(utf8))
-  }
-
-  /** Remove a document. */
-  def remove(key: Array[Byte]): Unit = {
-    table.delete(key, families)
+ /** Remove a document. */
+  def delete(key: JsValue): Unit = {
+    table.delete(key2Bytes(key))
   }
 
   /** Update a document. */
   def update(doc: Document): Unit = {
-    remove(doc.key)
+    delete(doc.key)
     upsert(doc)
   }
 }
 
 /** If a bucket is append only, remove and update operations will throw exceptions. */
-trait AppendOnly {
-  def remove(key: Array[Byte]): Unit = {
+class AppendOnlyBucket(table: BigTable, meta: JsObject) extends Bucket(table: BigTable, meta: JsObject) {
+  override def delete(key: JsValue): Unit = {
     throw new UnsupportedOperationException
   }
 
-  def update(doc: Document): Unit = {
+  override def update(doc: Document): Unit = {
     throw new UnsupportedOperationException
   }
 }

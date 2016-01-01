@@ -20,8 +20,11 @@ package unicorn
  * @author Haifeng Li
  */
 package object unibase {
-  private[core] val BucketMetaTableName = "unicorn.meta.bucket"
-  private[core] val BucketMetaTableColumnFamily = "meta"
+  // Originally we used "." as delimiter in table name.
+  // However, "." cannot be part of table name in Accumulo.
+  // So we switch to "_".
+  private[unibase] val BucketMetaTableName = "unicorn_meta_bucket"
+  private[unibase] val BucketMetaTableColumnFamily = "meta"
 
-  private[core] val DefaultLocalityField = "default.locality"
+  private[unibase] val DefaultLocalityField = "default_locality"
 }

@@ -16,9 +16,9 @@
 
 package unicorn.unibase
 
-import java.nio._
-import java.util.UUID
+import java.util.{Date, UUID}
 import unicorn.json._
+import unicorn.oid.BsonObjectId
 import unicorn.util.{ByteArray, utf8}
 
 /**
@@ -26,29 +26,22 @@ import unicorn.util.{ByteArray, utf8}
  * 
  * @author Haifeng Li
  */
-case class Document(val key: ByteArray, value: JsObject)
+case class Document(val key: JsValue, value: JsObject)
 
 object Document {
   def apply(json: JsObject): Document = apply(UUID.randomUUID, json)
 
-  def apply(key: String, json: JsObject): Document = new Document(key.getBytes(utf8), json)
+  def apply(key: String, json: JsObject): Document = new Document(JsString(key), json)
 
-  def apply(key: Int, json: JsObject): Document = {
-    val buffer = new Array[Byte](4)
-    ByteBuffer.wrap(buffer).putInt(key)
-    new Document(buffer, json)
-  }
+  def apply(key: Int, json: JsObject): Document = new Document(JsInt(key), json)
 
-  def apply(key: Long, json: JsObject): Document = {
-    val buffer = new Array[Byte](8)
-    ByteBuffer.wrap(buffer).putLong(key)
-    new Document(buffer, json)
-  }
+  def apply(key: Long, json: JsObject): Document = new Document(JsLong(key), json)
 
-  def apply(key: UUID, json: JsObject): Document = {
-    val buffer = new Array[Byte](16)
-    ByteBuffer.wrap(buffer).putLong(key.getMostSignificantBits)
-    ByteBuffer.wrap(buffer).putLong(key.getLeastSignificantBits)
-    new Document(buffer, json)
-  }
+  def apply(key: Date, json: JsObject): Document = new Document(JsDate(key), json)
+
+  def apply(key: UUID, json: JsObject): Document = new Document(JsUUID(key), json)
+
+  def apply(key: BsonObjectId, json: JsObject): Document = new Document(JsObjectId(key), json)
+
+  def apply(key: Array[Byte], json: JsObject): Document = new Document(JsBinary(key), json)
 }

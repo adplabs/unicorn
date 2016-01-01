@@ -26,10 +26,10 @@ package object index {
   type IndexableTable = BigTable with RowScan with FilterScan with Counter
   type RowMap = collection.mutable.Map[String, collection.mutable.Map[ByteArray, Column]]
 
-  private[index] val IndexMetaTableName = "unicorn.meta.index"
+  private[index] val IndexMetaTableName = "unicorn_meta_index"
   private[index] val IndexMetaTableColumnFamily = "meta"
 
-  private[index] val IndexTableNamePrefix = "unicorn.index."
+  private[index] val IndexTableNamePrefix = "unicorn_index_"
   private[index] val IndexColumnFamily = "index"
   private[index] val IndexStatColumnFamily = "stat"
   private[index] val IndexColumnFamilies = Seq(IndexColumnFamily, IndexStatColumnFamily)

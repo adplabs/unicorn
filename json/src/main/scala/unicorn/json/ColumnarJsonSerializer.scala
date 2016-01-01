@@ -34,9 +34,9 @@ import unicorn.util._
 class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
-  def jsonPath(parent: String, field: String) = "%s.%s".format(parent, field)
+  private def jsonPath(parent: String, field: String) = "%s.%s".format(parent, field)
 
-  def jsonPath(parent: String, index: Int) = "%s[%d]".format(parent, index)
+  private def jsonPath(parent: String, index: Int) = "%s[%d]".format(parent, index)
 
   def serialize(json: JsObject, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
     require(ename.isDefined)
@@ -136,7 +136,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     }
   }
 
-  def fields(buffer: ByteBuffer): Seq[String] = {
+  private def fields(buffer: ByteBuffer): Seq[String] = {
     val keys = collection.mutable.ArrayBuffer[String]()
     while (buffer.hasRemaining) {
       keys += cstring()(buffer)

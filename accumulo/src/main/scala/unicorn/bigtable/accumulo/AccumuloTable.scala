@@ -146,7 +146,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     else
       mutation.put(family, column, cellVisibility, value)
 
-    val writer = newBatchWriter(1)
+    val writer = newBatchWriter()
     writer.addMutation(mutation)
     writer.flush
   }
@@ -160,7 +160,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
         mutation.put(family, qualifier, cellVisibility, timestamp, value)
     }
 
-    val writer = newBatchWriter(1)
+    val writer = newBatchWriter()
     writer.addMutation(mutation)
     writer.flush
   }
@@ -176,13 +176,13 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
       }
     }
 
-    val writer = newBatchWriter(1)
+    val writer = newBatchWriter()
     writer.addMutation(mutation)
     writer.flush
   }
 
   override def putBatch(rows: Row*): Unit = {
-    val writer = newBatchWriter(1)
+    val writer = newBatchWriter()
     rows.foreach { case Row(row, families) =>
       val mutation = new Mutation(row)
 

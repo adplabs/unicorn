@@ -103,6 +103,10 @@ object BsonObjectId {
     }
   }
 
+  /** Generate a new BSON ObjectId. */
+  def apply(): BsonObjectId = generate
+
+  /** Constructs a BSON ObjectId from raw bytes. */
   def apply(id: Array[Byte]): BsonObjectId = new BsonObjectId(id)
 
   /**
@@ -122,7 +126,7 @@ object BsonObjectId {
   def parse(str: String): Try[BsonObjectId] = Try(apply(str))
 
   /**
-   * Generates a new BSON ObjectID.
+   * Generates a new BSON ObjectId.
    *
    * +------------------------+------------------------+------------------------+------------------------+
    * + timestamp (in seconds) +   machine identifier   +    thread identifier   +        increment       +

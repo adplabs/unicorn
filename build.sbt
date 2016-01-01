@@ -6,7 +6,8 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
   libraryDependencies += "org.specs2" %% "specs2-core" % "3.6.3" % "test",
-  scalacOptions in Test ++= Seq("-Yrangepos")
+  scalacOptions in Test ++= Seq("-Yrangepos"),
+  parallelExecution in Test := false
 )
 
 lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, shell, graph, search, rhino)
@@ -23,7 +24,7 @@ lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsO
 
 lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util)
 
-lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, bigtable)
+lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, index, hbase, cassandra, accumulo)
 
 lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable, index)
 
