@@ -141,14 +141,14 @@ trait TimeTravel {
 /** Check and put. Put a row only if the given column doesn't exist. */
 trait CheckAndPut {
   /**
-   * Insert values.
+   * Insert values. Returns true if the new put was executed, false otherwise.
    */
-  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Unit
+  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Boolean
 
   /**
-   * Insert values.
+   * Insert values. Returns true if the new put was executed, false otherwise.
    */
-  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Unit
+  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Boolean
 }
 
 /** Row scan iterator */

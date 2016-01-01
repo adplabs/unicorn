@@ -244,7 +244,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.put(puts)
   }
 
-  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Unit = {
+  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Boolean = {
     val put = newPut(row)
     columns.foreach { case Column(qualifier, value, timestamp) =>
       if (timestamp == 0)
@@ -255,7 +255,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.checkAndPut(row, checkFamily, checkColumn, null, put)
   }
 
-  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Unit = {
+  override def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Boolean = {
     val put = newPut(row)
     families.foreach { case ColumnFamily(family, columns) =>
       columns.foreach { case Column(qualifier, value, timestamp) =>

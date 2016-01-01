@@ -20,7 +20,7 @@ import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
 import unicorn.bigtable.hbase.HBase
-import unicorn.json.{JsObject, JsString, JsonParser}
+import unicorn.json._
 import unicorn.util.utf8
 
 /**
@@ -95,6 +95,7 @@ class UnibaseSpec extends Specification with BeforeAfterAll {
     "append only" in {
       val bucket = db.createBucket("unicorn_append_only", appendOnly = true)
       bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
+      bucket.update(Document(JsObject("a" -> JsInt(1)))) must throwA[UnsupportedOperationException]
       db.dropBucket("unicorn_append_only")
       1 === 1
     }
