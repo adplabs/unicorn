@@ -36,7 +36,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
 
   private def jsonPath(parent: String, field: String) = "%s.%s".format(parent, field)
 
-  private def jsonPath(parent: String, index: Int) = "%s[%d]".format(parent, index)
+  private def jsonPath(parent: String, index: Int) = "%s.%d".format(parent, index)
 
   def serialize(json: JsObject, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
     require(ename.isDefined)
@@ -115,7 +115,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
 
   override def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String): JsValue = {
     val bytes = values.get(rootJsonPath)
-    if (bytes.isEmpty) throw new IllegalArgumentException( s"""root $rootJsonPath doesn't exist"""")
+    if (bytes.isEmpty) return JsUndefined
 
     implicit val buffer = ByteBuffer.wrap(bytes.get)
     buffer.get match {

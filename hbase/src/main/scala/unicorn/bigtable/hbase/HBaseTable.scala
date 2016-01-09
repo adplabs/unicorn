@@ -315,9 +315,19 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.append(append)
   }
 
-  override def addCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit = {
+  override def increaseCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit = {
     val increment = newIncrement(row)
     increment.addColumn(family, column, value)
+    table.increment(increment)
+  }
+
+  override def increaseCounter(row: ByteArray, families: Seq[(String, Seq[(ByteArray, Long)])]): Unit = {
+    val increment = newIncrement(row)
+    families.foreach { case (family, columns) =>
+        columns.foreach { case (column, value) =>
+          increment.addColumn(family, column, value)
+        }
+    }
     table.increment(increment)
   }
 
