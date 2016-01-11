@@ -222,7 +222,6 @@ case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsV
 }
 
 object JsObject {
-  def apply(field: (String, JsValue)) = new JsObject(collection.mutable.Map(field))
   def apply(fields: (String, JsValue)*) = new JsObject(collection.mutable.Map(fields: _*))
   def apply(map: Map[String, JsValue]) = new JsObject(collection.mutable.Map() ++ map)
 }
