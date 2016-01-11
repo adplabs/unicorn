@@ -53,40 +53,44 @@ class Bucket(table: BigTable, meta: JsObject) {
   /** True if the bucket is append only. */
   val appendOnly: Boolean = meta.appendOnly
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: Int): Option[JsObject] = {
     apply(JsLong(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: Long): Option[JsObject] = {
     apply(JsLong(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: String): Option[JsObject] = {
     apply(JsString(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: Date): Option[JsObject] = {
     apply(JsDate(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: UUID): Option[JsObject] = {
     apply(JsUUID(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: BsonObjectId): Option[JsObject] = {
     apply(JsObjectId(id))
   }
 
-  /** Get a document. */
+  /** Gets a document. */
   def apply(id: JsValue): Option[JsObject] = {
     val data = table.get(key2Bytes(id), families)
+    assemble(data)
+  }
 
+  /** Assembles the document from multi-column family data. */
+  private[unibase] def assemble(data: Seq[ColumnFamily]): Option[JsObject] = {
     val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
         (new String(qualifier, utf8), value.bytes)
@@ -108,27 +112,76 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
   }
 
-  /** Serialize key. */
-  def key2Bytes(key: JsValue): Array[Byte] = {
-    keySerializer.serialize(key)("$")
-  }
-
-  /** A query may include a projection that specifies the fields from the matching documents to return.
-    *  The projection limits the amount of data that Unibase returns to the client over the network.
+  /** A query may include a projection that specifies the fields of the document to return.
+    * The projection limits the disk access and the network data transmission.
+    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
+    * field is a nested object, there is no easy way to read only the specified object in BigTable.
+    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
+    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+    * we return the whole object of a column family if some of its fields are in request. This is usually
+    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * header in a column family and event body in another column family. In many reads, we only need to
+    * access the header (the hot data). When only user is interested in the event details, we go to read
+    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
+    * that we don't support the excluded fields.
     *
-    * @param doc
-    * @return
+    * @param projection an object that specifies the fields to return. The _id field should be included to
+    *                   indicate which document to retrieve.
+    * @return the projected document. The _id field will be always included.
     */
-  def get(doc: JsObject): JsObject = {
+  def get(projection: JsObject): Option[JsObject] = {
+    val key = projection("_id")
+    if (key == JsNull || key == JsUndefined)
+      throw new IllegalArgumentException("missing _id")
+
+    val groups = projection.fields.toSeq.filter(_._1 != "_id").groupBy { case (field, _) =>
+      val head = field.indexOf(".") match {
+        case -1 => field
+        case end => field.substring(0, end)
+      }
+      locality(head)
+    }
+
+    // We need to get the whole column family
+    val families = groups.toSeq.map { case (family, _) => (family, Seq.empty) }
+
+    val data = table.get(key2Bytes(key), families)
+    val doc = assemble(data)
+    if (doc.isDefined) doc.get("_id") = key // always set _id
     doc
   }
 
+  /** A query may include a projection that specifies the fields of the document to return.
+    * The projection limits the disk access and the network data transmission.
+    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
+    * field is a nested object, there is no easy way to read only the specified object in BigTable.
+    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
+    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+    * we return the whole object of a column family if some of its fields are in request. This is usually
+    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * header in a column family and event body in another column family. In many reads, we only need to
+    * access the header (the hot data). When only user is interested in the event details, we go to read
+    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
+    * that we don't support the excluded fields.
+    *
+    * @param fields top level fields to retrieve.
+    * @return the projected document.
+    */
+  def get(id: JsValue, fields: String*): Option[JsObject] = {
+    val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
+    projection("_id") = id
+    get(projection)
+  }
+
   /**
-   * Upsert a document. If a document with same key exists, it will overwritten.
+   * Upserts a document. If a document with same key exists, it will overwritten.
    * The _id field of document will be used as the primary key in bucket.
    * If the document doesn't have _id field, a random UUID will be generated as _id.
+   *
+   * @param doc the doucment.
+   * @return the document id.
    */
-  def upsert(doc: JsObject): JsObject = {
+  def upsert(doc: JsObject): JsValue = {
     val id = doc("_id")
     val key = if (id == JsUndefined || id == JsNull) {
       doc("_id") = UUID.randomUUID
@@ -143,18 +196,28 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     table.put(key2Bytes(key), families: _*)
-    doc
+    key
   }
 
-  /** Remove a document. */
-  def delete(key: JsValue): Unit = {
+  /** Removes a document.
+   *
+   * @param id the document id.
+   */
+  def delete(id: JsValue): Unit = {
     if (appendOnly)
       throw new UnsupportedOperationException
     else
-      table.delete(key2Bytes(key))
+      table.delete(key2Bytes(id))
   }
 
-  /** Update a document. */
+  /** Updates a document. The supported update operators include
+    *
+    *  - $inc: Increments the value of the field by the specified amount.
+    *  - $set: Sets the value of a field in a document.
+    *  - $unset: Removes the specified field from a document.
+    *
+    * @param doc the document update operators.
+    */
   def update(doc: JsObject): Unit = {
     if (appendOnly)
       throw new UnsupportedOperationException
@@ -168,7 +231,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
   }
 
-  /** The $set operator replaces the value of a field with the specified value.
+  /** The $set operator replaces the values of fields.
     *
     * The document key _id should not be set.
     *
@@ -185,7 +248,7 @@ class Bucket(table: BigTable, meta: JsObject) {
 
   }
 
-  /** The $unset operator deletes a particular field.
+  /** The $unset operator deletes particular fields.
     *
     * The document key _id should not be set.
     *
@@ -211,6 +274,11 @@ class Bucket(table: BigTable, meta: JsObject) {
 
     table.delete(key2Bytes(key), families)
   }
+
+  /** Serialize key. */
+  private[unibase] def key2Bytes(key: JsValue): Array[Byte] = {
+    keySerializer.serialize(key)("$")
+  }
 }
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
@@ -221,7 +289,8 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
   /** The $inc operator accepts positive and negative values.
     *
-    * If the field does not exist, $inc creates the field and sets the field to the specified value. */
+    * If the field does not exist, $inc creates the field and sets the field to the specified value.
+    */
   def inc(key: JsValue, doc: JsObject): Unit = {
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(".") match {

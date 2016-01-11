@@ -26,78 +26,21 @@ import unicorn.util.utf8
 /**
  * @author Haifeng Li
  */
-class UnibaseSpec extends Specification with BeforeAfterAll {
+class UnibaseSpec extends Specification {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
-  //val hbase = HBase()
-  val accumulo = Accumulo()
-  val db = new Unibase(accumulo)
+  val bigtable = Accumulo()
+  val db = new Unibase(bigtable)
   val tableName = "unicorn_unibase_test"
-  val json = JsonParser(
-    """
-      |{
-      |  "store": {
-      |    "book": [
-      |      {
-      |        "category": "reference",
-      |        "author": "Nigel Rees",
-      |        "title": "Sayings of the Century",
-      |        "price": 8.95
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "Evelyn Waugh",
-      |        "title": "Sword of Honour",
-      |        "price": 12.99
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "Herman Melville",
-      |        "title": "Moby Dick",
-      |        "isbn": "0-553-21311-3",
-      |        "price": 8.99
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "J. R. R. Tolkien",
-      |        "title": "The Lord of the Rings",
-      |        "isbn": "0-395-19395-8",
-      |        "price": 22.99
-      |      }
-      |    ],
-      |    "bicycle": {
-      |      "color": "red",
-      |      "price": 19.95
-      |    }
-      |  }
-      |}
-    """.stripMargin).asInstanceOf[JsObject]
-
-  override def beforeAll = {
-    db.createBucket(tableName)
-  }
-
-  override def afterAll = {
-    db.dropBucket(tableName)
-  }
 
   "Unibase" should {
-    "get the put" in {
-      val bucket = db(tableName)
-      val doc = bucket.upsert(json)
-      val obj = bucket(doc("_id"))
-      obj.get === doc
+    "create bucket" in {
+      db.createBucket(tableName)
+      bigtable.tableExists(tableName) === true
 
-      bucket.delete(doc("_id"))
-      bucket(doc("_id")) === None
-    }
-    "append only" in {
-      val bucket = db.createBucket("unicorn_append_only", appendOnly = true)
-      bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
-      bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]
-      db.dropBucket("unicorn_append_only")
-      1 === 1
+      db.dropBucket(tableName)
+      bigtable.tableExists(tableName) === false
     }
   }
 }
