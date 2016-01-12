@@ -138,6 +138,7 @@ class JsonParser(input: ParserInput) {
     `int`()
     val hasFrac = `frac`()
     val hasExp = `exp`()
+    val hasLong = `long`()
     jsValue =
       if (startChar == '0' && input.cursor - start == 1) JsInt.zero
       else {
@@ -146,11 +147,7 @@ class JsonParser(input: ParserInput) {
           val n = s.toDouble
           if (n == 0.0) JsDouble.zero else JsDouble(n)
         } else {
-          try {
-            JsInt(s.toInt)
-          } catch {
-            case _: NumberFormatException => JsLong(s.toLong)
-          }
+          if (hasLong) JsLong(s.substring(0, s.length-1).toLong) else JsInt(s.toInt)
         }
       }
     ws()
@@ -159,6 +156,7 @@ class JsonParser(input: ParserInput) {
   private def `int`(): Unit = if (!ch('0')) oneOrMoreDigits()
   private def `frac`(): Boolean = if (ch('.')) {oneOrMoreDigits(); true} else false
   private def `exp`(): Boolean = if (ch('e') || ch('E')) { ch('-') || ch('+'); oneOrMoreDigits(); true } else false
+  private def `long`(): Boolean = if (ch('l') || ch('L')) true else false
 
   private def oneOrMoreDigits(): Unit = if (DIGIT()) zeroOrMoreDigits() else fail("DIGIT")
   @tailrec private def zeroOrMoreDigits(): Unit = if (DIGIT()) zeroOrMoreDigits()
