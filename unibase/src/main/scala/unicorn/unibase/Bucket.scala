@@ -20,7 +20,7 @@ import java.util.{Date, UUID}
 import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
 import unicorn.oid.BsonObjectId
-import unicorn.util.{ByteArray, utf8}
+import unicorn.util.ByteArray
 
 /** Buckets are the data containers of documents. A document is simply a JSON
   * object with a unique id (the _id field), which is similar to the primary key
@@ -43,22 +43,33 @@ import unicorn.util.{ByteArray, utf8}
   * @author Haifeng Li
   */
 class Bucket(table: BigTable, meta: JsObject) {
+  /** Document id field. */
+  val _id = "_id"
+
+  /** Returns the json path of a dot notation path as in MongoDB. */
+  def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
+
+  /** Json path of id, i.e. the column qualifier in BigTable. */
+  val idPath = jsonPath(_id)
+
+  /** Document key serializer. */
   val keySerializer = new BsonSerializer
+  /** Document value serializer. */
   val valueSerializer = new ColumnarJsonSerializer
 
   /**
-   * Column families storing document fields. There may be other column families in the table
-   * for meta data or index.
-   */
+    * Column families storing document fields. There may be other column families in the table
+    * for meta data or index.
+    */
   val families: Seq[(String, Seq[ByteArray])] = meta.families.asInstanceOf[JsArray].elements.map { e =>
     (e.toString, Seq.empty)
   }
 
   /**
-   * A map of document fields to column families for storing of sets of fields in column families
-   * separately to allow clients to scan over fields that are frequently used together efficient
-   * and to avoid scanning over column families that are not requested.
-   */
+    * A map of document fields to column families for storing of sets of fields in column families
+    * separately to allow clients to scan over fields that are frequently used together efficient
+    * and to avoid scanning over column families that are not requested.
+    */
   val locality: Map[String, String] = {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
@@ -108,7 +119,7 @@ class Bucket(table: BigTable, meta: JsObject) {
   private[unibase] def assemble(data: Seq[ColumnFamily]): Option[JsObject] = {
     val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
-        (new String(qualifier, utf8), value.bytes)
+        (new String(qualifier, JsonSerializer.charset), value.bytes)
       }.toMap
       val json = valueSerializer.deserialize(map)
       json.asInstanceOf[JsObject]
@@ -145,12 +156,12 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @return the projected document. The _id field will be always included.
     */
   def get(projection: JsObject): Option[JsObject] = {
-    val key = projection("_id")
-    if (key == JsNull || key == JsUndefined)
-      throw new IllegalArgumentException("missing _id")
+    val id = projection(_id)
+    if (id == JsNull || id == JsUndefined)
+      throw new IllegalArgumentException(s"missing ${_id}")
 
     val groups = projection.fields.toSeq.filter(_._1 != "_id").groupBy { case (field, _) =>
-      val head = field.indexOf(".") match {
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
         case -1 => field
         case end => field.substring(0, end)
       }
@@ -160,9 +171,9 @@ class Bucket(table: BigTable, meta: JsObject) {
     // We need to get the whole column family
     val families = groups.toSeq.map { case (family, _) => (family, Seq.empty) }
 
-    val data = table.get(key2Bytes(key), families)
+    val data = table.get(key2Bytes(id), families)
     val doc = assemble(data)
-    if (doc.isDefined) doc.get("_id") = key // always set _id
+    doc.map(_(_id) = id)
     doc
   }
 
@@ -184,40 +195,71 @@ class Bucket(table: BigTable, meta: JsObject) {
     */
   def get(id: JsValue, fields: String*): Option[JsObject] = {
     val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
-    projection("_id") = id
+    projection(_id) = id
     get(projection)
   }
 
   /**
-   * Upserts a document. If a document with same key exists, it will overwritten.
-   * The _id field of document will be used as the primary key in bucket.
-   * If the document doesn't have _id field, a random UUID will be generated as _id.
-   *
-   * @param doc the doucment.
-   * @return the document id.
-   */
+    * Upserts a document. If a document with same key exists, it will overwritten.
+    * The _id field of document will be used as the primary key in bucket.
+    * If the document doesn't have _id field, a random UUID will be generated as _id.
+    *
+    * @param doc the document.
+    * @return the document id.
+    */
   def upsert(doc: JsObject): JsValue = {
-    val id = doc("_id")
-    val key = if (id == JsUndefined || id == JsNull) {
-      doc("_id") = UUID.randomUUID
-    } else id
+    val id =  doc(_id) match {
+      case JsUndefined | JsNull => doc(_id) = UUID.randomUUID
+      case id => id
+    }
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
-      val columns = valueSerializer.serialize(json).map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+      val columns = valueSerializer.serialize(json).map { case (path, value) => Column(path.getBytes(JsonSerializer.charset), value) }.toSeq
       ColumnFamily(family, columns)
     }
 
-    table.put(key2Bytes(key), families: _*)
-    key
+    table.put(key2Bytes(id), families: _*)
+    id
+  }
+
+  /**
+    * Inserts a document. Different from upsert, this operation checks if the document already
+    * exists first.
+    *
+    * @param doc the document.
+    * @return true if the document is inserted, false if the document already existed.
+    */
+  def insert(doc: JsObject): Boolean = {
+    val id = doc(_id)
+    if (id == JsNull || id == JsUndefined)
+      throw new IllegalArgumentException(s"missing ${_id}")
+
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
+
+    val checkFamily = locality(_id)
+    val checkColumn = idPath.getBytes(JsonSerializer.charset)
+    val key = key2Bytes(id)
+    if (table.apply(key, checkFamily, checkColumn).isDefined) return false
+
+    val families = groups.toSeq.map { case (family, fields) =>
+      val json = JsObject(fields: _*)
+      val columns = valueSerializer.serialize(json).map { case (path, value) =>
+        Column(path.getBytes(JsonSerializer.charset), value)
+      }.toSeq
+      ColumnFamily(family, columns)
+    }
+
+    table.put(key, families: _*)
+    true
   }
 
   /** Removes a document.
-   *
-   * @param id the document id.
-   */
+    *
+    * @param id the document id.
+    */
   def delete(id: JsValue): Unit = {
     if (appendOnly)
       throw new UnsupportedOperationException
@@ -237,15 +279,15 @@ class Bucket(table: BigTable, meta: JsObject) {
     if (appendOnly)
       throw new UnsupportedOperationException
     else {
-      val key = doc("_id")
-      if (key == JsNull || key == JsUndefined)
-        throw new IllegalArgumentException("missing _id")
+      val id = doc(_id)
+      if (id == JsNull || id == JsUndefined)
+        throw new IllegalArgumentException(s"missing ${_id}")
 
       val $set = doc("$set")
-      if ($set.isInstanceOf[JsObject]) set(key, $set.asInstanceOf[JsObject])
+      if ($set.isInstanceOf[JsObject]) set(id, $set.asInstanceOf[JsObject])
 
       val $unset = doc("$unset")
-      if ($unset.isInstanceOf[JsObject]) unset(key, $unset.asInstanceOf[JsObject])
+      if ($unset.isInstanceOf[JsObject]) unset(id, $unset.asInstanceOf[JsObject])
     }
   }
 
@@ -256,8 +298,12 @@ class Bucket(table: BigTable, meta: JsObject) {
     * If the field does not exist, $set will add a new field with the specified
     * value, provided that the new field does not violate a type constraint.
     *
-    * For a dotted path of a non-existent field, $set will create
-    * the embedded documents as needed to fulfill the dotted path to the field.
+    * In MongoDB, $set will create the embedded documents as needed to fulfill
+    * the dotted path to the field. For example, for a $set {"a.b.c" : "abc"}, MongoDB
+    * will create the embedded object "a.b" if it doesn't exist.
+    * However, we don't support this behavior because of the performance considerations.
+    * We suggest the the alternative syntax {"a.b" : {"c" : "abc"}}, which has the
+    * equivalent effect.
     *
     * To set an element of an array by the zero-based index position,
     * concatenate the array name with the dot (.) and zero-based index position.
@@ -266,22 +312,41 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @param doc the fields to update.
     */
   def set(id: JsValue, doc: JsObject): Unit = {
+    if (doc.fields.exists(_._1 == _id))
+      throw new IllegalArgumentException(s"Invalid operation: set ${_id}")
+
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(".") match {
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
         case -1 => field
         case end => field.substring(0, end)
       }
       locality(head)
     }
 
+    val (parents, children) = groups.toSeq.map { case (family, fields) =>
+      val columns = fields.map { case (field, _) =>
+        field.lastIndexOf(JsonSerializer.pathDelimiter) match {
+          case -1 => JsonSerializer.root
+          case end => s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}${field.substring(0, end)}"
+        }
+      }.distinct.map { parent =>
+        ByteArray(valueSerializer.nullstring(parent))
+      }
+
+      ((family, columns), fields.map(_._1).filter(_ != id))
+    }.unzip
+
+    val key = key2Bytes(id)
+    val parentValues = table.get(key, parents)
+
     val families = groups.toSeq.map { case (family, fields) =>
-      val columns = fields.filter(_._1 != "_id").foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
-        seq ++ valueSerializer.serialize(value, s"${JsonSerializer.root}.$field").map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+      val columns = fields.foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
+        seq ++ valueSerializer.serialize(value, jsonPath(field)).map { case (path, value) => Column(path.getBytes(JsonSerializer.charset), value) }.toSeq
       }
       ColumnFamily(family, columns)
     }
 
-    table.put(key2Bytes(id), families: _*)
+    table.put(key, families: _*)
   }
 
   /** The $unset operator deletes particular fields.
@@ -298,8 +363,11 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @param doc the fields to delete.
     */
   def unset(id: JsValue, doc: JsObject): Unit = {
+    if (doc.fields.exists(_._1 == _id))
+      throw new IllegalArgumentException(s"Invalid operation: unset ${_id}")
+
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(".") match {
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
         case -1 => field
         case end => field.substring(0, end)
       }
@@ -307,26 +375,28 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val path = fields.filter(_._1 != "_id").map { case (field, _) => ByteArray(field.getBytes(utf8)) }
+      val path = fields.map { case (field, _) => ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)) }
       (family, path)
     }
+    println(id)
+    println(families)
 
     table.delete(key2Bytes(id), families)
   }
 
-  /** Serialize key. */
-  private[unibase] def key2Bytes(key: JsValue): Array[Byte] = {
-    keySerializer.toBytes(key)
+  /** Serialize document id. */
+  private[unibase] def key2Bytes(id: JsValue): Array[Byte] = {
+    keySerializer.toBytes(id)
   }
 }
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
-  override def update(doc: JsObject): Unit = {
-    super.update(doc)
+    override def update(doc: JsObject): Unit = {
+      super.update(doc)
 
-    val $inc = doc("$inc")
-    if ($inc.isInstanceOf[JsObject]) inc(doc("_id"), $inc.asInstanceOf[JsObject])
-  }
+      val $inc = doc("$inc")
+      if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
+    }
 
   /** The $inc operator accepts positive and negative values.
     *
@@ -336,8 +406,11 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     * @param doc the fields to increase/decrease.
     */
   def inc(id: JsValue, doc: JsObject): Unit = {
+    if (doc.fields.exists(_._1 == _id))
+      throw new IllegalArgumentException(s"Invalid operation: inc ${_id}")
+
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(".") match {
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
         case -1 => field
         case end => field.substring(0, end)
       }
@@ -345,14 +418,35 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val columns = fields.filter(_._1 != "_id").map {
-        case (field, JsLong(value)) => (ByteArray(field.getBytes(utf8)), value)
-        case (field, JsInt(value)) => (ByteArray(field.getBytes(utf8)), value.toLong)
+      val columns = fields.map {
+        case (field, JsLong(value)) => (ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)), value)
+        case (field, JsInt(value)) => (ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)), value.toLong)
         case (_, value) => throw new IllegalArgumentException(s"Invalid value: $value")
       }
       (family, columns)
     }
 
     table.increaseCounter(key2Bytes(id), families)
+  }
+
+  /** Use checkAndPut for insert. */
+  override def insert(doc: JsObject): Boolean = {
+    val id = doc(_id)
+    if (id == JsNull || id == JsUndefined)
+      throw new IllegalArgumentException(s"missing ${_id}")
+
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
+
+    val families = groups.toSeq.map { case (family, fields) =>
+      val json = JsObject(fields: _*)
+      val columns = valueSerializer.serialize(json).map { case (path, value) =>
+        Column(path.getBytes(JsonSerializer.charset), value)
+      }.toSeq
+      ColumnFamily(family, columns)
+    }
+
+    val checkFamily = locality(_id)
+    val checkColumn = idPath.getBytes(JsonSerializer.charset)
+    table.checkAndPut(key2Bytes(id), checkFamily, checkColumn, families: _*)
   }
 }

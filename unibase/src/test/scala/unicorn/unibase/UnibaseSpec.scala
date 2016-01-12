@@ -17,11 +17,7 @@
 package unicorn.unibase
 
 import org.specs2.mutable._
-import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
-import unicorn.bigtable.hbase.HBase
-import unicorn.json._
-import unicorn.util.utf8
 
 /**
  * @author Haifeng Li

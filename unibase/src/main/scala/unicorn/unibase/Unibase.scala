@@ -17,46 +17,35 @@
 package unicorn.unibase
 
 import unicorn.bigtable.{Column, BigTable, Database}
+import unicorn.bigtable.hbase.HBase
 import unicorn.json._
 import unicorn.util._
 
-/**
- * A Unibase is a database of documents. A collection of documents are called bucket.
- *
- * @author Haifeng Li
- */
+/** A Unibase is a database of documents. A collection of documents are called bucket.
+  *
+  * @author Haifeng Li
+  */
 class Unibase[+T <: BigTable](db: Database[T]) {
   val DefaultDocumentColumnFamily = "doc"
 
-  /**
-   * Returns a document collection.
-   * @param name the name of collection/table.
-   */
+  /** Returns a document bucket.
+    * @param name the name of bucket.
+    */
   def apply(name: String): Bucket = {
-    apply(name, BucketMeta(db, name))
+    new Bucket(db(name), BucketMeta(db, name))
   }
 
-  /**
-   * Returns a document collection.
-   * @param name the name of document bucket.
-   * @param meta the meta data of document bucket.
-   */
-  private def apply(name: String, meta: JsObject): Bucket = {
-    new Bucket(db(name), meta)
-  }
-
-  /**
-   * Creates a document bucket.
-   * @param name the name of bucket.
-   * @param families the column family that documents resident.
-   * @param locality a map of document fields to column families for storing of sets of fields in column families
-   *                 separately to allow clients to scan over fields that are frequently used together efficient
-   *                 and to avoid scanning over column families that are not requested.
-   */
+  /** Creates a document bucket.
+    * @param name the name of bucket.
+    * @param families the column family that documents resident.
+    * @param locality a map of document fields to column families for storing of sets of fields in column families
+    *                 separately to allow clients to scan over fields that are frequently used together efficient
+    *                 and to avoid scanning over column families that are not requested.
+    */
   def createBucket(name: String,
                    families: Seq[String] = Seq[String](DefaultDocumentColumnFamily),
                    locality: Map[String, String] = Map().withDefaultValue(DefaultDocumentColumnFamily),
-                   appendOnly: Boolean = false): Bucket = {
+                   appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
     // If the meta data table doesn't exist, create it.
@@ -71,28 +60,35 @@ class Unibase[+T <: BigTable](db: Database[T]) {
       case (path, value) => Column(path.getBytes(utf8), value)
     }.toSeq
     metaTable.put(name, BucketMetaTableColumnFamily, columns: _*)
-
-    apply(name, meta)
   }
 
-  /**
-   * Drops a document bucket. All column families in the table will be dropped.
-   */
+  /** Drops a document bucket. All column families in the table will be dropped. */
   def dropBucket(name: String): Unit = {
     db.dropTable(name)
   }
 }
 
+/** Unibase specialized for HBase */
+class HUnibase(hbase: HBase) extends Unibase(hbase) {
+  /**
+    * Returns a document bucket.
+    * @param name the name of bucket.
+    */
+  override def apply(name: String): HBaseBucket = {
+    new HBaseBucket(hbase(name), BucketMeta(hbase, name))
+  }
+}
+
 private object BucketMeta {
   /**
-   * Creates JsObject of bucket meta data.
-   *
-   * @param families Column families of document store. There may be other column families in the underlying table
-   *                 for meta data or index.
-   * @param locality Locality map of document fields to column families.
-   * @param appendOnly True if the bucket is append only.
-   * @return JsObject of meta data.
-   */
+    * Creates JsObject of bucket meta data.
+    *
+    * @param families Column families of document store. There may be other column families in the underlying table
+    *                 for meta data or index.
+    * @param locality Locality map of document fields to column families.
+    * @param appendOnly True if the bucket is append only.
+    * @return JsObject of meta data.
+    */
   def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean): JsObject = {
     JsObject(
       "families" -> families,
@@ -103,11 +99,11 @@ private object BucketMeta {
   }
 
   /**
-   * Retrieves the meta data of a bucket.
-   * @param db the host database.
-   * @param name bucket name.
-   * @return JsObject of bucket meta data.
-   */
+    * Retrieves the meta data of a bucket.
+    * @param db the host database.
+    * @param name bucket name.
+    * @return JsObject of bucket meta data.
+    */
   def apply(db: Database[BigTable], name: String): JsObject = {
     // Bucket meta data table
     val metaTable = db(BucketMetaTableName)

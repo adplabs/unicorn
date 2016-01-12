@@ -17,8 +17,8 @@
 package unicorn
 
 /**
- * @author Haifeng Li
- */
+  * @author Haifeng Li
+  */
 package object unibase {
   // Originally we used "." as delimiter in table name.
   // However, "." cannot be part of table name in Accumulo.

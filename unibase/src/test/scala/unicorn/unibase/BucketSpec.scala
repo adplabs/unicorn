@@ -19,9 +19,7 @@ package unicorn.unibase
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
-import unicorn.bigtable.hbase.HBase
 import unicorn.json._
-import unicorn.util.utf8
 
 /**
  * @author Haifeng Li
@@ -30,7 +28,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
-  val bigtable = HBase()
+  val bigtable = Accumulo()
   val db = new Unibase(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
@@ -99,9 +97,21 @@ class BucketSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
     }
+    "insert" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+      key === json("_id")
+      val obj = bucket(key)
+      obj.get === json
+
+      bucket.insert(json) === false
+      bucket.delete(key)
+      bucket(key) === None
+    }
     "locality" in {
       val locality = Map("store" -> "store").withDefaultValue("doc")
-      val bucket = db.createBucket("unibase_test_locality", Seq("doc", "store"), locality)
+      db.createBucket("unibase_test_locality", Seq("doc", "store"), locality)
+      val bucket = db("unibase_test_locality")
       val key = bucket.upsert(json)
       key === json("_id")
       val obj = bucket(key)
@@ -139,8 +149,34 @@ class BucketSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
     }
+    "update.unset" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+
+      val update = JsonParser(
+        """
+          | {
+          |   "$unset": {
+          |     "owner": "",
+          |     "address": "",
+          |     "store.book.0": ""
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
+
+      val doc = bucket.get(key, "owner", "store.book.0").get
+      doc.owner === JsUndefined
+      doc.address === JsUndefined
+      doc.store.book(0) === JsUndefined
+
+      bucket.delete(key)
+      bucket(key) === None
+    }
     "append only" in {
-      val bucket = db.createBucket("unicorn_append_only", appendOnly = true)
+      db.createBucket("unicorn_append_only", appendOnly = true)
+      val bucket = db("unicorn_append_only")
       bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
       bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]
       db.dropBucket("unicorn_append_only")
