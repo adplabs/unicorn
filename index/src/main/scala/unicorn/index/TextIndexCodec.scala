@@ -122,9 +122,10 @@ class SimpleTextCodec(charset: Charset = utf8) extends TextCodec {
     new String(bytes, charset)
   }
 }
-
+/*
 class JsStringTextCodec extends TextCodec with JsonSerializerHelper {
   override def decode(bytes: Array[Byte]): String = {
     string()(ByteBuffer.wrap(bytes)).value
   }
 }
+*/

@@ -64,8 +64,15 @@ trait JsonSerializerHelper {
   val TRUE                        : Byte = 0x01
   val FALSE                       : Byte = 0x00
 
-  /** string encoder/decoder */
-  val charset = Charset.forName("UTF-8")
+  val charset: Charset
+
+  /** Converts a string to C null-terminated string. */
+  def nullstring(string: String): Array[Byte] = {
+    val bytes = string.getBytes(charset)
+    val nullbytes = new Array[Byte](bytes.length + 1)
+    Array.copy(bytes, 0, nullbytes, 0, bytes.length)
+    nullbytes
+  }
 
   def cstring(string: String)(implicit buffer: ByteBuffer): Unit = {
     val bytes = string.getBytes(charset)

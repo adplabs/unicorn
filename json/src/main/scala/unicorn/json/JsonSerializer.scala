@@ -16,11 +16,23 @@
 
 package unicorn.json
 
+import java.nio.charset.Charset
+
 /**
  * @author Haifeng Li
  */
 trait JsonSerializer {
+  /** string encoder/decoder */
+  val charset = JsonSerializer.charset
+
+  /** The path to the root of a JsValue. */
   val root = JsonSerializer.root
+
+  /** The delimiter in the path to an embedded object or in an array.
+    * We follow the dot notation as in MongoDB (even for array elements).
+    */
+  val pathDelimiter = JsonSerializer.pathDelimiter
+
   /** Serializes a JSON value to a list of key/value pairs, where key is the JSONPath of element. */
   def serialize(value: JsValue, jsonPath: String = root): Map[String, Array[Byte]]
   /** Deserialize a JSON value from the given root JSONPath. */
@@ -28,5 +40,14 @@ trait JsonSerializer {
 }
 
 object JsonSerializer {
+  /** string encoder/decoder */
+  val charset = Charset.forName("UTF-8")
+
+  /** The path to the root of a JsValue. */
   val root = "$"
+
+  /** The delimiter in the path to an embedded object or in an array.
+    * We follow the dot notation as in MongoDB (even for array elements).
+    */
+  val pathDelimiter = "."
 }
