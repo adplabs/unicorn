@@ -34,9 +34,9 @@ import unicorn.util._
 class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
-  private def jsonPath(parent: String, field: String) = "%s.%s".format(parent, field)
+  private def jsonPath(parent: String, field: String) = s"%s${JsonSerializer.pathDelimiter}%s".format(parent, field)
 
-  private def jsonPath(parent: String, index: Int) = "%s.%d".format(parent, index)
+  private def jsonPath(parent: String, index: Int) = s"%s${JsonSerializer.pathDelimiter}%d".format(parent, index)
 
   def serialize(json: JsObject, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
     require(ename.isDefined)
@@ -130,7 +130,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case TYPE_BINARY    => binary
       case TYPE_NULL      => JsNull
       case TYPE_UNDEFINED => JsUndefined
-      case TYPE_DOCUMENT  => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }; JsObject(kv: _*)
+      case TYPE_DOCUMENT  => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }.filter(_._2 != JsUndefined); JsObject(kv: _*)
       case TYPE_ARRAY     => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
       case x              => throw new IllegalStateException("Unsupported JSON type: %02X" format x)
     }
