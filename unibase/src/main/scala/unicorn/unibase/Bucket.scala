@@ -22,11 +22,26 @@ import unicorn.bigtable._, hbase.HBaseTable
 import unicorn.oid.BsonObjectId
 import unicorn.util.{ByteArray, utf8}
 
-/**
- * Buckets are the data containers of documents.
- *
- * @author Haifeng Li
- */
+/** Buckets are the data containers of documents. A document is simply a JSON
+  * object with a unique id (the _id field), which is similar to the primary key
+  * in relational database. The key can be arbitrary JSON
+  * value including Object and Array. However, they are some limitations in practice:
+  *
+  *  - The size limitation. The id of document serves as the row key in the underlying
+  *    BigTable implementation. Most BigTable implementations have the upper limit of
+  *    row key (often as 64KB).
+  *  - For compound primary key (i.e. multiple fields), it is better use Array instead
+  *    of Object as the container because it maintains the order of fields, which is
+  *    important in the scan operations. When serializing an Object, the order of fields
+  *    may be undefined (because of hashing) or simply ascending in field name.
+  *  - The fields of compound primary key should be fixed size. In database with schema
+  *    (e.g. relational database). The variable length field is padded to the maximum size.
+  *    However, Unibase is schemaless database and thus we are lack of this type information.
+  *    It is the developer's responsibility to make sure the proper use of primary key.
+  *    Otherwise, the index and scan operations won't work correctly.
+  *
+  * @author Haifeng Li
+  */
 class Bucket(table: BigTable, meta: JsObject) {
   val keySerializer = new BsonSerializer
   val valueSerializer = new ColumnarJsonSerializer
@@ -226,8 +241,11 @@ class Bucket(table: BigTable, meta: JsObject) {
       if (key == JsNull || key == JsUndefined)
         throw new IllegalArgumentException("missing _id")
 
-      set(key, doc("$set").asInstanceOf[JsObject])
-      unset(key, doc("$unset").asInstanceOf[JsObject])
+      val $set = doc("$set")
+      if ($set.isInstanceOf[JsObject]) set(key, $set.asInstanceOf[JsObject])
+
+      val $unset = doc("$unset")
+      if ($unset.isInstanceOf[JsObject]) unset(key, $unset.asInstanceOf[JsObject])
     }
   }
 
@@ -243,22 +261,43 @@ class Bucket(table: BigTable, meta: JsObject) {
     *
     * To set an element of an array by the zero-based index position,
     * concatenate the array name with the dot (.) and zero-based index position.
+    *
+    * @param id the id of document.
+    * @param doc the fields to update.
     */
-  def set(key: JsValue, fields: JsObject): Unit = {
+  def set(id: JsValue, doc: JsObject): Unit = {
+    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
+      val head = field.indexOf(".") match {
+        case -1 => field
+        case end => field.substring(0, end)
+      }
+      locality(head)
+    }
 
+    val families = groups.toSeq.map { case (family, fields) =>
+      val columns = fields.filter(_._1 != "_id").foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
+        seq ++ valueSerializer.serialize(value, s"${JsonSerializer.root}.$field").map { case (path, value) => Column(path.getBytes(utf8), value) }.toSeq
+      }
+      ColumnFamily(family, columns)
+    }
+
+    table.put(key2Bytes(id), families: _*)
   }
 
   /** The $unset operator deletes particular fields.
     *
-    * The document key _id should not be set.
+    * The document key _id should not be unset.
     *
     * If the field does not exist, then $unset does nothing (i.e. no operation).
     *
     * When used with $ to match an array element, $unset replaces the matching element
     * with undefined rather than removing the matching element from the array.
     * This behavior keeps consistent the array size and element positions.
+    *
+    * @param id the id of document.
+    * @param doc the fields to delete.
     */
-  def unset(key: JsValue, doc: JsObject): Unit = {
+  def unset(id: JsValue, doc: JsObject): Unit = {
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(".") match {
         case -1 => field
@@ -268,30 +307,35 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val path = fields.map { case (field, _) => ByteArray(field.getBytes(utf8)) }
+      val path = fields.filter(_._1 != "_id").map { case (field, _) => ByteArray(field.getBytes(utf8)) }
       (family, path)
     }
 
-    table.delete(key2Bytes(key), families)
+    table.delete(key2Bytes(id), families)
   }
 
   /** Serialize key. */
   private[unibase] def key2Bytes(key: JsValue): Array[Byte] = {
-    keySerializer.serialize(key)("$")
+    keySerializer.toBytes(key)
   }
 }
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
   override def update(doc: JsObject): Unit = {
     super.update(doc)
-    inc(doc("_id"), doc("$doc").asInstanceOf[JsObject])
+
+    val $inc = doc("$inc")
+    if ($inc.isInstanceOf[JsObject]) inc(doc("_id"), $inc.asInstanceOf[JsObject])
   }
 
   /** The $inc operator accepts positive and negative values.
     *
     * If the field does not exist, $inc creates the field and sets the field to the specified value.
+    *
+    * @param id the id of document.
+    * @param doc the fields to increase/decrease.
     */
-  def inc(key: JsValue, doc: JsObject): Unit = {
+  def inc(id: JsValue, doc: JsObject): Unit = {
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(".") match {
         case -1 => field
@@ -301,7 +345,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val columns = fields.map {
+      val columns = fields.filter(_._1 != "_id").map {
         case (field, JsLong(value)) => (ByteArray(field.getBytes(utf8)), value)
         case (field, JsInt(value)) => (ByteArray(field.getBytes(utf8)), value.toLong)
         case (_, value) => throw new IllegalArgumentException(s"Invalid value: $value")
@@ -309,6 +353,6 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
       (family, columns)
     }
 
-    table.increaseCounter(key2Bytes(key), families)
+    table.increaseCounter(key2Bytes(id), families)
   }
 }

@@ -30,7 +30,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
-  val bigtable = Accumulo()
+  val bigtable = HBase()
   val db = new Unibase(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
@@ -89,7 +89,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
   }
 
   "Bucket" should {
-    "get the put" in {
+    "upsert, get, remove" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
       key === json("_id")
@@ -99,7 +99,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
     }
-    "handle mulitple column families" in {
+    "locality" in {
       val locality = Map("store" -> "store").withDefaultValue("doc")
       val bucket = db.createBucket("unibase_test_locality", Seq("doc", "store"), locality)
       val key = bucket.upsert(json)
@@ -115,6 +115,29 @@ class BucketSpec extends Specification with BeforeAfterAll {
 
       db.dropBucket("unibase_test_locality")
       bigtable.tableExists("unibase_test_locality") === false
+    }
+    "update.set" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+
+      val update = JsonParser(
+        """
+          | {
+          |   "$set": {
+          |     "owner": "Poor",
+          |     "store.book.0.price": 9.95
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
+
+      val doc = bucket.get(key, "owner", "store.book.0").get
+      doc.owner === JsString("Poor")
+      doc.store.book(0).price === JsDouble(9.95)
+
+      bucket.delete(key)
+      bucket(key) === None
     }
     "append only" in {
       val bucket = db.createBucket("unicorn_append_only", appendOnly = true)
