@@ -36,6 +36,16 @@ import unicorn.util._
 class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper with Logging {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
+  /** Serialize a JsValue to bytes. A shortcut for serialize(json, jsonPath)(jsonPath). */
+  def toBytes(json: JsValue): Array[Byte] = {
+    serialize(json)(root)
+  }
+
+  /** Deserialize a byte array to JsValue. A shortcut for deserialize(valueMap, jsonPath). */
+  def toJson(bytes: Array[Byte]): JsValue = {
+    deserialize(Map(root -> bytes))(root)
+  }
+
   def serialize(json: JsObject, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     buffer.put(TYPE_DOCUMENT)
     if (ename.isDefined) cstring(ename.get)
@@ -43,7 +53,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
     val start = buffer.position
     buffer.putInt(0) // placeholder for document size
 
-    json.fields.foreach { case (field, value) => value match {
+    json.fields.toSeq.sortBy(_._1).foreach { case (field, value) => value match {
       case x: JsBoolean  => serialize(x, Some(field))
       case x: JsInt      => serialize(x, Some(field))
       case x: JsLong     => serialize(x, Some(field))
@@ -88,11 +98,6 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
 
     buffer.put(END_OF_DOCUMENT)
     buffer.putInt(start, buffer.position - start) // update document size
-  }
-
-  /** Serialize a JsValue to bytes. A shortcut for serialize(json, jsonPath)(jsonPath). */
-  def getBytes(json: JsValue): Array[Byte] = {
-    serialize(json)(root)
   }
 
   override def serialize(json: JsValue, jsonPath: String): Map[String, Array[Byte]] = {
