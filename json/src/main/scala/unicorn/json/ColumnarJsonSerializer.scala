@@ -43,7 +43,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     buffer.clear
     buffer.put(TYPE_DOCUMENT)
     json.fields.foreach { case (field, _) => cstring(field) }
-    map(ename.getOrElse("$")) = buffer
+    map(ename.getOrElse(root)) = buffer
 
     json.fields.foreach { case (field, value) =>
       buffer.clear
@@ -70,7 +70,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     buffer.clear
     buffer.put(TYPE_ARRAY)
     buffer.putInt(json.elements.size)
-    map(ename.getOrElse("$")) = buffer
+    map(ename.getOrElse(root)) = buffer
 
     json.elements.zipWithIndex.foreach { case (value, index) =>
       buffer.clear

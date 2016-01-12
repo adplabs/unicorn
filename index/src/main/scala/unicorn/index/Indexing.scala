@@ -56,7 +56,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     val bson = new BsonSerializer
 
     metaTable.get(name, IndexMetaTableColumnFamily).map { column =>
-      val index = Index(bson.deserialize(collection.immutable.Map("$" -> column.value.bytes)))
+      val index = Index(bson.deserialize(collection.immutable.Map(JsonSerializer.root -> column.value.bytes)))
       val indexTable = db(index.indexTableName)
       IndexBuilder(index, indexTable)
     }
@@ -70,8 +70,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
 
     val metaTable = db(IndexMetaTableName)
     val bson = new BsonSerializer
-    val json = bson.serialize(index.toJson)
-    metaTable.put(name, IndexMetaTableColumnFamily, index.name, json("$"))
+    metaTable.put(name, IndexMetaTableColumnFamily, index.name, bson.getBytes(index.toJson))
   }
 
   /** Create an index. */

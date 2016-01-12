@@ -71,8 +71,8 @@ class JsonSerializerSpec extends Specification {
       val json = JsonParser(jsonSource)
       val bson = serializer.serialize(json)
       bson.size === 1
-      bson.isDefinedAt("$") ==== true
-      serializer.deserialize(bson, "$") === json
+      bson.isDefinedAt(JsonSerializer.root) ==== true
+      serializer.deserialize(bson) === json
     }
   }
 
@@ -122,7 +122,7 @@ class JsonSerializerSpec extends Specification {
       val serializer = new ColumnarJsonSerializer
       val jsonSource = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/test.json")).mkString
       val json = JsonParser(jsonSource)
-      serializer.deserialize(serializer.serialize(json), "$") === json
+      serializer.deserialize(serializer.serialize(json)) === json
     }
   }
 }

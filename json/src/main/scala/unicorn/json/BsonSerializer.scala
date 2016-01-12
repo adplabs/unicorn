@@ -90,6 +90,11 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
     buffer.putInt(start, buffer.position - start) // update document size
   }
 
+  /** Serialize a JsValue to bytes. A shortcut for serialize(json, jsonPath)(jsonPath). */
+  def getBytes(json: JsValue): Array[Byte] = {
+    serialize(json)(root)
+  }
+
   override def serialize(json: JsValue, jsonPath: String): Map[String, Array[Byte]] = {
     buffer.clear
     json match {
