@@ -93,7 +93,6 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
       key === json("_id")
-      println(json)
       val obj = bucket(key)
       obj.get === json
 
