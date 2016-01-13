@@ -1,10 +1,10 @@
 /*******************************************************************************
  * (C) Copyright 2015 ADP, LLC.
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *  
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -58,18 +58,18 @@ class Bucket(table: BigTable, meta: JsObject) {
   val valueSerializer = new ColumnarJsonSerializer
 
   /**
-    * Column families storing document fields. There may be other column families in the table
-    * for meta data or index.
-    */
+   * Column families storing document fields. There may be other column families in the table
+   * for meta data or index.
+   */
   val families: Seq[(String, Seq[ByteArray])] = meta.families.asInstanceOf[JsArray].elements.map { e =>
     (e.toString, Seq.empty)
   }
 
   /**
-    * A map of document fields to column families for storing of sets of fields in column families
-    * separately to allow clients to scan over fields that are frequently used together efficient
-    * and to avoid scanning over column families that are not requested.
-    */
+   * A map of document fields to column families for storing of sets of fields in column families
+   * separately to allow clients to scan over fields that are frequently used together efficient
+   * and to avoid scanning over column families that are not requested.
+   */
   val locality: Map[String, String] = {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
@@ -200,13 +200,13 @@ class Bucket(table: BigTable, meta: JsObject) {
   }
 
   /**
-    * Upserts a document. If a document with same key exists, it will overwritten.
-    * The _id field of document will be used as the primary key in bucket.
-    * If the document doesn't have _id field, a random UUID will be generated as _id.
-    *
-    * @param doc the document.
-    * @return the document id.
-    */
+   * Upserts a document. If a document with same key exists, it will overwritten.
+   * The _id field of document will be used as the primary key in bucket.
+   * If the document doesn't have _id field, a random UUID will be generated as _id.
+   *
+   * @param doc the document.
+   * @return the document id.
+   */
   def upsert(doc: JsObject): JsValue = {
     val id =  doc(_id) match {
       case JsUndefined | JsNull => doc(_id) = UUID.randomUUID
@@ -226,12 +226,12 @@ class Bucket(table: BigTable, meta: JsObject) {
   }
 
   /**
-    * Inserts a document. Different from upsert, this operation checks if the document already
-    * exists first.
-    *
-    * @param doc the document.
-    * @return true if the document is inserted, false if the document already existed.
-    */
+   * Inserts a document. Different from upsert, this operation checks if the document already
+   * exists first.
+   *
+   * @param doc the document.
+   * @return true if the document is inserted, false if the document already existed.
+   */
   def insert(doc: JsObject): Boolean = {
     val id = doc(_id)
     if (id == JsNull || id == JsUndefined)
@@ -378,8 +378,6 @@ class Bucket(table: BigTable, meta: JsObject) {
       val path = fields.map { case (field, _) => ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)) }
       (family, path)
     }
-    println(id)
-    println(families)
 
     table.delete(key2Bytes(id), families)
   }
@@ -391,20 +389,31 @@ class Bucket(table: BigTable, meta: JsObject) {
 }
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
+  /* Hbase counter must be 64 bits.
+   * TODO: How to encoding counters including data type? It is not plain Long!
+   */
+  /*
     override def update(doc: JsObject): Unit = {
       super.update(doc)
 
       val $inc = doc("$inc")
       if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
     }
+    */
 
   /** The $inc operator accepts positive and negative values.
     *
-    * If the field does not exist, $inc creates the field and sets the field to the specified value.
+    * The field must exist. Increase a nonexist counter will create
+    * the column in BigTable. However, it won't show up in the parent
+    * object. We could check and add it to the parent. However it is
+    * expensive and we lose many benefits of built-in counters (efficiency
+    * and atomic). It is the user's responsibility to create the counter
+    * first.
     *
     * @param id the id of document.
     * @param doc the fields to increase/decrease.
     */
+  /*
   def inc(id: JsValue, doc: JsObject): Unit = {
     if (doc.fields.exists(_._1 == _id))
       throw new IllegalArgumentException(s"Invalid operation: inc ${_id}")
@@ -426,8 +435,9 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
       (family, columns)
     }
 
-    table.increaseCounter(key2Bytes(id), families)
+    table.addCounter(key2Bytes(id), families)
   }
+  */
 
   /** Use checkAndPut for insert. */
   override def insert(doc: JsObject): Boolean = {

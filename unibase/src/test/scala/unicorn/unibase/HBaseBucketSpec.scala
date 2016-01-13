@@ -41,7 +41,9 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       |    "city": "Roseland",
       |    "state": "NJ"
       |  },
+      |  "money": 1L,
       |  "store": {
+      |    "books": 10L,
       |    "book": [
       |      {
       |        "category": "reference",
@@ -91,6 +93,7 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
       key === json("_id")
+      println(json)
       val obj = bucket(key)
       obj.get === json
 
@@ -98,5 +101,34 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
     }
+    /*
+    "inc" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+
+      val update = JsonParser(
+        """
+          | {
+          |   "$inc": {
+          |     "money": 1,
+          |     "store.books": 10
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
+
+      val doc = bucket(key).get
+      doc.money === 2
+      doc.store.books === 20
+
+      // update again
+      bucket.update(update)
+
+      val doc2 = bucket(key).get
+      doc2.money === 2
+      doc2.store.books === 20
+    }
+    */
   }
 }
