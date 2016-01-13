@@ -147,7 +147,10 @@ class JsonParser(input: ParserInput) {
           val n = s.toDouble
           if (n == 0.0) JsDouble.zero else JsDouble(n)
         } else {
-          if (hasLong) JsLong(s.substring(0, s.length-1).toLong) else JsInt(s.toInt)
+          if (hasLong) JsLong(s.substring(0, s.length-1).toLong)
+          else try { JsInt(s.toInt) } catch {
+            case _: NumberFormatException => JsLong(s.toLong)
+          }
         }
       }
     ws()

@@ -47,7 +47,8 @@ trait JsonPrinter extends (JsValue => String) {
       case JsBoolean(true)  => sb.append("true")
       case JsBoolean(false) => sb.append("false")
       case JsInt(x)      => sb.append(x)
-      case JsLong(x)     => sb.append(x).append('L')
+      // Omit the ending 'L' to be compatible with other json parser/printer
+      case JsLong(x)     => sb.append(x)//.append('L')
       case JsDouble(x)   => sb.append(x)
       case JsDate(_)     => sb.append('"').append(x.toString).append('"')
       case JsBinary(x)   => sb.append('"').append(x.map("%02X" format _).mkString).append('"')
