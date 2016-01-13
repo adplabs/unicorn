@@ -385,10 +385,10 @@ trait Counter {
   /**
    * Increase a counter with given value (may be negative for decrease).
    */
-  def increaseCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit
+  def addCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit
 
   /**
    * Increase a counter with given value (may be negative for decrease).
    */
-  def increaseCounter(row: ByteArray, families: Seq[(String, Seq[(ByteArray, Long)])]): Unit
+  def addCounter(row: ByteArray, families: Seq[(String, Seq[(ByteArray, Long)])]): Unit
 }
