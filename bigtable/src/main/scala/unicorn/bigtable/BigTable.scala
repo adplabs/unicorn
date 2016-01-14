@@ -162,7 +162,6 @@ trait ScanBase {
   /** Last row in a table. */
   val endRowKey: ByteArray
 
-
   /**
    * When scanning for a prefix the scan should stop immediately after the the last row that
    * has the specified prefix. This method calculates the closest next row key immediately following

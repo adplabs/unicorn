@@ -91,4 +91,35 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     val checkColumn = idPath.getBytes(JsonSerializer.charset)
     table.checkAndPut(key2Bytes(id), checkFamily, checkColumn, families: _*)
   }
+
+  /** Gets a document. */
+  def apply(id: JsValue, asOfDate: Date): Option[JsObject] = {
+    val data = table.getAsOf(asOfDate, key2Bytes(id), families)
+    assemble(data)
+  }
+
+  /** A query may include a projection that specifies the fields of the document to return.
+    * The projection limits the disk access and the network data transmission.
+    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
+    * field is a nested object, there is no easy way to read only the specified object in BigTable.
+    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
+    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+    * we return the whole object of a column family if some of its fields are in request. This is usually
+    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * header in a column family and event body in another column family. In many reads, we only need to
+    * access the header (the hot data). When only user is interested in the event details, we go to read
+    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
+    * that we don't support the excluded fields.
+    *
+    * @param projection an object that specifies the fields to return. The _id field should be included to
+    *                   indicate which document to retrieve.
+    * @return the projected document. The _id field will be always included.
+    */
+  def get(projection: JsObject, asOfDate: Date): Option[JsObject] = {
+    val (id, families) = project(projection)
+    val data = table.getAsOf(asOfDate, key2Bytes(id), families)
+    val doc = assemble(data)
+    doc.map(_(_id) = id)
+    doc
+  }
 }

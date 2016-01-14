@@ -16,6 +16,7 @@
 
 package unicorn.unibase
 
+import java.util.Date
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.hbase.HBase
@@ -129,5 +130,30 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       doc2.store.books === 20
     }
     */
+  }
+  "time travel" in {
+    val bucket = db(tableName)
+    val key = bucket.upsert(json)
+
+    val asOfDate = new Date
+
+    val update = JsonParser(
+      """
+        | {
+        |   "$set": {
+        |     "owner": "Poor",
+        |     "gender": "M",
+        |     "store.book.0.price": 9.95
+        |   }
+        | }
+      """.stripMargin).asInstanceOf[JsObject]
+    update("_id") = key
+    bucket.update(update)
+
+    val old = bucket(key, asOfDate)
+    old.get.owner === JsString("Rich")
+
+    val now = bucket(key)
+    now.get.owner === JsString("Poor")
   }
 }

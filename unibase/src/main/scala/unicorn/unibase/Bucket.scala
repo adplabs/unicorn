@@ -157,6 +157,15 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @return the projected document. The _id field will be always included.
     */
   def get(projection: JsObject): Option[JsObject] = {
+    val (id, families) = project(projection)
+    val data = table.get(key2Bytes(id), families)
+    val doc = assemble(data)
+    doc.map(_(_id) = id)
+    doc
+  }
+
+  /** Maps a  projection to the seq of column families to fetch. */
+  private[unibase] def project(projection: JsObject): (JsValue, Seq[(String, Seq[ByteArray])]) = {
     val id = projection(_id)
     if (id == JsNull || id == JsUndefined)
       throw new IllegalArgumentException(s"missing ${_id}")
@@ -174,11 +183,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     // whole column family. If BigTable implementations support reading columns
     // by prefix, we can do it more efficiently.
     val families = groups.toSeq.map { case (family, _) => (family, Seq.empty) }
-
-    val data = table.get(key2Bytes(id), families)
-    val doc = assemble(data)
-    doc.map(_(_id) = id)
-    doc
+    (id, families)
   }
 
   /** A query may include a projection that specifies the fields of the document to return.
