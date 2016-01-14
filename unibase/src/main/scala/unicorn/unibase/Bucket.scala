@@ -48,7 +48,7 @@ class Bucket(table: BigTable, meta: JsObject) {
   val _id = "_id"
 
   /** Returns the json path of a dot notation path as in MongoDB. */
-  def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
+  private[unibase] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
 
   /** Json path of id, i.e. the column qualifier in BigTable. */
   val idPath = jsonPath(_id)
@@ -71,11 +71,13 @@ class Bucket(table: BigTable, meta: JsObject) {
    * separately to allow clients to scan over fields that are frequently used together efficient
    * and to avoid scanning over column families that are not requested.
    */
-  val locality: Map[String, String] = {
+  private[unibase] val locality: Map[String, String] = {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
     map.withDefaultValue(default)
   }
+
+  private[unibase] def getBytes(s: String) = s.getBytes(JsonSerializer.charset)
 
   /** True if the bucket is append only. */
   val appendOnly: Boolean = meta.appendOnly
@@ -226,7 +228,7 @@ class Bucket(table: BigTable, meta: JsObject) {
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
-      val columns = valueSerializer.serialize(json).map { case (path, value) => Column(path.getBytes(JsonSerializer.charset), value) }.toSeq
+      val columns = valueSerializer.serialize(json).map { case (path, value) => Column(getBytes(path), value) }.toSeq
       ColumnFamily(family, columns)
     }
 
@@ -249,14 +251,14 @@ class Bucket(table: BigTable, meta: JsObject) {
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
     val checkFamily = locality(_id)
-    val checkColumn = idPath.getBytes(JsonSerializer.charset)
+    val checkColumn = getBytes(idPath)
     val key = key2Bytes(id)
     if (table.apply(key, checkFamily, checkColumn).isDefined) return false
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
       val columns = valueSerializer.serialize(json).map { case (path, value) =>
-        Column(path.getBytes(JsonSerializer.charset), value)
+        Column(getBytes(path), value)
       }.toSeq
       ColumnFamily(family, columns)
     }
@@ -345,7 +347,7 @@ class Bucket(table: BigTable, meta: JsObject) {
         children((family, parent)) =  children((family, parent)) :+ name
         parent
       }.distinct.map { parent =>
-        ByteArray(parent.getBytes(JsonSerializer.charset))
+        ByteArray(getBytes(parent))
       }
 
       (family, columns)
@@ -377,7 +379,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
         seq ++ valueSerializer.serialize(value, jsonPath(field)).map {
-          case (path, value) => Column(path.getBytes(JsonSerializer.charset), value)
+          case (path, value) => Column(getBytes(path), value)
         }.toSeq
       }
       ColumnFamily(family, columns)
@@ -432,7 +434,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val path = fields.map { case (field, _) => ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)) }
+      val path = fields.map { case (field, _) => ByteArray(getBytes(jsonPath(field))) }
       (family, path)
     }
 

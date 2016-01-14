@@ -67,6 +67,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsArray    => serialize(x, Some(field))
       case JsNull        => buffer.put(TYPE_NULL); cstring(field)
       case JsUndefined   => buffer.put(TYPE_UNDEFINED); cstring(field)
+      case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
     }}
 
     buffer.put(END_OF_DOCUMENT)
@@ -94,6 +95,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsArray    => serialize(x, Some(index.toString))
       case JsNull        => buffer.put(TYPE_NULL); cstring(index.toString)
       case JsUndefined   => buffer.put(TYPE_UNDEFINED); cstring(index.toString)
+      case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
     }}
 
     buffer.put(END_OF_DOCUMENT)
@@ -116,6 +118,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       case x: JsArray    => serialize(x, None)(buffer)
       case JsNull        => buffer.put(TYPE_NULL)
       case JsUndefined   => buffer.put(TYPE_UNDEFINED)
+      case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
     }
     Map(jsonPath -> buffer)
   }

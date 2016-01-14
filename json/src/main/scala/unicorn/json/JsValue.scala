@@ -136,6 +136,19 @@ object JsLong {
   val zero = JsLong(0L)
 }
 
+/** A counter is a 64 bit integer. The difference from JsLong
+  * is mostly for internal representation in database. For encoding
+  * reason, the effective number of bits are 56, which should be
+  * big enough in practice.
+  */
+case class JsCounter(value: Long) extends JsValue {
+  override def toString = value.toString
+}
+
+object JsCounter {
+  val zero = JsCounter(0L)
+}
+
 case class JsDouble(value: Double) extends JsValue {
   override def toString = value.toString
 }

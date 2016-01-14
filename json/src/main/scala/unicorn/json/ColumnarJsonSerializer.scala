@@ -38,6 +38,10 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
 
   private def jsonPath(parent: String, index: Int) = s"%s${JsonSerializer.pathDelimiter}%d".format(parent, index)
 
+  def serialize(json: JsCounter)(implicit buffer: ByteBuffer): Unit = {
+    buffer.putLong(json.value)
+  }
+
   def serialize(json: JsObject, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
     require(ename.isDefined)
     buffer.clear
@@ -51,6 +55,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
+        case x: JsCounter  => serialize(x); map(jsonPath(ename.get, field)) = buffer
         case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsString   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
         case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
@@ -78,6 +83,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
         case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
+        case x: JsCounter  => serialize(x); map(jsonPath(ename.get, index)) = buffer
         case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsString   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
         case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
@@ -99,6 +105,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case x: JsBoolean  => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsInt      => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsLong     => serialize(x, None)(buffer); map(jsonPath) = buffer
+      case x: JsCounter  => serialize(x)(buffer); map(jsonPath) = buffer
       case x: JsDouble   => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsString   => serialize(x, None)(buffer); map(jsonPath) = buffer
       case x: JsDate     => serialize(x, None)(buffer); map(jsonPath) = buffer
@@ -123,6 +130,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
       case TYPE_BOOLEAN  => boolean
       case TYPE_INT32     => int
       case TYPE_INT64     => long
+      case END_OF_DOCUMENT | TYPE_MINKEY if bytes.get.length == 8 => JsCounter(buffer.getLong(0)) // hacking counter
       case TYPE_DOUBLE    => double
       case TYPE_DATETIME  => date
       case TYPE_STRING    => string

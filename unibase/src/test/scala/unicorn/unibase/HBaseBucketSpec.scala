@@ -42,9 +42,8 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       |    "city": "Roseland",
       |    "state": "NJ"
       |  },
-      |  "money": 1L,
       |  "store": {
-      |    "books": 10L,
+      |    "books": 10C,
       |    "book": [
       |      {
       |        "category": "reference",
@@ -101,7 +100,6 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
     }
-    /*
     "inc" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
@@ -110,7 +108,6 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
         """
           | {
           |   "$inc": {
-          |     "money": 1,
           |     "store.books": 10
           |   }
           | }
@@ -119,41 +116,38 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       bucket.update(update)
 
       val doc = bucket(key).get
-      doc.money === 2
-      doc.store.books === 20
+      doc.store.books === JsCounter(20)
 
       // update again
       bucket.update(update)
 
       val doc2 = bucket(key).get
-      doc2.money === 2
-      doc2.store.books === 20
+      doc2.store.books === JsCounter(30)
     }
-    */
-  }
-  "time travel" in {
-    val bucket = db(tableName)
-    val key = bucket.upsert(json)
+    "time travel" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
 
-    val asOfDate = new Date
+      val asOfDate = new Date
 
-    val update = JsonParser(
-      """
-        | {
-        |   "$set": {
-        |     "owner": "Poor",
-        |     "gender": "M",
-        |     "store.book.0.price": 9.95
-        |   }
-        | }
-      """.stripMargin).asInstanceOf[JsObject]
-    update("_id") = key
-    bucket.update(update)
+      val update = JsonParser(
+        """
+          | {
+          |   "$set": {
+          |     "owner": "Poor",
+          |     "gender": "M",
+          |     "store.book.0.price": 9.95
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
 
-    val old = bucket(key, asOfDate)
-    old.get.owner === JsString("Rich")
+      val old = bucket(key, asOfDate)
+      old.get.owner === JsString("Rich")
 
-    val now = bucket(key)
-    now.get.owner === JsString("Poor")
+      val now = bucket(key)
+      now.get.owner === JsString("Poor")
+    }
   }
 }

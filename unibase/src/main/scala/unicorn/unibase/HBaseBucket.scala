@@ -19,19 +19,18 @@ package unicorn.unibase
 import java.util.Date
 import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
+import unicorn.util._
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
   /* Hbase counter must be 64 bits.
    * TODO: How to encoding counters including data type? It is not plain Long!
    */
-  /*
     override def update(doc: JsObject): Unit = {
       super.update(doc)
 
       val $inc = doc("$inc")
       if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
     }
-    */
 
   /** The $inc operator accepts positive and negative values.
     *
@@ -45,7 +44,6 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     * @param id the id of document.
     * @param doc the fields to increase/decrease.
     */
-  /*
   def inc(id: JsValue, doc: JsObject): Unit = {
     if (doc.fields.exists(_._1 == _id))
       throw new IllegalArgumentException(s"Invalid operation: inc ${_id}")
@@ -60,8 +58,8 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
-        case (field, JsLong(value)) => (ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)), value)
-        case (field, JsInt(value)) => (ByteArray(jsonPath(field).getBytes(JsonSerializer.charset)), value.toLong)
+        case (field, JsLong(value)) => (ByteArray(getBytes(jsonPath(field))), value)
+        case (field, JsInt(value)) => (ByteArray(getBytes(jsonPath(field))), value.toLong)
         case (_, value) => throw new IllegalArgumentException(s"Invalid value: $value")
       }
       (family, columns)
@@ -69,7 +67,6 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
     table.addCounter(key2Bytes(id), families)
   }
-  */
 
   /** Use checkAndPut for insert. */
   override def insert(doc: JsObject): Boolean = {
@@ -82,13 +79,13 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
       val columns = valueSerializer.serialize(json).map { case (path, value) =>
-        Column(path.getBytes(JsonSerializer.charset), value)
+        Column(getBytes(path), value)
       }.toSeq
       ColumnFamily(family, columns)
     }
 
     val checkFamily = locality(_id)
-    val checkColumn = idPath.getBytes(JsonSerializer.charset)
+    val checkColumn = getBytes(idPath)
     table.checkAndPut(key2Bytes(id), checkFamily, checkColumn, families: _*)
   }
 
