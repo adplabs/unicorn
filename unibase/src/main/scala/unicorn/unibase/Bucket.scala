@@ -17,8 +17,9 @@
 package unicorn.unibase
 
 import java.util.{Date, UUID}
+import scala.collection.mutable.ArrayBuffer
 import unicorn.json._
-import unicorn.bigtable._, hbase.HBaseTable
+import unicorn.bigtable._
 import unicorn.oid.BsonObjectId
 import unicorn.util.ByteArray
 
@@ -168,7 +169,10 @@ class Bucket(table: BigTable, meta: JsObject) {
       locality(head)
     }
 
-    // We need to get the whole column family
+    // We need to get the whole column family.
+    // If the path is to a nested object, we will miss the children if not read the
+    // whole column family. If BigTable implementations support reading columns
+    // by prefix, we can do it more efficiently.
     val families = groups.toSeq.map { case (family, _) => (family, Seq.empty) }
 
     val data = table.get(key2Bytes(id), families)
@@ -315,6 +319,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     if (doc.fields.exists(_._1 == _id))
       throw new IllegalArgumentException(s"Invalid operation: set ${_id}")
 
+    // Group field by locality
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(JsonSerializer.pathDelimiter) match {
         case -1 => field
@@ -323,30 +328,77 @@ class Bucket(table: BigTable, meta: JsObject) {
       locality(head)
     }
 
-    val (parents, children) = groups.toSeq.map { case (family, fields) =>
+    // Map from parent to the fields to update
+    val children = scala.collection.mutable.Map[(String, ByteArray), Seq[String]]().withDefaultValue(Seq.empty)
+    val parents = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map { case (field, _) =>
-        field.lastIndexOf(JsonSerializer.pathDelimiter) match {
-          case -1 => JsonSerializer.root
-          case end => s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}${field.substring(0, end)}"
+        val (parent, name) = field.lastIndexOf(JsonSerializer.pathDelimiter) match {
+          case -1 => (JsonSerializer.root, field)
+          case end => (jsonPath(field.substring(0, end)), field.substring(end+1))
         }
+
+        children((family, parent)) =  children((family, parent)) :+ name
+        parent
       }.distinct.map { parent =>
-        ByteArray(valueSerializer.nullstring(parent))
+        ByteArray(parent.getBytes(JsonSerializer.charset))
       }
 
-      ((family, columns), fields.map(_._1).filter(_ != id))
-    }.unzip
+      (family, columns)
+    }
 
     val key = key2Bytes(id)
-    val parentValues = table.get(key, parents)
 
+    // Get the update to parents which get new child fields.
+    val pathUpdates = table.get(key, parents).map { case ColumnFamily(family, parents) =>
+      val updates = parents.map { parent =>
+        val value = new ArrayBuffer[Byte]()
+        value ++= parent.value.bytes
+        val update = children((family, parent.qualifier)).foldLeft[Option[ArrayBuffer[Byte]]](None) { (parent, child) =>
+          // appending the null terminal
+          val child0 = valueSerializer.nullstring(child)
+          if (isChild(value, child0)) parent
+          else {
+            value ++= child0
+            Some(value)
+          }
+        }
+
+        update.map { value => Column(parent.qualifier, value.toArray) }
+      }.filter(_.isDefined).map(_.get)
+      ColumnFamily(family, updates)
+    }.filter(!_.columns.isEmpty)
+
+    // Columns to update
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
-        seq ++ valueSerializer.serialize(value, jsonPath(field)).map { case (path, value) => Column(path.getBytes(JsonSerializer.charset), value) }.toSeq
+        seq ++ valueSerializer.serialize(value, jsonPath(field)).map {
+          case (path, value) => Column(path.getBytes(JsonSerializer.charset), value)
+        }.toSeq
       }
       ColumnFamily(family, columns)
     }
 
-    table.put(key, families: _*)
+    table.put(key, (pathUpdates ++ families): _*)
+  }
+
+  /** Given the column value of an object (containing its children field names), return
+    * true if node is its child.
+    */
+  private[unibase] def isChild(parent: ArrayBuffer[Byte], node: Array[Byte]): Boolean = {
+    def isChild(start: Int): Boolean = {
+      for (i <- 0 until node.size) {
+        if (parent(start + i) != node(i)) return false
+      }
+      true
+    }
+
+    var start = 1
+    while (start < parent.size) {
+      if (isChild(start)) return true
+      while (start < parent.size && parent(start) != 0) start = start + 1
+      start = start + 1
+    }
+    false
   }
 
   /** The $unset operator deletes particular fields.

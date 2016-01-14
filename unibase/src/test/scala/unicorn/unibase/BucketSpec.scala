@@ -135,6 +135,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
           | {
           |   "$set": {
           |     "owner": "Poor",
+          |     "gender": "M",
           |     "store.book.0.price": 9.95
           |   }
           | }
@@ -144,6 +145,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
 
       val doc = bucket.get(key, "owner", "store.book.0").get
       doc.owner === JsString("Poor")
+      doc.gender === JsString("M")
       doc.store.book(0).price === JsDouble(9.95)
 
       bucket.delete(key)
