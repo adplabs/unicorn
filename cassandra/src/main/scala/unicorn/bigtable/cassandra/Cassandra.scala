@@ -28,11 +28,10 @@ import org.apache.thrift.protocol.TBinaryProtocol
 import unicorn.bigtable._
 import unicorn.util.Logging
 
-/**
- * Cassandra server adapter.
- *
- * @author Haifeng Li
- */
+/** Cassandra server adapter.
+  *
+  * @author Haifeng Li
+  */
 class Cassandra(transport: TFramedTransport) extends Database[CassandraTable] with Logging {
   val protocol = new TBinaryProtocol(transport)
   val client = new Client(protocol)
@@ -99,10 +98,9 @@ class Cassandra(transport: TFramedTransport) extends Database[CassandraTable] wi
     client.describe_keyspace(name) != null
   }
 
-  /**
-   * Cassandra client API doesn't support compaction.
-   * This is actually a nop.
-   */
+  /** Cassandra client API doesn't support compaction.
+    * This is actually a nop.
+    */
   override def compactTable(name: String): Unit = {
     // fail silently
     log.warn("Cassandra client API doesn't support compaction")

@@ -25,11 +25,10 @@ import org.apache.accumulo.core.client.mock.MockInstance
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
 import unicorn.bigtable._
 
-/**
- * Accumulo server adapter.
- * 
- * @author Haifeng Li
- */
+/** Accumulo server adapter.
+  *
+  * @author Haifeng Li
+  */
 class Accumulo(val connector: Connector) extends Database[AccumuloTable] {
   val tableOperations = connector.tableOperations
   override def close: Unit = () // Connector has no close method
@@ -84,12 +83,11 @@ object Accumulo {
     new Accumulo(conn)
   }
 
-    /**
-     * Create a mock instance that holds all data in memory, and will
-     * not retain any data or settings between runs. It presently does
-     * not enforce users, logins, permissions, etc.
-     * This is for test purpose only.
-     */
+  /** Create a mock instance that holds all data in memory, and will
+    * not retain any data or settings between runs. It presently does
+    * not enforce users, logins, permissions, etc.
+    * This is for test purpose only.
+    */
   def apply(user: String = "root", password: String = ""): Accumulo = {
     val inst = new MockInstance
     val conn = inst.getConnector(user, new PasswordToken(password))

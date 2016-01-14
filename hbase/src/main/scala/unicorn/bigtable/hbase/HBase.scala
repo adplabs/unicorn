@@ -27,11 +27,10 @@ import org.apache.hadoop.hbase.TableName
 import unicorn.bigtable._
 import unicorn.index.Indexing
 
-/**
- * HBase server adapter.
- *
- * @author Haifeng Li
- */
+/** HBase server adapter.
+  *
+  * @author Haifeng Li
+  */
 class HBase(config: Configuration) extends Database[HBaseTable] {
   val connection = ConnectionFactory.createConnection(config)
   val admin = connection.getAdmin

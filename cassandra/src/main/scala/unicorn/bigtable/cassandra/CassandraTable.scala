@@ -32,12 +32,11 @@ import org.apache.cassandra.thrift.ColumnOrSuperColumn
 import unicorn.bigtable._
 import unicorn.util._
 
-/**
- * Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
- * in other NoSQL solutions such as Accumulo and HBase.
- * 
- * @author Haifeng Li
- */
+/** Cassandra keyspace adapter. Cassandra's keyspaces may be regarded as tables
+  * in other NoSQL solutions such as Accumulo and HBase.
+  *
+  * @author Haifeng Li
+  */
 class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable with IntraRowScan {
   val client = db.client
   client.set_keyspace(name)
@@ -89,10 +88,9 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
       families.map { case (family, columns) => ColumnFamily(family, get(row, family, columns: _*)) }.filter(!_.columns.isEmpty)
   }
 
-  /**
-   * Get a slice of rows.
-   * The default count should be sufficient for most documents.
-   */
+  /** Get a slice of rows.
+    * The default count should be sufficient for most documents.
+    */
   def get(row: Array[Byte], family: String, startColumn: Array[Byte], stopColumn: Array[Byte], count: Int): Seq[Column] = {
     val key = ByteBuffer.wrap(row)
     val parent = new ColumnParent(family)
@@ -287,9 +285,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     }
   }
 
-  /**
-   * Create mutation map entry if necessary.
-   */
+  /** Create mutation map entry if necessary. */
   private def createMutationMapEntry(updates: java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]], key: ByteBuffer, family: String) {
     if (!updates.containsKey(key)) {
       val row = new java.util.HashMap[String, java.util.List[Mutation]]

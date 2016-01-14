@@ -18,12 +18,10 @@ package unicorn.bigtable
 
 import java.util.Properties
 
-/**
- * A NoSQL database that include a number of datasets,
- * which don't have to support JOIN operation.
- * 
- * @author Haifeng Li
- */
+/** A BigTable database.
+  *
+  * @author Haifeng Li
+  */
 trait Database[+T <: BigTable] extends AutoCloseable {
   /**
    * Returns a table.

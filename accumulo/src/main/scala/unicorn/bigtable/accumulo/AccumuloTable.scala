@@ -24,11 +24,10 @@ import org.apache.accumulo.core.security.{Authorizations, ColumnVisibility => Ce
 import unicorn.bigtable._
 import unicorn.util._
 
-/**
- * Accumulo table adapter.
- * 
- * @author Haifeng Li
- */
+/** Accumulo table adapter.
+  *
+  * @author Haifeng Li
+  */
 class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with RowScan with CellLevelSecurity {
   override def close: Unit = () // Connector has no close method
 
@@ -250,10 +249,10 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
       db.connector.createBatchDeleter(name, authorizations, numQueryThreads, config)
   }
 
-  /**
-   *  @param maxMemory the maximum memory in bytes to batch before writing.
-   *                   The smaller this value, the more frequently the BatchWriter will write.
-   */
+  /** Creates a batch writer.
+    *  @param maxMemory the maximum memory in bytes to batch before writing.
+    *                   The smaller this value, the more frequently the BatchWriter will write.
+    */
   private def newBatchWriter(maxMemory: Long = 10000000L) = {
     // Use the default durability that is the table's durability setting.
     val config = new BatchWriterConfig

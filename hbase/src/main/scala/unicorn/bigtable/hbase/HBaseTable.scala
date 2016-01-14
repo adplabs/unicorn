@@ -28,11 +28,10 @@ import org.apache.hadoop.hbase.{CellUtil, HConstants}
 import unicorn.bigtable._, ScanFilter._
 import unicorn.util._
 
-/**
- * HBase table adapter.
- * 
- * @author Haifeng Li
- */
+/** HBase table adapter.
+  *
+  * @author Haifeng Li
+  */
 class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CheckAndPut with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
