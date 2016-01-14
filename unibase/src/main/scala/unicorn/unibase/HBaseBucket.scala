@@ -22,15 +22,26 @@ import unicorn.bigtable._, hbase.HBaseTable
 import unicorn.util._
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
-  /* Hbase counter must be 64 bits.
-   * TODO: How to encoding counters including data type? It is not plain Long!
-   */
-    override def update(doc: JsObject): Unit = {
-      super.update(doc)
+  /** Visibility expression which can be associated with a cell.
+    * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
+    */
+  def setCellVisibility(expression: String): Unit = table.setCellVisibility(expression)
 
-      val $inc = doc("$inc")
-      if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
-    }
+  /** Returns the current visibility expression setting. */
+  def getCellVisibility: String = table.getCellVisibility
+
+  /** Visibility labels associated with a Scan/Get deciding which all labeled data current scan/get can access. */
+  def setAuthorizations(labels: String*): Unit = table.setAuthorizations(labels: _*)
+
+  /** Returns the current authorization labels. */
+  def getAuthorizations: Seq[String] = table.getAuthorizations
+
+  override def update(doc: JsObject): Unit = {
+    super.update(doc)
+
+    val $inc = doc("$inc")
+    if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
+  }
 
   /** The $inc operator accepts positive and negative values.
     *
@@ -65,7 +76,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
       (family, columns)
     }
 
-    table.addCounter(key2Bytes(id), families)
+    table.addCounter(getKey(id), families)
   }
 
   /** Use checkAndPut for insert. */
@@ -86,12 +97,12 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
     val checkFamily = locality(_id)
     val checkColumn = getBytes(idPath)
-    table.checkAndPut(key2Bytes(id), checkFamily, checkColumn, families: _*)
+    table.checkAndPut(getKey(id), checkFamily, checkColumn, families: _*)
   }
 
   /** Gets a document. */
   def apply(id: JsValue, asOfDate: Date): Option[JsObject] = {
-    val data = table.getAsOf(asOfDate, key2Bytes(id), families)
+    val data = table.getAsOf(asOfDate, getKey(id), families)
     assemble(data)
   }
 
@@ -114,7 +125,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     */
   def get(projection: JsObject, asOfDate: Date): Option[JsObject] = {
     val (id, families) = project(projection)
-    val data = table.getAsOf(asOfDate, key2Bytes(id), families)
+    val data = table.getAsOf(asOfDate, getKey(id), families)
     val doc = assemble(data)
     doc.map(_(_id) = id)
     doc

@@ -82,6 +82,9 @@ class Bucket(table: BigTable, meta: JsObject) {
   /** True if the bucket is append only. */
   val appendOnly: Boolean = meta.appendOnly
 
+  /** Optional tenant id in case of multi-tenancy. */
+  var tenant: Option[JsValue] = None
+
   /** Gets a document. */
   def apply(id: Int): Option[JsObject] = {
     apply(JsLong(id))
@@ -114,7 +117,7 @@ class Bucket(table: BigTable, meta: JsObject) {
 
   /** Gets a document. */
   def apply(id: JsValue): Option[JsObject] = {
-    val data = table.get(key2Bytes(id), families)
+    val data = table.get(getKey(id), families)
     assemble(data)
   }
 
@@ -160,7 +163,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     */
   def get(projection: JsObject): Option[JsObject] = {
     val (id, families) = project(projection)
-    val data = table.get(key2Bytes(id), families)
+    val data = table.get(getKey(id), families)
     val doc = assemble(data)
     doc.map(_(_id) = id)
     doc
@@ -232,7 +235,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(key2Bytes(id), families: _*)
+    table.put(getKey(id), families: _*)
     id
   }
 
@@ -252,7 +255,7 @@ class Bucket(table: BigTable, meta: JsObject) {
 
     val checkFamily = locality(_id)
     val checkColumn = getBytes(idPath)
-    val key = key2Bytes(id)
+    val key = getKey(id)
     if (table.apply(key, checkFamily, checkColumn).isDefined) return false
 
     val families = groups.toSeq.map { case (family, fields) =>
@@ -275,7 +278,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     if (appendOnly)
       throw new UnsupportedOperationException
     else
-      table.delete(key2Bytes(id))
+      table.delete(getKey(id))
   }
 
   /** Updates a document. The supported update operators include
@@ -353,7 +356,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       (family, columns)
     }
 
-    val key = key2Bytes(id)
+    val key = getKey(id)
 
     // Get the update to parents which get new child fields.
     val pathUpdates = table.get(key, parents).map { case ColumnFamily(family, parents) =>
@@ -438,11 +441,16 @@ class Bucket(table: BigTable, meta: JsObject) {
       (family, path)
     }
 
-    table.delete(key2Bytes(id), families)
+    table.delete(getKey(id), families)
   }
 
   /** Serialize document id. */
-  private[unibase] def key2Bytes(id: JsValue): Array[Byte] = {
-    keySerializer.toBytes(id)
+  private[unibase] def getKey(id: JsValue): Array[Byte] = {
+    val key = tenant match {
+      case None => id
+      case Some(tenant) => JsArray(tenant, id)
+    }
+    
+    keySerializer.toBytes(key)
   }
 }
