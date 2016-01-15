@@ -421,6 +421,10 @@ class Bucket(table: BigTable, meta: JsObject) {
     * with undefined rather than removing the matching element from the array.
     * This behavior keeps consistent the array size and element positions.
     *
+    * Note that we don't really delete the field but set it as JsUndefined
+    * so that we keep the history and be able to time travel back. Otherwise,
+    * we will lose the history after a major compaction.
+    *
     * @param id the id of document.
     * @param doc the fields to delete.
     */
@@ -437,11 +441,13 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     val families = groups.toSeq.map { case (family, fields) =>
-      val path = fields.map { case (field, _) => ByteArray(getBytes(jsonPath(field))) }
-      (family, path)
+      val columns = fields.map {
+        case (field, _) => Column(getBytes(jsonPath(field)), valueSerializer.undefined)
+      }
+      ColumnFamily(family, columns)
     }
 
-    table.delete(getKey(id), families)
+    table.put(getKey(id), families: _*)
   }
 
   /** Serialize document id. */
