@@ -99,14 +99,8 @@ class BucketSpec extends Specification with BeforeAfterAll {
     }
     "insert" in {
       val bucket = db(tableName)
-      val key = bucket.upsert(json)
-      key === json("_id")
-      val obj = bucket(key)
-      obj.get === json
-
+      bucket.upsert(json)
       bucket.insert(json) === false
-      bucket.delete(key)
-      bucket(key) === None
     }
     "locality" in {
       val locality = Map("store" -> "store").withDefaultValue("doc")
@@ -147,9 +141,6 @@ class BucketSpec extends Specification with BeforeAfterAll {
       doc.owner === JsString("Poor")
       doc.gender === JsString("M")
       doc.store.book(0).price === JsDouble(9.95)
-
-      bucket.delete(key)
-      bucket(key) === None
     }
     "update.unset" in {
       val bucket = db(tableName)
@@ -172,9 +163,6 @@ class BucketSpec extends Specification with BeforeAfterAll {
       doc.owner === JsUndefined
       doc.address === JsUndefined
       doc.store.book(0) === JsUndefined
-
-      bucket.delete(key)
-      bucket(key) === None
     }
     "append only" in {
       db.createBucket("unicorn_append_only", appendOnly = true)
@@ -183,6 +171,13 @@ class BucketSpec extends Specification with BeforeAfterAll {
       bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]
       db.dropBucket("unicorn_append_only")
       1 === 1
+    }
+    "multi-tenancy" in {
+      val bucket = db(tableName)
+      bucket.tenant = Some("IBM")
+      val key = bucket.upsert(json)
+      bucket.tenant = Some("ADP")
+      bucket(key) === None
     }
   }
 }
