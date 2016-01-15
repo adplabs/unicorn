@@ -51,17 +51,17 @@ case class IndexBuilder(index: Index, indexTable: IndexableTable) {
 }
 
 object RowMap {
-  def apply(families: ColumnFamily*): RowMap = {
+  def apply(families: Seq[ColumnFamily]): RowMap = {
     collection.mutable.Map(families.map { case ColumnFamily(family, columns) =>
       (family, collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
     }: _*)
   }
 
-  def apply(family: String, columns: Column*): RowMap = {
+  def apply(family: String, columns: Seq[Column]): RowMap = {
     collection.mutable.Map(family -> collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
   }
 
   def apply(row: Row): RowMap = {
-    apply(row.families: _*)
+    apply(row.families)
   }
 }

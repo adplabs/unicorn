@@ -81,7 +81,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     val indexTable = db.createTable(index.indexTableName, IndexColumnFamilies: _*)
     val builder = IndexBuilder(index, indexTable)
     scan(startRowKey, endRowKey, index.family, index.columns.map(_.qualifier): _*).foreach { case Row(row, families) =>
-      builder.insertIndex(row, RowMap(families: _*))
+      builder.insertIndex(row, RowMap(families))
     }
 
     addIndex(index)
@@ -115,8 +115,8 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
       super.update(row, family, column, value)
     } else {
       val values = get(row, family, coveredColumns: _*)
-      val oldValue = RowMap(family, values: _*)
-      val newValue = RowMap(family, values: _*)
+      val oldValue = RowMap(family, values)
+      val newValue = RowMap(family, values)
 
       super.update(row, family, column, value)
 
@@ -146,8 +146,8 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
       super.put(row, family, columns: _*)
     } else {
       val values = get(row, family, coveredColumns: _*)
-      val oldValue = RowMap(family, values: _*)
-      val newValue = RowMap(family, values: _*)
+      val oldValue = RowMap(family, values)
+      val newValue = RowMap(family, values)
 
       super.put(row, family, columns: _*)
 
@@ -181,8 +181,8 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
       super.put(row, families)
     } else {
       val values = get(row, coveredColumns)
-      val oldValue = RowMap(values: _*)
-      val newValue = RowMap(values: _*)
+      val oldValue = RowMap(values)
+      val newValue = RowMap(values)
 
       super.put(row, families)
 
@@ -224,7 +224,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
       super.delete(row, family, columns: _*)
     } else {
       val values = get(row, family, coveredColumns: _*)
-      val rowMap = RowMap(family, values: _*)
+      val rowMap = RowMap(family, values)
 
       super.delete(row, family, columns: _*)
 
@@ -257,7 +257,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
       super.delete(row, families)
     } else {
       val values = get(row, coveredFamilies)
-      val rowMap = RowMap(values: _*)
+      val rowMap = RowMap(values)
 
       super.delete(row, families)
 
