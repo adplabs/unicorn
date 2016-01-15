@@ -20,32 +20,30 @@ import unicorn.bigtable._
 import unicorn.json._
 import unicorn.util._
 
-/**
- * Index manager. A BigTable with Indexing trait will automatically maintain
- * secondary index.
- *
- * Use the stackable trait pattern by "abstract override".
- * See details at http://www.artima.com/scalazine/articles/stackable_trait_pattern.html
- *
- * @author Haifeng Li
- */
+/** Index manager. A BigTable with Indexing trait will automatically maintain
+  * secondary index.
+  *
+  * Use the stackable trait pattern by "abstract override".
+  * See details at http://www.artima.com/scalazine/articles/stackable_trait_pattern.html
+  *
+  * @author Haifeng Li
+  */
 trait Indexing extends BigTable with RowScan with FilterScan with Counter {
   val db: Database[IndexableTable]
 
   var builders = getIndexBuilders
 
-  /** Close the base table and the index table */
+  /** Closes the base table and the index table */
   abstract override def close(): Unit = {
     super.close
     builders.foreach(_.close)
   }
 
-  /**
-   * Gets the meta of all indices of a base table.
-   * Each row of metaTable encodes the index information for a table
-   * The row key is the base table name. Each column is a BSON object
-   * about the index. The column name is the index name.
-   */
+  /** Gets the meta of all indices of a base table.
+    * Each row of metaTable encodes the index information for a table
+    * The row key is the base table name. Each column is a BSON object
+    * about the index. The column name is the index name.
+    */
   private def getIndexBuilders: Seq[IndexBuilder] = {
     if (!db.tableExists(IndexMetaTableName)) return Seq[IndexBuilder]()
 
@@ -62,7 +60,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /** Add an index to meta data.    */
+  /** Adds an index to meta data.    */
   private def addIndex(index: Index): Unit = {
     // If the index meta data table doesn't exist, create it.
     if (!db.tableExists(IndexMetaTableName))
@@ -70,10 +68,10 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
 
     val metaTable = db(IndexMetaTableName)
     val bson = new BsonSerializer
-    metaTable.put(name, IndexMetaTableColumnFamily, index.name, bson.toBytes(index.toJson))
+    metaTable.update(name, IndexMetaTableColumnFamily, index.name, bson.toBytes(index.toJson))
   }
 
-  /** Create an index. */
+  /** Creates an index. */
   def createIndex(index: Index): Unit = {
     builders.foreach { builder =>
       if (builder.index.name == index.name) throw new IllegalArgumentException(s"Index ${index.name} exists")
@@ -90,7 +88,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     builders = getIndexBuilders
   }
 
-  /** Drop an index. */
+  /** Drops an index. */
   def dropIndex(indexName: String): Unit = {
     val indexBuilder = builders.find(_.index.name == indexName)
 
@@ -102,17 +100,11 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Upsert a value.
-   */
   abstract override def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
-    put(row, family, column, value)
+    put(row, family, column, value, 0L)
   }
 
-  /**
-   * Upsert a value.
-   */
-  abstract override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit = {
+  abstract override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit = {
     val coveredColumns = builders.flatMap { builder =>
       if (builder.index.family == family) {
         builder.index.findCoveredColumns(family, column)
@@ -120,13 +112,13 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }.distinct
 
     if (coveredColumns.isEmpty) {
-      super.put(row, family, column, value)
+      super.update(row, family, column, value)
     } else {
       val values = get(row, family, coveredColumns: _*)
       val oldValue = RowMap(family, values: _*)
       val newValue = RowMap(family, values: _*)
 
-      super.put(row, family, column, value)
+      super.update(row, family, column, value)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase supports key only read by filter.
@@ -141,9 +133,6 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Upsert values.
-   */
   abstract override def put(row: ByteArray, family: String, columns: Column*): Unit = {
     val qualifiers = columns.map(_.qualifier)
 
@@ -177,10 +166,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Upsert values.
-   */
-  abstract override def put(row: ByteArray, families: ColumnFamily*): Unit = {
+  abstract override def put(row: ByteArray, families: Seq[ColumnFamily]): Unit = {
     val coveredColumns = families.map { case ColumnFamily(family, columns) =>
       val qualifiers = columns.map(_.qualifier)
       val c = builders.flatMap { builder =>
@@ -192,13 +178,13 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
 
     if (coveredColumns.isEmpty) {
-      super.put(row, families: _*)
+      super.put(row, families)
     } else {
       val values = get(row, coveredColumns)
       val oldValue = RowMap(values: _*)
       val newValue = RowMap(values: _*)
 
-      super.put(row, families: _*)
+      super.put(row, families)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase supports key only read by filter.
@@ -220,19 +206,12 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Update the values of one or more rows.
-   * The implementation may or may not optimize the batch operations.
-   */
   abstract override def putBatch(rows: Row*): Unit = {
     rows.foreach { case Row(row, families) =>
-      put(row, families: _*)
+      put(row, families)
     }
   }
 
-  /**
-   * Delete the columns of a row. If columns is empty, delete all columns in the family.
-   */
   abstract override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
     val coveredColumns = builders.flatMap { builder =>
       if (builder.index.family == family) {
@@ -259,9 +238,6 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Delete the columns of a row. If families is empty, delete the whole row.
-   */
   abstract override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
     val coveredFamilies = if (families.isEmpty) {
       builders.map { builder => (builder.index.family, builder.index.coveredColumns.toSeq) }
@@ -301,10 +277,6 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }
   }
 
-  /**
-   * Delete multiple rows.
-   * The implementation currently doesn't optimize the batch operations.
-   */
   abstract override def deleteBatch(rows: Seq[ByteArray]): Unit = {
     rows.foreach { row =>
       delete(row)

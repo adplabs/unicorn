@@ -97,7 +97,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
     val checkFamily = locality(_id)
     val checkColumn = getBytes(idPath)
-    table.checkAndPut(getKey(id), checkFamily, checkColumn, families: _*)
+    table.checkAndPut(getKey(id), checkFamily, checkColumn, families)
   }
 
   /** Gets a document. */
@@ -130,4 +130,10 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     doc.map(_(_id) = id)
     doc
   }
+
+  /*
+  def find(projection: JsObject, query: JsObject): Iterator[JsObject] = {
+
+  }
+  */
 }

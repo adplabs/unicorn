@@ -190,7 +190,7 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
     client.batch_mutate(updates, consistency)
   }
 
-  override def put(row: ByteArray, families: ColumnFamily*): Unit = {
+  override def put(row: ByteArray, families: Seq[ColumnFamily]): Unit = {
     val key = ByteBuffer.wrap(row)
     val updates = new java.util.HashMap[ByteBuffer, java.util.Map[String, java.util.List[Mutation]]]
 

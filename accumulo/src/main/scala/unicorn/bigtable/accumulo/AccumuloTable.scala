@@ -164,7 +164,7 @@ class AccumuloTable(val db: Accumulo, val name: String) extends BigTable with Ro
     writer.flush
   }
 
-  override def put(row: ByteArray, families: ColumnFamily*): Unit = {
+  override def put(row: ByteArray, families: Seq[ColumnFamily]): Unit = {
     val mutation = new Mutation(row)
     families.foreach { case ColumnFamily(family, columns) =>
       columns.foreach { case Column(qualifier, value, timestamp) =>

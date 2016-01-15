@@ -235,7 +235,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(getKey(id), families: _*)
+    table.put(getKey(id), families)
     id
   }
 
@@ -266,7 +266,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(key, families: _*)
+    table.put(key, families)
     true
   }
 
@@ -388,7 +388,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(key, (pathUpdates ++ families): _*)
+    table.put(key, pathUpdates ++ families)
   }
 
   /** Given the column value of an object (containing its children field names), return
@@ -447,7 +447,7 @@ class Bucket(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(getKey(id), families: _*)
+    table.put(getKey(id), families)
   }
 
   /** Serialize document id. */

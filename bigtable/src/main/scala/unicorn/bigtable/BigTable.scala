@@ -52,7 +52,7 @@ trait BigTable extends AutoCloseable {
     * table(row, family, column) = value
     */
   def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
-    put(row, family, column, value)
+    put(row, family, column, value, 0L)
   }
 
   /** Get one or more columns of a column family. If columns is empty, get all columns in the column family. */
@@ -75,13 +75,13 @@ trait BigTable extends AutoCloseable {
   def getBatch(rows: Seq[ByteArray], families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[Row]
 
   /** Upsert a value. */
-  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long = 0L): Unit
+  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit
 
   /** Upsert values. */
   def put(row: ByteArray, family: String, columns: Column*): Unit
 
   /** Upsert values. */
-  def put(row: ByteArray, families: ColumnFamily*): Unit
+  def put(row: ByteArray, families: Seq[ColumnFamily] = Seq.empty): Unit
 
   /** Update the values of one or more rows.
     * The implementation may or may not optimize the batch operations.
@@ -118,7 +118,7 @@ trait CheckAndPut {
   def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, family: String, columns: Column*): Boolean
 
   /** Insert values. Returns true if the new put was executed, false otherwise. */
-  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: ColumnFamily*): Boolean
+  def checkAndPut(row: ByteArray, checkFamily: String, checkColumn: ByteArray, families: Seq[ColumnFamily] = Seq.empty): Boolean
 }
 
 /** Row scan iterator */
