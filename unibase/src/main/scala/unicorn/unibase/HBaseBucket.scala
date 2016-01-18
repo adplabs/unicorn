@@ -80,7 +80,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
   }
 
   /** Use checkAndPut for insert. */
-  override def insert(doc: JsObject): Boolean = {
+  override def insert(doc: JsObject): Unit = {
     val id = doc(_id)
     if (id == JsNull || id == JsUndefined)
       throw new IllegalArgumentException(s"missing ${_id}")
@@ -97,7 +97,8 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
     val checkFamily = locality(_id)
     val checkColumn = getBytes(idPath)
-    table.checkAndPut(getKey(id), checkFamily, checkColumn, families)
+    if (!table.checkAndPut(getKey(id), checkFamily, checkColumn, families))
+      throw new IllegalArgumentException(s"Document $id already exists")
   }
 
   /** Gets a document. */

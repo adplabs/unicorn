@@ -100,7 +100,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
     "insert" in {
       val bucket = db(tableName)
       bucket.upsert(json)
-      bucket.insert(json) === false
+      bucket.insert(json) must throwA[IllegalArgumentException]
     }
     "locality" in {
       val locality = Map("store" -> "store").withDefaultValue("doc")

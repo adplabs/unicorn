@@ -30,7 +30,7 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
   val bigtable = HBase()
-  val db = new HUnibase(bigtable)
+  val db = new HUniBase(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
     """
@@ -96,7 +96,7 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       val obj = bucket(key)
       obj.get === json
 
-      bucket.insert(json) === false
+      bucket.insert(json) must throwA[IllegalArgumentException]
       bucket.delete(key)
       bucket(key) === None
     }

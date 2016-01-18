@@ -249,7 +249,7 @@ class Bucket(table: BigTable, meta: JsObject) {
    * @param doc the document.
    * @return true if the document is inserted, false if the document already existed.
    */
-  def insert(doc: JsObject): Boolean = {
+  def insert(doc: JsObject): Unit = {
     val id = doc(_id)
     if (id == JsNull || id == JsUndefined)
       throw new IllegalArgumentException(s"missing ${_id}")
@@ -259,7 +259,8 @@ class Bucket(table: BigTable, meta: JsObject) {
     val checkFamily = locality(_id)
     val checkColumn = getBytes(idPath)
     val key = getKey(id)
-    if (table.apply(key, checkFamily, checkColumn).isDefined) return false
+    if (table.apply(key, checkFamily, checkColumn).isDefined)
+      throw new IllegalArgumentException(s"Document $id already exists")
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
@@ -270,7 +271,6 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
 
     table.put(key, families)
-    true
   }
 
   /** Removes a document.
