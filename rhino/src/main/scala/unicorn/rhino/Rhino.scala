@@ -16,16 +16,20 @@
 
 package unicorn.rhino
 
+import java.util.UUID
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext, ExecutionContext.Implicits.global
+
 import akka.actor.Actor
 import spray.routing._
 import spray.http._
-import spray.http.HttpHeaders.RawHeader
 import MediaTypes._
 
 import unicorn._, json._
-import unicorn.cassandra.CassandraServer
-import unicorn.core.Document
-import unicorn.search.TextSearch
+import unicorn.bigtable.BigTable
+import unicorn.bigtable.hbase.HBase
+import unicorn.oid.BsonObjectId
+import unicorn.unibase._
 
 
 /**
@@ -46,18 +50,9 @@ class RhinoActor extends Actor with Rhino {
 
 // this trait defines our service behavior independently from the service actor
 trait Rhino extends HttpService {
-  val host = System.getProperty("adp.unicorn.demo.cassandra.host", "localhost")
-  val port = System.getProperty("adp.unicorn.demo.cassandra.port", "9160").toInt
-  val server = CassandraServer(host, port)
+  val unibase = new HUniBase(HBase())
 
-  val db = server.dataset(System.getProperty("adp.unicorn.demo.database", "dbpedia"))
-
-  val numDocs = 4004478
-  val pagerank = new Document("unicorn.text.corpus.text.page_rank", "text_index").from(db)
-  val pr = math.log(0.85 / numDocs)
-  val suffix = "##abstract"
-
-  val index = TextSearch(db, numDocs)
+  def rawJson = extract { _.request.entity.asString}
 
   val staticRoute = {
     get {
@@ -69,85 +64,84 @@ trait Rhino extends HttpService {
     }
   }
 
-  val apiRoute = get {
-    path("doc" / Segment) { id =>
-      getDocument(id)
-    } ~
-    path("link" / Segment) { id =>
-      getLink(id)
-    } ~
-    path("search") {
-      parameter('q) { q =>
-        search(q)
+  val apiRoute = {
+    path(Segment / Segment) { (bucket, id) =>
+      get {
+        _get(bucket, id)
+      } ~
+      delete {
+        remove(bucket, id)
       }
-    }
-  }
-
-  def getDocument(id: String) = {
-    val doc = db.get(id)
-    val links = doc.links.map(_._1._2).toSeq
-    respondWithMediaType(`text/html`) {
-        complete(html.doc(id, doc.json.prettyPrint, links).toString)
-    }
-  }
-
-  def getLink(id: String) = {
-    respondWithMediaType(`application/json`) {
-      complete {
-        val doc = db.get(id)
-        pagerank.select((doc.links.map { case ((_, target), _) => target + suffix }.toArray :+ (id + suffix)): _*)
-
-        var idx = 0
-        val rank = pagerank(id + suffix) match {
-          case JsDouble(value) => math.log(value)
-          case _ => pr
+    } ~
+    path(Segment) { bucket =>
+      rawJson { doc =>
+        post {
+          upsert(bucket, doc)
+        } ~
+        put {
+          insert(bucket, doc)
+        } ~
+        patch {
+          update(bucket, doc)
         }
-        val center = JsObject(
-          "id" -> id,
-          "index" -> 0,
-          "rank" -> rank
-        )
-
-        val nodes = center +: doc.links.map{ case ((_, target), value) =>
-          idx += 1
-          val rank = pagerank(target + suffix) match {
-            case JsDouble(value) => math.log(value)
-            case _ => pr
-          }
-          JsObject(
-            "id" -> target,
-            "index" -> idx,
-            "rank" -> rank
-          )
-        }.toArray
-
-        idx = 0
-        val links = doc.links.map { case ((_, target), value) =>
-          val weight: Double = value
-          idx += 1
-          JsObject(
-            "source" -> 0,
-            "target" -> idx,
-            "weight" -> weight
-          )
-        }.toArray
-
-        JsObject(
-          "nodes" -> JsArray(nodes: _*),
-          "links" -> JsArray(links: _*)
-        ).prettyPrint
       }
     }
   }
 
-  def search(query: String) = {
-    val hits = index.search(query.split("\\s+"): _*).map { hit =>
-      val doc = hit._1._1
-      doc.select("title")
-      (doc.id, doc("title").toString)
-    }
-    respondWithMediaType(`text/html`) {
-      complete(html.search(query, hits).toString)
+  private def _id(id: String): JsValue = {
+    id.split(":") match {
+      case Array(_id, "UUID") => JsUUID(UUID.fromString(_id))
+      case Array(_id, "BSONObjectId") => JsObjectId(BsonObjectId(_id))
+      case Array(_id, "Long") => JsLong(_id.toLong)
+      case Array(_id, "Int") => JsInt(_id.toInt)
+      case _ => JsString(id)
     }
   }
+
+  private def json(doc: String) = JsonParser(doc).asInstanceOf[JsObject]
+
+  // name it "get" will conflict with spray routing "get"
+  private def _get(bucket: String, id: String, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
+    onSuccess(Future(unibase(bucket)(_id(id)))) { doc =>
+      respondWithMediaType(`application/json`) {
+        complete(doc match {
+          case None => StatusCodes.NotFound
+          case Some(doc) => doc.prettyPrint
+        })
+      }
+    }
+  }
+
+  private def upsert(bucket: String, doc: String) = {
+    onSuccess(Future(unibase(bucket).upsert(json(doc)))) { Unit =>
+      respondWithMediaType(`application/json`) {
+        complete("{}")
+      }
+    }
+  }
+
+  private def insert(bucket: String, doc: String) = {
+    onSuccess(Future(unibase(bucket).insert(json(doc)))) { Unit =>
+      respondWithMediaType(`application/json`) {
+        complete("{}")
+      }
+    }
+  }
+
+  private def update(bucket: String, doc: String) = {
+    onSuccess(Future(unibase(bucket).update(json(doc)))) { Unit =>
+      respondWithMediaType(`application/json`) {
+        complete("{}")
+      }
+    }
+  }
+
+  def remove(bucket: String, id: String) = {
+    onSuccess(Future(unibase(bucket).delete(_id(id)))) { Unit =>
+      respondWithMediaType(`application/json`) {
+        complete("{}")
+      }
+    }
+  }
+
 }

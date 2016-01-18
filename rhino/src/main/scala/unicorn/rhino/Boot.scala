@@ -30,7 +30,7 @@ import com.typesafe.config.ConfigFactory
 object Boot extends App {
 
   // we need an ActorSystem to host our application in
-  implicit val system = ActorSystem("unicorn-demo")
+  implicit val system = ActorSystem("unicorn-rhino")
 
   // create and start our service actor
   val service = system.actorOf(Props[RhinoActor], "unicorn-rhino")

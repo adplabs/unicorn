@@ -10,7 +10,7 @@ lazy val commonSettings = Seq(
   parallelExecution in Test := false
 )
 
-lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, shell, graph, search, rhino)
+lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, shell, graph, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -34,9 +34,9 @@ lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).
 
 lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase)
 
-lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(unibase)
+//lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(unibase)
 
 lazy val shell = project.in(file("shell")).settings(commonSettings: _*).dependsOn(unibase, graph, hbase, cassandra, accumulo)
 
-lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(unibase, graph, search, cassandra)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(unibase, graph, hbase)
 

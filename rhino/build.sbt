@@ -1,18 +1,18 @@
-name := "unicorn-demo"
+name := "unicorn-rhino"
 
 enablePlugins(JavaServerAppPackaging)
 
 maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
-packageName := "adp-unicorn-demo"
+packageName := "adp-unicorn-rhino"
 
-packageSummary := "ADP Unicorn Search Demo Web Server"
+packageSummary := "ADP Unicorn Rhino REST API"
 
-packageDescription := "ADP Unicorn Search Demo Web Server"
+packageDescription := "ADP Unicorn Rhino REST API"
 
-executableScriptName := "unicorn-demo"
+executableScriptName := "rhino"
 
-mainClass in Compile := Some("com.adp.unicorn.demo.Boot")
+mainClass in Compile := Some("unicorn.rhino.Boot")
 
 libraryDependencies ++= {
   val akkaV = "2.3.6"
