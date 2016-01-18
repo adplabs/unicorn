@@ -22,7 +22,7 @@ import scala.tools.nsc.interpreter.ILoop
   *
   * @author Haifeng Li
   */
-class UnicornILoop extends ILoop {
+class Shell extends ILoop {
     override def prompt = "ADP Unicorn> "
     override def printWelcome = echo(
       s"""
