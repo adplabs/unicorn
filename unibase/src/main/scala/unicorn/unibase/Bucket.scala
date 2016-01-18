@@ -45,7 +45,7 @@ import unicorn.util.ByteArray
   */
 class Bucket(table: BigTable, meta: JsObject) {
   /** Document id field. */
-  val _id = "_id"
+  val _id = Bucket._id
 
   /** Returns the json path of a dot notation path as in MongoDB. */
   private[unibase] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
@@ -65,6 +65,9 @@ class Bucket(table: BigTable, meta: JsObject) {
   val families: Seq[(String, Seq[ByteArray])] = meta.families.asInstanceOf[JsArray].elements.map { e =>
     (e.toString, Seq.empty)
   }
+
+  /** The bucket name. */
+  val name = table.name
 
   /**
    * A map of document fields to column families for storing of sets of fields in column families
@@ -459,4 +462,9 @@ class Bucket(table: BigTable, meta: JsObject) {
     
     keySerializer.toBytes(key)
   }
+}
+
+object Bucket {
+  /** Document id field. */
+  val _id = "_id"
 }

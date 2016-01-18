@@ -37,10 +37,10 @@ class UniGraph(val nodes: Array[JsValue], graph: Graph) {
 object UniGraph {
   val graphOps = new GraphOps[JsValue, (String, JsValue)]()
 
-  /** Returns an in-memory graph built by given visitor from the starting node.
+  /** Returns an in-memory Smile graph built by given visitor from the starting node.
     * @param start the staring node of graph traversal.
     * @param visitor the visitor object.
-    * @return an in-memory graph for heavy graph computation.
+    * @return an in-memory Smile graph for heavy graph computation.
     */
   def apply(start: JsValue, visitor: UniBaseVisitor): UniGraph = {
     graphOps.dfs(start, visitor)
