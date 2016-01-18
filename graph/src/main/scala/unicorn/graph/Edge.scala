@@ -16,11 +16,10 @@
 
 package unicorn.graph
 
-/**
- * An edge between two vertices in a graph with optional associated data.
- * 
- * @author Haifeng Li
- */
+/** An edge between two vertices in a graph with optional associated data.
+  *
+  * @author Haifeng Li
+  */
 class Edge[V, E](val source: V, val target: V, val data: Option[E]) {
 
 }

@@ -16,21 +16,24 @@
 
 package unicorn.graph
 
-/**
- * Graph traversal visitor.
- * 
- * @author Haifeng Li
- */
+/** Graph traversal visitor.
+  *
+  * @author Haifeng Li
+  */
 trait Visitor[V, E] {
-  /**
-   * Visit a vertex during graph traversal. The edge is the incoming
-   * arc (null for starting vertex). The hops is the number of hops
-   * from the starting vertex to this vertex.
-   */
+  /** Visit a vertex during graph traversal.
+    *
+    * @param vertex the vertex on visiting.
+    * @param edge the incoming arc (null for starting vertex).
+    * @param hops the number of hops from the starting vertex to this vertex.
+    */
   def visit(vertex: V, edge: Edge[V, E], hops: Int): Unit
-  /**
-   * Returns an iterator of the outgoing edges of a vertex. The input parameters
-   * hops (# of hops from starting vertex) may be used for early termination.
-   */
+
+  /** Returns an iterator of the outgoing edges of a vertex.
+    *
+    * @param vertex the vertex on visiting.
+    * @param hops the number of hops from starting vertex, which may be used for early termination.
+    * @return an iterator of the outgoing edges
+    */
   def edges(vertex: V, hops: Int): Iterator[Edge[V, E]]
 }
