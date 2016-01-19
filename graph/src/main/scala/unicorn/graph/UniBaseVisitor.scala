@@ -65,6 +65,10 @@ class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, 
   /** Map edge to a weight. */
   val weights = scala.collection.mutable.Map[(Int, Int), Double]()
 
+  /** Extra action when visiting a vertex. This default implementation does nothing.
+    * Applications needing customized visit action should override it. */
+  val visitHooks = Seq[(JsValue, Edge[JsValue, (String, JsValue)], Int) => Unit]()
+
   override def visit(vertex: JsValue, edge: Edge[JsValue, (String, JsValue)], hops: Int): Unit = {
     if (!nodes.contains(vertex)) nodes(vertex) = nodes.size
     
@@ -77,6 +81,10 @@ class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, 
       }
       
       weights((nodes(edge.source), nodes(edge.target))) = weight
+    }
+
+    visitHooks.foreach { hook =>
+      hook(vertex, edge, hops)
     }
   }
 
