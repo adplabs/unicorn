@@ -45,13 +45,13 @@ import unicorn.util.ByteArray
   */
 class Bucket(table: BigTable, meta: JsObject) {
   /** Document id field. */
-  val _id = Bucket._id
+  val $id = UniBase.$id
 
   /** Returns the json path of a dot notation path as in MongoDB. */
   private[unibase] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
 
   /** Json path of id, i.e. the column qualifier in BigTable. */
-  val idPath = jsonPath(_id)
+  val idPath = jsonPath($id)
 
   /** Document key serializer. */
   val keySerializer = new BsonSerializer
@@ -147,6 +147,16 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
   }
 
+  /** Returns the _id of a document. Throws exception if missing. */
+  private[unibase] def getId(doc: JsObject): JsValue = {
+    val id = doc($id)
+
+    if (id == JsNull || id == JsUndefined)
+      throw new IllegalArgumentException(s"missing ${$id}")
+
+    id
+  }
+
   /** A query may include a projection that specifies the fields of the document to return.
     * The projection limits the disk access and the network data transmission.
     * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
@@ -165,33 +175,12 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @return the projected document. The _id field will be always included.
     */
   def get(projection: JsObject): Option[JsObject] = {
-    val (id, families) = project(projection)
+    val id = getId(projection)
+    val families = project(projection)
+
     val data = table.get(getKey(id), families)
     val doc = assemble(data)
-    doc.map(_(_id) = id)
     doc
-  }
-
-  /** Maps a  projection to the seq of column families to fetch. */
-  private[unibase] def project(projection: JsObject): (JsValue, Seq[(String, Seq[ByteArray])]) = {
-    val id = projection(_id)
-    if (id == JsNull || id == JsUndefined)
-      throw new IllegalArgumentException(s"missing ${_id}")
-
-    val groups = projection.fields.toSeq.filter(_._1 != "_id").groupBy { case (field, _) =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
-    }
-
-    // We need to get the whole column family.
-    // If the path is to a nested object, we will miss the children if not read the
-    // whole column family. If BigTable implementations support reading columns
-    // by prefix, we can do it more efficiently.
-    val families = groups.toSeq.map { case (family, _) => (family, Seq.empty) }
-    (id, families)
   }
 
   /** A query may include a projection that specifies the fields of the document to return.
@@ -212,8 +201,26 @@ class Bucket(table: BigTable, meta: JsObject) {
     */
   def get(id: JsValue, fields: String*): Option[JsObject] = {
     val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
-    projection(_id) = id
+    projection($id) = id
     get(projection)
+  }
+
+  /** Maps a  projection to the seq of column families to fetch. */
+  private[unibase] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
+
+    val groups = projection.fields.map(_._1).groupBy { field =>
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
+        case -1 => field
+        case end => field.substring(0, end)
+      }
+      locality(head)
+    }
+
+    // We need to get the whole column family.
+    // If the path is to a nested object, we will miss the children if not read the
+    // whole column family. If BigTable implementations support reading columns
+    // by prefix, we can do it more efficiently.
+    groups.toSeq.map { case (family, _) => (family, Seq.empty) }
   }
 
   /**
@@ -225,8 +232,8 @@ class Bucket(table: BigTable, meta: JsObject) {
    * @return the document id.
    */
   def upsert(doc: JsObject): JsValue = {
-    val id =  doc(_id) match {
-      case JsUndefined | JsNull => doc(_id) = UUID.randomUUID
+    val id = doc($id) match {
+      case JsUndefined | JsNull => doc($id) = UUID.randomUUID
       case id => id
     }
 
@@ -250,13 +257,10 @@ class Bucket(table: BigTable, meta: JsObject) {
    * @return true if the document is inserted, false if the document already existed.
    */
   def insert(doc: JsObject): Unit = {
-    val id = doc(_id)
-    if (id == JsNull || id == JsUndefined)
-      throw new IllegalArgumentException(s"missing ${_id}")
-
+    val id = getId(doc)
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
-    val checkFamily = locality(_id)
+    val checkFamily = locality($id)
     val checkColumn = getBytes(idPath)
     val key = getKey(id)
     if (table.apply(key, checkFamily, checkColumn).isDefined)
@@ -296,9 +300,7 @@ class Bucket(table: BigTable, meta: JsObject) {
     if (appendOnly)
       throw new UnsupportedOperationException
     else {
-      val id = doc(_id)
-      if (id == JsNull || id == JsUndefined)
-        throw new IllegalArgumentException(s"missing ${_id}")
+      val id = getId(doc)
 
       val $set = doc("$set")
       if ($set.isInstanceOf[JsObject]) set(id, $set.asInstanceOf[JsObject])
@@ -329,8 +331,8 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @param doc the fields to update.
     */
   def set(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == _id))
-      throw new IllegalArgumentException(s"Invalid operation: set ${_id}")
+    if (doc.fields.exists(_._1 == $id))
+      throw new IllegalArgumentException(s"Invalid operation: set ${$id}")
 
     // Group field by locality
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
@@ -432,8 +434,8 @@ class Bucket(table: BigTable, meta: JsObject) {
     * @param doc the fields to delete.
     */
   def unset(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == _id))
-      throw new IllegalArgumentException(s"Invalid operation: unset ${_id}")
+    if (doc.fields.exists(_._1 == $id))
+      throw new IllegalArgumentException(s"Invalid operation: unset ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(JsonSerializer.pathDelimiter) match {
@@ -462,9 +464,4 @@ class Bucket(table: BigTable, meta: JsObject) {
     
     keySerializer.toBytes(key)
   }
-}
-
-object Bucket {
-  /** Document id field. */
-  val _id = "_id"
 }

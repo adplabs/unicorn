@@ -98,7 +98,7 @@ class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, 
 
     val links = neighbors.flatMap { case (relationship, neighbor) =>
       neighbor.asInstanceOf[JsObject].fields.map { case (_, link) =>
-        new Edge(vertex, link(Bucket._id), Some((relationship, link.data)))
+        new Edge(vertex, link(UniBase.$id), Some((relationship, link.data)))
       }
     }
 
@@ -125,7 +125,7 @@ class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, 
     * @return the document or None if it doesn't exist.
     */
   def $doc(id: JsValue): Option[JsObject] = {
-    bucket.get(id, UniBase.DefaultGraphField)
+    bucket.get(id, UniBase.$graph)
   }
 
   /** Returns the adjacency list of a document. By default, we assume that

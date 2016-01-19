@@ -41,8 +41,14 @@ class UniBase[+T <: BigTable](db: Database[T]) {
     *                 and to avoid scanning over column families that are not requested.
     */
   def createBucket(name: String,
-                   families: Seq[String] = Seq(UniBase.DefaultDocumentColumnFamily, UniBase.DefaultGraphColumnFamily),
-                   locality: Map[String, String] = Map(UniBase.DefaultGraphField -> UniBase.DefaultGraphColumnFamily).withDefaultValue(UniBase.DefaultDocumentColumnFamily),
+                   families: Seq[String] = Seq(
+                     UniBase.DefaultIdColumnFamily,
+                     UniBase.DefaultDocumentColumnFamily,
+                     UniBase.DefaultGraphColumnFamily),
+                   locality: Map[String, String] = Map(
+                     UniBase.$id -> UniBase.DefaultIdColumnFamily,
+                     UniBase.$graph -> UniBase.DefaultGraphColumnFamily
+                   ).withDefaultValue(UniBase.DefaultDocumentColumnFamily),
                    appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
@@ -67,9 +73,11 @@ class UniBase[+T <: BigTable](db: Database[T]) {
 }
 
 object UniBase {
+  val $id = "_id"
+  val $graph = "graph"
+  val DefaultIdColumnFamily = "id"
   val DefaultDocumentColumnFamily = "doc"
   val DefaultGraphColumnFamily = "graph"
-  val DefaultGraphField = "graph"
 }
 
 /** UniBase specialized for HBase */

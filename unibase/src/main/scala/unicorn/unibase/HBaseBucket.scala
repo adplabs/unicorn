@@ -40,7 +40,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     super.update(doc)
 
     val $inc = doc("$inc")
-    if ($inc.isInstanceOf[JsObject]) inc(doc(_id), $inc.asInstanceOf[JsObject])
+    if ($inc.isInstanceOf[JsObject]) inc(doc($id), $inc.asInstanceOf[JsObject])
   }
 
   /** The $inc operator accepts positive and negative values.
@@ -56,8 +56,8 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     * @param doc the fields to increase/decrease.
     */
   def inc(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == _id))
-      throw new IllegalArgumentException(s"Invalid operation: inc ${_id}")
+    if (doc.fields.exists(_._1 == $id))
+      throw new IllegalArgumentException(s"Invalid operation: inc ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(JsonSerializer.pathDelimiter) match {
@@ -81,10 +81,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
 
   /** Use checkAndPut for insert. */
   override def insert(doc: JsObject): Unit = {
-    val id = doc(_id)
-    if (id == JsNull || id == JsUndefined)
-      throw new IllegalArgumentException(s"missing ${_id}")
-
+    val id = getId(doc)
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
@@ -95,7 +92,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
       ColumnFamily(family, columns)
     }
 
-    val checkFamily = locality(_id)
+    val checkFamily = locality($id)
     val checkColumn = getBytes(idPath)
     if (!table.checkAndPut(getKey(id), checkFamily, checkColumn, families))
       throw new IllegalArgumentException(s"Document $id already exists")
@@ -125,15 +122,29 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     * @return the projected document. The _id field will be always included.
     */
   def get(projection: JsObject, asOfDate: Date): Option[JsObject] = {
-    val (id, families) = project(projection)
+    val id = getId(projection)
+    val families = project(projection)
     val data = table.getAsOf(asOfDate, getKey(id), families)
     val doc = assemble(data)
-    doc.map(_(_id) = id)
+    doc.map(_($id) = id)
     doc
   }
 
   /*
   def find(projection: JsObject, query: JsObject): Iterator[JsObject] = {
+    val families = project(projection)
+
+    val it = tenant match {
+      case None => table.scanAll(families)
+      case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
+    }
+
+    it.map { data =>
+      assemble(data.families).get
+    }
+  }
+
+  private def queryFilter(query: JsObject): ScanFilter.Expression = {
 
   }
   */

@@ -103,8 +103,8 @@ class BucketSpec extends Specification with BeforeAfterAll {
       bucket.insert(json) must throwA[IllegalArgumentException]
     }
     "locality" in {
-      val locality = Map("store" -> "store").withDefaultValue("doc")
-      db.createBucket("unibase_test_locality", Seq("doc", "store"), locality)
+      val locality = Map("_id" -> "id", "store" -> "store").withDefaultValue("doc")
+      db.createBucket("unibase_test_locality", Seq("id", "doc", "store"), locality)
       val bucket = db("unibase_test_locality")
       val key = bucket.upsert(json)
       key === json("_id")
