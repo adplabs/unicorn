@@ -125,7 +125,7 @@ class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, 
     * @return the document or None if it doesn't exist.
     */
   def $doc(id: JsValue): Option[JsObject] = {
-    bucket.get(id, UniBase.$graph)
+    bucket(id, UniBase.$graph)
   }
 
   /** Returns the adjacency list of a document. By default, we assume that

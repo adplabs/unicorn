@@ -112,7 +112,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
       obj.get === json
 
       bucket.get(JsObject("_id" -> key, "owner" -> 1, "address" -> 1)).get === JsObject("_id" -> key, "owner" -> json.owner, "phone" -> json.phone, "address" -> json.address)
-      bucket.get(key, "store").get === JsObject("_id" -> key, "store" -> json.store)
+      bucket(key, "store").get === JsObject("_id" -> key, "store" -> json.store)
 
       bucket.delete(key)
       bucket(key) === None
@@ -137,7 +137,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
       update("_id") = key
       bucket.update(update)
 
-      val doc = bucket.get(key, "owner", "store.book.0").get
+      val doc = bucket(key, "owner", "store.book.0").get
       doc.owner === JsString("Poor")
       doc.gender === JsString("M")
       doc.store.book(0).price === JsDouble(9.95)
@@ -159,7 +159,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
       update("_id") = key
       bucket.update(update)
 
-      val doc = bucket.get(key, "owner", "store.book.0").get
+      val doc = bucket(key, "owner", "store.book.0").get
       doc.owner === JsUndefined
       doc.address === JsUndefined
       doc.store.book(0) === JsUndefined

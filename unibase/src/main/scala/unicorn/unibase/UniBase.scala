@@ -78,6 +78,14 @@ object UniBase {
   val DefaultIdColumnFamily = "id"
   val DefaultDocumentColumnFamily = "doc"
   val DefaultGraphColumnFamily = "graph"
+
+  def apply[T <: BigTable](db: Database[T]): UniBase[T] = {
+    new UniBase[T](db)
+  }
+
+  def apply(db: HBase): HUniBase = {
+    new HUniBase(db)
+  }
 }
 
 /** UniBase specialized for HBase */

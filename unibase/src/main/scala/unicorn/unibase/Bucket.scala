@@ -89,39 +89,50 @@ class Bucket(table: BigTable, meta: JsObject) {
   var tenant: Option[JsValue] = None
 
   /** Gets a document. */
-  def apply(id: Int): Option[JsObject] = {
+  def apply(id: Int, fields: String*): Option[JsObject] = {
     apply(JsLong(id))
   }
 
   /** Gets a document. */
-  def apply(id: Long): Option[JsObject] = {
+  def apply(id: Long, fields: String*): Option[JsObject] = {
     apply(JsLong(id))
   }
 
   /** Gets a document. */
-  def apply(id: String): Option[JsObject] = {
+  def apply(id: String, fields: String*): Option[JsObject] = {
     apply(JsString(id))
   }
 
   /** Gets a document. */
-  def apply(id: Date): Option[JsObject] = {
+  def apply(id: Date, fields: String*): Option[JsObject] = {
     apply(JsDate(id))
   }
 
   /** Gets a document. */
-  def apply(id: UUID): Option[JsObject] = {
+  def apply(id: UUID, fields: String*): Option[JsObject] = {
     apply(JsUUID(id))
   }
 
   /** Gets a document. */
-  def apply(id: BsonObjectId): Option[JsObject] = {
+  def apply(id: BsonObjectId, fields: String*): Option[JsObject] = {
     apply(JsObjectId(id))
   }
 
-  /** Gets a document. */
-  def apply(id: JsValue): Option[JsObject] = {
-    val data = table.get(getKey(id), families)
-    assemble(data)
+  /** Gets a document.
+    *
+    * @param id document id.
+    * @param fields top level fields to retrieve.
+    * @return an option of document. None if it doesn't exist.
+    */
+  def apply(id: JsValue, fields: String*): Option[JsObject] = {
+    if (fields.isEmpty) {
+      val data = table.get(getKey(id), families)
+      assemble(data)
+    } else {
+      val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
+      projection($id) = id
+      get(projection)
+    }
   }
 
   /** Assembles the document from multi-column family data. */
@@ -181,28 +192,6 @@ class Bucket(table: BigTable, meta: JsObject) {
     val data = table.get(getKey(id), families)
     val doc = assemble(data)
     doc
-  }
-
-  /** A query may include a projection that specifies the fields of the document to return.
-    * The projection limits the disk access and the network data transmission.
-    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
-    * field is a nested object, there is no easy way to read only the specified object in BigTable.
-    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
-    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
-    * we return the whole object of a column family if some of its fields are in request. This is usually
-    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
-    * header in a column family and event body in another column family. In many reads, we only need to
-    * access the header (the hot data). When only user is interested in the event details, we go to read
-    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
-    * that we don't support the excluded fields.
-    *
-    * @param fields top level fields to retrieve.
-    * @return the projected document.
-    */
-  def get(id: JsValue, fields: String*): Option[JsObject] = {
-    val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
-    projection($id) = id
-    get(projection)
   }
 
   /** Maps a  projection to the seq of column families to fetch. */
@@ -290,9 +279,9 @@ class Bucket(table: BigTable, meta: JsObject) {
 
   /** Updates a document. The supported update operators include
     *
-    *  - $inc: Increments the value of the field by the specified amount.
-    *  - $set: Sets the value of a field in a document.
-    *  - $unset: Removes the specified field from a document.
+    *  - \$inc: Increments the value of the field by the specified amount.
+    *  - \$set: Sets the value of a field in a document.
+    *  - \$unset: Removes the specified field from a document.
     *
     * @param doc the document update operators.
     */
@@ -310,15 +299,15 @@ class Bucket(table: BigTable, meta: JsObject) {
     }
   }
 
-  /** The $set operator replaces the values of fields.
+  /** The \$set operator replaces the values of fields.
     *
     * The document key _id should not be set.
     *
-    * If the field does not exist, $set will add a new field with the specified
+    * If the field does not exist, \$set will add a new field with the specified
     * value, provided that the new field does not violate a type constraint.
     *
-    * In MongoDB, $set will create the embedded documents as needed to fulfill
-    * the dotted path to the field. For example, for a $set {"a.b.c" : "abc"}, MongoDB
+    * In MongoDB, \$set will create the embedded documents as needed to fulfill
+    * the dotted path to the field. For example, for a \$set {"a.b.c" : "abc"}, MongoDB
     * will create the embedded object "a.b" if it doesn't exist.
     * However, we don't support this behavior because of the performance considerations.
     * We suggest the the alternative syntax {"a.b" : {"c" : "abc"}}, which has the
@@ -416,13 +405,13 @@ class Bucket(table: BigTable, meta: JsObject) {
     false
   }
 
-  /** The $unset operator deletes particular fields.
+  /** The \$unset operator deletes particular fields.
     *
     * The document key _id should not be unset.
     *
-    * If the field does not exist, then $unset does nothing (i.e. no operation).
+    * If the field does not exist, then \$unset does nothing (i.e. no operation).
     *
-    * When used with $ to match an array element, $unset replaces the matching element
+    * When deleting an array element, \$unset replaces the matching element
     * with undefined rather than removing the matching element from the array.
     * This behavior keeps consistent the array size and element positions.
     *

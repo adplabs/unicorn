@@ -143,7 +143,7 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       update("_id") = key
       bucket.update(update)
 
-      val old = bucket(key, asOfDate)
+      val old = bucket(asOfDate, key)
       old.get.owner === JsString("Rich")
 
       val now = bucket(key)

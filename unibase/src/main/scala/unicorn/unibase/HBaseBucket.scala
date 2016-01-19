@@ -16,9 +16,10 @@
 
 package unicorn.unibase
 
-import java.util.Date
+import java.util.{UUID, Date}
 import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
+import unicorn.oid.BsonObjectId
 import unicorn.util._
 
 class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
@@ -36,6 +37,80 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
   /** Returns the current authorization labels. */
   def getAuthorizations: Seq[String] = table.getAuthorizations
 
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: Int, fields: String*): Option[JsObject] = {
+    apply(JsLong(id))
+  }
+
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: Long, fields: String*): Option[JsObject] = {
+    apply(JsLong(id))
+  }
+
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: String, fields: String*): Option[JsObject] = {
+    apply(JsString(id))
+  }
+
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: Date, fields: String*): Option[JsObject] = {
+    apply(JsDate(id))
+  }
+
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: UUID, fields: String*): Option[JsObject] = {
+    apply(JsUUID(id))
+  }
+
+  /** Gets a document. */
+  def apply(asOfDate: Date, id: BsonObjectId, fields: String*): Option[JsObject] = {
+    apply(JsObjectId(id))
+  }
+
+  /** Gets a document.
+    *
+    * @param id document id.
+    * @param fields top level fields to retrieve.
+    * @return an option of document. None if it doesn't exist.
+    */
+  def apply(asOfDate: Date, id: JsValue, fields: String*): Option[JsObject] = {
+    if (fields.isEmpty) {
+      val data = table.getAsOf(asOfDate, getKey(id), families)
+      assemble(data)
+    } else {
+      val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
+      projection($id) = id
+      get(asOfDate, projection)
+    }
+  }
+
+  /** A query may include a projection that specifies the fields of the document to return.
+    * The projection limits the disk access and the network data transmission.
+    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
+    * field is a nested object, there is no easy way to read only the specified object in BigTable.
+    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
+    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+    * we return the whole object of a column family if some of its fields are in request. This is usually
+    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * header in a column family and event body in another column family. In many reads, we only need to
+    * access the header (the hot data). When only user is interested in the event details, we go to read
+    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
+    * that we don't support the excluded fields.
+    *
+    * @param asOfDate snapshot of document is at this point of time
+    * @param projection an object that specifies the fields to return. The _id field should be included to
+    *                   indicate which document to retrieve.
+    * @return the projected document. The _id field will be always included.
+    */
+  def get(asOfDate: Date, projection: JsObject): Option[JsObject] = {
+    val id = getId(projection)
+    val families = project(projection)
+    val data = table.getAsOf(asOfDate, getKey(id), families)
+    val doc = assemble(data)
+    doc.map(_($id) = id)
+    doc
+  }
+
   override def update(doc: JsObject): Unit = {
     super.update(doc)
 
@@ -43,7 +118,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     if ($inc.isInstanceOf[JsObject]) inc(doc($id), $inc.asInstanceOf[JsObject])
   }
 
-  /** The $inc operator accepts positive and negative values.
+  /** The \$inc operator accepts positive and negative values.
     *
     * The field must exist. Increase a nonexist counter will create
     * the column in BigTable. However, it won't show up in the parent
@@ -96,38 +171,6 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     val checkColumn = getBytes(idPath)
     if (!table.checkAndPut(getKey(id), checkFamily, checkColumn, families))
       throw new IllegalArgumentException(s"Document $id already exists")
-  }
-
-  /** Gets a document. */
-  def apply(id: JsValue, asOfDate: Date): Option[JsObject] = {
-    val data = table.getAsOf(asOfDate, getKey(id), families)
-    assemble(data)
-  }
-
-  /** A query may include a projection that specifies the fields of the document to return.
-    * The projection limits the disk access and the network data transmission.
-    * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
-    * field is a nested object, there is no easy way to read only the specified object in BigTable.
-    * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
-    * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
-    * we return the whole object of a column family if some of its fields are in request. This is usually
-    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
-    * header in a column family and event body in another column family. In many reads, we only need to
-    * access the header (the hot data). When only user is interested in the event details, we go to read
-    * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
-    * that we don't support the excluded fields.
-    *
-    * @param projection an object that specifies the fields to return. The _id field should be included to
-    *                   indicate which document to retrieve.
-    * @return the projected document. The _id field will be always included.
-    */
-  def get(projection: JsObject, asOfDate: Date): Option[JsObject] = {
-    val id = getId(projection)
-    val families = project(projection)
-    val data = table.getAsOf(asOfDate, getKey(id), families)
-    val doc = assemble(data)
-    doc.map(_($id) = id)
-    doc
   }
 
   /*
