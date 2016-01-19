@@ -14,6 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
+import java.util.{Date, UUID}
 import unicorn.oid._, unicorn.json._
-import unicorn.bigtable._, hbase._, cassandra._
+import unicorn.bigtable._, hbase._, cassandra._, accumulo._
 import unicorn.unibase._, unicorn.graph._
