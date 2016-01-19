@@ -90,7 +90,7 @@ class Bucket(table: BigTable, meta: JsObject) {
 
   /** Gets a document. */
   def apply(id: Int, fields: String*): Option[JsObject] = {
-    apply(JsLong(id))
+    apply(JsInt(id))
   }
 
   /** Gets a document. */
