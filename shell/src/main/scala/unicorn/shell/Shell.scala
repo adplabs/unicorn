@@ -23,38 +23,40 @@ import scala.tools.nsc.interpreter.ILoop
   * @author Haifeng Li
   */
 class Shell extends ILoop {
-    override def prompt = "ADP Unicorn> "
-    override def printWelcome = echo(
-      s"""
-         |                        . . . .
-         |                        ,`,`,`,`,
-         |  . . . .               `\`\`\`\;
-         |  `\`\`\`\`,            ~|;!;!;\!
-         |   ~\;\;\;\|\          (--,!!!~`!       .
-         |  (--,\\\===~\         (--,|||~`!     ./
-         |   (--,\\\===~\         `,-,~,=,:. _,//
-         |    (--,\\\==~`\        ~-=~-.---|\;/J,       Welcome to the Unicorn Database
-         |     (--,\\\((```==.    ~'`~/       a |         BigTable, Document and Graph
-         |       (-,.\\('('(`\\.  ~'=~|     \_.  \              Full Text Search
-         |          (,--(,(,(,'\\. ~'=|       \\_;>
-         |            (,-( ,(,(,;\\ ~=/        \                  Haifeng Li
-         |            (,-/ (.(.(,;\\,/          )             ADP Innovation Lab
-         |             (,--/,;,;,;,\\         ./------.
-         |               (==,-;-'`;'         /_,----`. \
-         |       ,.--_,__.-'                    `--.  ` \
-         |      (='~-_,--/        ,       ,!,___--. \  \_)
-         |     (-/~(     |         \   ,_-         | ) /_|
-         |     (~/((\    )\._,      |-'         _,/ /
-         |      \\))))  /   ./~.    |           \_\;
-         |   ,__/////  /   /    )  /
-         |    '===~'   |  |    (, <.
-         |             / /       \. \
-         |           _/ /          \_\
-         |          /_!/            >_\
-         |
-         |  Welcome to Unicorn Shell; enter 'help<RETURN>' for list of supported commands.
-         |  Type ":quit<RETURN>" to leave the Smile Shell
-         |  Version ${BuildInfo.version}, Scala ${BuildInfo.scalaVersion}, SBT ${BuildInfo.sbtVersion}, Built at ${BuildInfo.builtAtString}
-         |===============================================================================
-       """.stripMargin)
+  override def prompt = "unicorn> "
+  override def printWelcome = echo(
+    ("""
+       |                        . . . .
+       |                        ,`,`,`,`,
+       |  . . . .               `\`\`\`\;
+       |  `\`\`\`\`,            ~|;!;!;\!
+       |   ~\;\;\;\|\          (--,!!!~`!       .
+       |  (--,\\\===~\         (--,|||~`!     ./
+       |   (--,\\\===~\         `,-,~,=,:. _,//
+       |    (--,\\\==~`\        ~-=~-.---|\;/J,       Welcome to the Unicorn Database
+       |     (--,\\\((```==.    ~'`~/       a |         BigTable, Document and Graph
+       |       (-,.\\('('(`\\.  ~'=~|     \_.  \              Full Text Search
+       |          (,--(,(,(,'\\. ~'=|       \\_;>
+       |            (,-( ,(,(,;\\ ~=/        \                  Haifeng Li
+       |            (,-/ (.(.(,;\\,/          )             ADP Innovation Lab
+       |             (,--/,;,;,;,\\         ./------.
+       |               (==,-;-'`;'         /_,----`. \
+       |       ,.--_,__.-'                    `--.  ` \
+       |      (='~-_,--/        ,       ,!,___--. \  \_)
+       |     (-/~(     |         \   ,_-         | ) /_|
+       |     (~/((\    )\._,      |-'         _,/ /
+       |      \\))))  /   ./~.    |           \_\;
+       |   ,__/////  /   /    )  /
+       |    '===~'   |  |    (, <.
+       |             / /       \. \
+       |           _/ /          \_\
+       |          /_!/            >_\
+    """ + // s marco has troubles with '\' in the text art.
+   s"""
+       |  Welcome to Unicorn Shell; enter 'help<RETURN>' for list of supported commands.
+       |  Type ":quit<RETURN>" to leave the Unicorn Shell
+       |  Version ${BuildInfo.version}, Scala ${BuildInfo.scalaVersion}, SBT ${BuildInfo.sbtVersion}, Built at ${BuildInfo.builtAtString}
+       |===============================================================================
+    """).stripMargin
+  )
 }

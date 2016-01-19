@@ -1,6 +1,6 @@
 name := "unicorn-shell"
 
-mainClass in Compile := Some("com.adp.unicorn.shell.Main")
+mainClass in Compile := Some("unicorn.shell.Main")
 
 // SBT native packager
 enablePlugins(JavaAppPackaging)
