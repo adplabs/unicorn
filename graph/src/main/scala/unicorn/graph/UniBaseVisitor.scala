@@ -17,7 +17,7 @@
 package unicorn.graph
 
 import unicorn.json._
-import unicorn.unibase.{Table, UniBase}
+import unicorn.unibase.{Table, Unibase}
 import unicorn.util.Logging
 
 /** Abstract Unibase graph visitor. A default implementation of edges returns
@@ -53,7 +53,7 @@ import unicorn.util.Logging
   *
   * @author Haifeng Li
   */
-class UniBaseVisitor(bucket: Table, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
+class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
   /** Cache of graph nodes in the database. */
   val cache = collection.mutable.Map[JsValue, JsObject]()
 
@@ -93,7 +93,7 @@ class UniBaseVisitor(bucket: Table, maxHops: Int = 3) extends Visitor[JsValue, (
 
     val doc = get(vertex)
     if (doc.isEmpty) {
-      log.info(s"Document $vertex doesn't exist in bucket ${bucket.name}")
+      log.info(s"Document $vertex doesn't exist in table ${table.name}")
       return Seq.empty.iterator
     }
 
@@ -106,7 +106,7 @@ class UniBaseVisitor(bucket: Table, maxHops: Int = 3) extends Visitor[JsValue, (
 
     val links = neighbors.flatMap { case (relationship, neighbor) =>
       neighbor.asInstanceOf[JsObject].fields.map { case (_, link) =>
-        new Edge(vertex, link(UniBase.$id), Some((relationship, link.data)))
+        new Edge(vertex, link(Unibase.$id), Some((relationship, link.data)))
       }
     }
 
@@ -133,7 +133,7 @@ class UniBaseVisitor(bucket: Table, maxHops: Int = 3) extends Visitor[JsValue, (
     * @return the document or None if it doesn't exist.
     */
   def $doc(id: JsValue): Option[JsObject] = {
-    bucket(id, UniBase.$graph)
+    table(id, Unibase.$graph)
   }
 
   /** Returns the adjacency list of a document. By default, we assume that

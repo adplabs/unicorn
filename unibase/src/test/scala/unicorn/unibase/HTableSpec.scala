@@ -25,12 +25,12 @@ import unicorn.json._
 /**
  * @author Haifeng Li
  */
-class HBaseBucketSpec extends Specification with BeforeAfterAll {
+class HTableSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
   val bigtable = HBase()
-  val db = new HUniBase(bigtable)
+  val db = new HUnibase(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
     """
@@ -85,10 +85,10 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
   }
 
   override def afterAll = {
-    db.dropBucket(tableName)
+    db.dropTable(tableName)
   }
 
-  "HBaseBucket" should {
+  "HTable" should {
     "insert" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)

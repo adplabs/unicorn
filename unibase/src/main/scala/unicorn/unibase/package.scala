@@ -23,8 +23,8 @@ package object unibase {
   // Originally we used "." as delimiter in table name.
   // However, "." cannot be part of table name in Accumulo.
   // So we switch to "_".
-  private[unibase] val BucketMetaTableName = "unicorn_meta_bucket"
-  private[unibase] val BucketMetaTableColumnFamily = "meta"
+  private[unibase] val MetaTableName = "unicorn_meta_table"
+  private[unibase] val MetaTableColumnFamily = "meta"
 
   private[unibase] val DefaultLocalityField = "default_locality"
 }

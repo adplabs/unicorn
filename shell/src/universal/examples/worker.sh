@@ -20,8 +20,8 @@ def time[A](f: => A) = {
 }
 
 // connect to Accumulo mock
-val accumulo = UniBase(Accumulo())
-time { accumulo.createBucket("worker") }
+val accumulo = Unibase(Accumulo())
+time { accumulo.createTable("worker") }
 val bucket = accumulo("worker")
 
 // Read a non-existing row. It is the pure time of round trip.
@@ -82,16 +82,16 @@ val update = """
                  }
              """.parseJson.asInstanceOf[JsObject]
 
-update(UniBase.$id) = key
+update(Unibase.$id) = key
 time { bucket.update(update) }
 
 val updated = time { bucket(key, "name").get }
 updated.prettyPrint
 
 // HBase
-val hbase = UniBase(HBase())
+val hbase = Unibase(HBase())
 
-time { hbase.createBucket("worker") }
+time { hbase.createTable("worker") }
 val hbucket = hbase("worker")
 
 time { hbucket.upsert(person) }
@@ -116,7 +116,7 @@ val rollback = """
                  }
              """.parseJson.asInstanceOf[JsObject]
 
-rollback(UniBase.$id) = key
+rollback(Unimase.$id) = key
 time { hbucket.update(rollback) }
 
 val yesterdayOnceMore = time { hbucket(key).get }

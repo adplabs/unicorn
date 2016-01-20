@@ -14,8 +14,8 @@ import unicorn.bigtable.accumulo._
 import unicorn.bigtable.hbase._
 import unicorn.unibase._
 
-val hbase = UniBase(HBase())
-//hbase.createBucket("dbpedia")
+val hbase = Unibase(HBase())
+//hbase.createTable("dbpedia")
 val bucket = hbase("dbpedia")
 
 def triple(line: String): (String, String, String, Boolean, Boolean) = {

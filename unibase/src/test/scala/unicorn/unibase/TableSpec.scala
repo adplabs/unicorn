@@ -29,7 +29,7 @@ class TableSpec extends Specification with BeforeAfterAll {
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
   val bigtable = Accumulo()
-  val db = new UniBase(bigtable)
+  val db = new Unibase(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
     """
@@ -83,10 +83,10 @@ class TableSpec extends Specification with BeforeAfterAll {
   }
 
   override def afterAll = {
-    db.dropBucket(tableName)
+    db.dropTable(tableName)
   }
 
-  "Bucket" should {
+  "Table" should {
     "upsert, get, remove" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
@@ -117,7 +117,7 @@ class TableSpec extends Specification with BeforeAfterAll {
       bucket.delete(key)
       bucket(key) === None
 
-      db.dropBucket("unibase_test_locality")
+      db.dropTable("unibase_test_locality")
       bigtable.tableExists("unibase_test_locality") === false
     }
     "update.set" in {
@@ -169,7 +169,7 @@ class TableSpec extends Specification with BeforeAfterAll {
       val bucket = db("unicorn_append_only")
       bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
       bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]
-      db.dropBucket("unicorn_append_only")
+      db.dropTable("unicorn_append_only")
       1 === 1
     }
     "multi-tenancy" in {

@@ -23,7 +23,7 @@ import unicorn.json._
   * 
   * @author Haifeng Li
   */
-class UniGraph(val nodes: Array[JsValue], graph: Graph) {
+class Unigraph(val nodes: Array[JsValue], graph: Graph) {
   def topologicalSort: Array[JsValue] = {
     val order = graph.sortdfs
     val docs = new Array[JsValue](nodes.length)
@@ -34,7 +34,7 @@ class UniGraph(val nodes: Array[JsValue], graph: Graph) {
   def dijkstra = graph.dijkstra
 }
 
-object UniGraph {
+object Unigraph {
   val graphOps = new GraphOps[JsValue, (String, JsValue)]()
 
   /** Returns an in-memory Smile graph built by given visitor from the starting node.
@@ -42,7 +42,7 @@ object UniGraph {
     * @param visitor the visitor object.
     * @return an in-memory Smile graph for heavy graph computation.
     */
-  def apply(start: JsValue, visitor: UniBaseVisitor): UniGraph = {
+  def apply(start: JsValue, visitor: UnibaseVisitor): Unigraph = {
     graphOps.dfs(start, visitor)
     
     val nodes = new Array[JsValue](visitor.nodes.size)
@@ -51,6 +51,6 @@ object UniGraph {
     val graph = new AdjacencyList(nodes.length, true)
     visitor.weights.foreach { case (key, weight) => graph.addEdge(key._1, key._2, weight)}
     
-    new UniGraph(nodes, graph)
+    new Unigraph(nodes, graph)
   }
 }

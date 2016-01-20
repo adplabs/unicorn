@@ -22,7 +22,9 @@ import unicorn.bigtable._, hbase.HBaseTable
 import unicorn.oid.BsonObjectId
 import unicorn.util._
 
-class HBaseBucket(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
+/** Unibase table specialized for HBase with additional functions such
+  * as \$inc, \$rollback, find, etc. */
+class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   /** Visibility expression which can be associated with a cell.
     * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
     */
@@ -91,7 +93,7 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Table(table, meta) 
     * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
     * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
     * we return the whole object of a column family if some of its fields are in request. This is usually
-    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * good enough for hot-cold data scenario. For instance of a table of events, each event has a
     * header in a column family and event body in another column family. In many reads, we only need to
     * access the header (the hot data). When only user is interested in the event details, we go to read
     * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is

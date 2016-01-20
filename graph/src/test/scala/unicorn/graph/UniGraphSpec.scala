@@ -1,10 +1,10 @@
 /*******************************************************************************
  * (C) Copyright 2015 ADP, LLC.
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *  
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,29 +14,37 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase
+package unicorn.graph
 
 import org.specs2.mutable._
+import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
+import unicorn.json._
+import unicorn.unibase._
 
 /**
  * @author Haifeng Li
  */
-class UnibaseSpec extends Specification {
+class UnigraphSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
   val bigtable = Accumulo()
   val db = new Unibase(bigtable)
-  val tableName = "unicorn_unibase_test"
+  val tableName = "unicorn_unigraph_test"
 
-  "Unibase" should {
-    "create table" in {
-      db.createTable(tableName)
-      bigtable.tableExists(tableName) === true
+  override def beforeAll = {
+    db.createTable(tableName)
+  }
 
-      db.dropTable(tableName)
-      bigtable.tableExists(tableName) === false
+  override def afterAll = {
+    db.dropTable(tableName)
+  }
+
+  "Unigraph" should {
+    "travsel" in {
+      val bucket = db(tableName)
+      1 === 1
     }
   }
 }

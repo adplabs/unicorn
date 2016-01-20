@@ -74,8 +74,8 @@ def wikipedia(bucket: HBaseBucket, files: String*): Unit = {
   }
 }
 
-val hbase = UniBase(HBase())
-hbase.createBucket("wiki")
+val hbase = Unibase(HBase())
+hbase.createTable("wiki")
 val bucket = hbase("wiki")
 
 wikipedia(bucket, "../../data/wiki/enwikinews-20140410-pages-articles-multistream.xml")

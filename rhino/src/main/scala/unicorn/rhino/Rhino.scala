@@ -50,7 +50,7 @@ class RhinoActor extends Actor with Rhino {
 
 // this trait defines our service behavior independently from the service actor
 trait Rhino extends HttpService {
-  val unibase = new HUniBase(HBase())
+  val unibase = new HUnibase(HBase())
 
   def rawJson = extract { _.request.entity.asString}
 
@@ -65,24 +65,24 @@ trait Rhino extends HttpService {
   }
 
   val apiRoute = {
-    path(Segment / Segment) { (bucket, id) =>
+    path(Segment / Segment) { (table, id) =>
       get {
-        _get(bucket, id)
+        _get(table, id)
       } ~
       delete {
-        remove(bucket, id)
+        remove(table, id)
       }
     } ~
-    path(Segment) { bucket =>
+    path(Segment) { table =>
       rawJson { doc =>
         post {
-          upsert(bucket, doc)
+          upsert(table, doc)
         } ~
         put {
-          insert(bucket, doc)
+          insert(table, doc)
         } ~
         patch {
-          update(bucket, doc)
+          update(table, doc)
         }
       }
     }
@@ -101,8 +101,8 @@ trait Rhino extends HttpService {
   private def json(doc: String) = JsonParser(doc).asInstanceOf[JsObject]
 
   // name it "get" will conflict with spray routing "get"
-  private def _get(bucket: String, id: String, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
-    onSuccess(Future(unibase(bucket)(_id(id)))) { doc =>
+  private def _get(table: String, id: String, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
+    onSuccess(Future(unibase(table)(_id(id)))) { doc =>
       respondWithMediaType(`application/json`) {
         complete(doc match {
           case None => StatusCodes.NotFound
@@ -112,32 +112,32 @@ trait Rhino extends HttpService {
     }
   }
 
-  private def upsert(bucket: String, doc: String) = {
-    onSuccess(Future(unibase(bucket).upsert(json(doc)))) { Unit =>
+  private def upsert(table: String, doc: String) = {
+    onSuccess(Future(unibase(table).upsert(json(doc)))) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
     }
   }
 
-  private def insert(bucket: String, doc: String) = {
-    onSuccess(Future(unibase(bucket).insert(json(doc)))) { Unit =>
+  private def insert(table: String, doc: String) = {
+    onSuccess(Future(unibase(table).insert(json(doc)))) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
     }
   }
 
-  private def update(bucket: String, doc: String) = {
-    onSuccess(Future(unibase(bucket).update(json(doc)))) { Unit =>
+  private def update(table: String, doc: String) = {
+    onSuccess(Future(unibase(table).update(json(doc)))) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
     }
   }
 
-  def remove(bucket: String, id: String) = {
-    onSuccess(Future(unibase(bucket).delete(_id(id)))) { Unit =>
+  def remove(table: String, id: String) = {
+    onSuccess(Future(unibase(table).delete(_id(id)))) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }

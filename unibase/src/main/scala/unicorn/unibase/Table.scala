@@ -23,7 +23,7 @@ import unicorn.bigtable._
 import unicorn.oid.BsonObjectId
 import unicorn.util.ByteArray
 
-/** Buckets are the data containers of documents. A document is simply a JSON
+/** Tables are the data containers of documents. A document is simply a JSON
   * object with a unique id (the _id field), which is similar to the primary key
   * in relational database. The key can be arbitrary JSON
   * value including Object and Array. However, they are some limitations in practice:
@@ -45,7 +45,7 @@ import unicorn.util.ByteArray
   */
 class Table(table: BigTable, meta: JsObject) {
   /** Document id field. */
-  val $id = UniBase.$id
+  val $id = Unibase.$id
 
   /** Returns the json path of a dot notation path as in MongoDB. */
   private[unibase] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
@@ -66,7 +66,7 @@ class Table(table: BigTable, meta: JsObject) {
     (e.toString, Seq.empty)
   }
 
-  /** The bucket name. */
+  /** The table name. */
   val name = table.name
 
   /**
@@ -82,7 +82,7 @@ class Table(table: BigTable, meta: JsObject) {
 
   private[unibase] def getBytes(s: String) = s.getBytes(JsonSerializer.charset)
 
-  /** True if the bucket is append only. */
+  /** True if the table is append only. */
   val appendOnly: Boolean = meta.appendOnly
 
   /** Optional tenant id in case of multi-tenancy. */
@@ -175,7 +175,7 @@ class Table(table: BigTable, meta: JsObject) {
     * Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
     * nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
     * we return the whole object of a column family if some of its fields are in request. This is usually
-    * good enough for hot-cold data scenario. For instance of a bucket of events, each event has a
+    * good enough for hot-cold data scenario. For instance of a table of events, each event has a
     * header in a column family and event body in another column family. In many reads, we only need to
     * access the header (the hot data). When only user is interested in the event details, we go to read
     * the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
@@ -214,7 +214,7 @@ class Table(table: BigTable, meta: JsObject) {
 
   /**
    * Upserts a document. If a document with same key exists, it will overwritten.
-   * The _id field of document will be used as the primary key in bucket.
+   * The _id field of document will be used as the primary key in the table.
    * If the document doesn't have _id field, a random UUID will be generated as _id.
    *
    * @param doc the document.
