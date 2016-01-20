@@ -106,5 +106,21 @@ old.prettyPrint
 val latest = time { hbucket(key).get }
 latest.prettyPrint
 
+val rollback = """
+                 {
+                   "$rollback": {
+                     "salary": 1,
+                     "address.street": 1,
+                     "gender": 1
+                   }
+                 }
+             """.parseJson.asInstanceOf[JsObject]
+
+rollback(UniBase.$id) = key
+time { hbucket.update(rollback) }
+
+val yesterdayOnceMore = time { hbucket(key).get }
+yesterdayOnceMore.prettyPrint
+
 // delete the bucket
 time { hbase.dropBucket("worker") }
