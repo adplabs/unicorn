@@ -39,9 +39,15 @@ package object util {
   implicit def bytesSeq2ByteArray(x: Seq[Array[Byte]]) = x.map { bytes => new ByteArray(bytes) }
   implicit def stringSeq2ByteArray(x: Seq[String]) = x.map { s => new ByteArray(s.getBytes(utf8)) }
 
-  /**
-   * Helper function convert ByteBuffer to Array[Byte]
-   */
+  /** Measure running time of a function/block. */
+  def time[A](f: => A) = {
+    val s = System.nanoTime
+    val ret = f
+    println("time: " + (System.nanoTime - s)/1e6 + " ms")
+    ret
+  }
+
+  /** Helper function convert ByteBuffer to Array[Byte]. */
   implicit def byteBuffer2ByteArray(buffer: ByteBuffer): Array[Byte] = {
     val bytes = new Array[Byte](buffer.position)
     buffer.position(0)
