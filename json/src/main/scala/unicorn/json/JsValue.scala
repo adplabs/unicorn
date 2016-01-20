@@ -344,7 +344,6 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
    *
    *  @param idx   the index where a new element will be inserted.
    *  @param seq   the traversable object providing all elements to insert.
-   *  @throws IndexOutOfBoundsException if `n` is out of bounds.
    */
   def insertAll(idx: Int, seq: Traversable[JsValue]) {
     elements.insertAll(idx, seq)
@@ -355,7 +354,6 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
    *
    *  @param idx     the index which refers to the first element to delete.
    *  @param count   the number of elements to delete
-   *  @throws IndexOutOfBoundsException if `n` is out of bounds.
    */
   def remove(idx: Int, count: Int) {
     elements.remove(idx, count)
