@@ -78,4 +78,4 @@ val hbase = UniBase(HBase())
 hbase.createBucket("wiki")
 val bucket = hbase("wiki")
 
-wikipedia(bucket, "/Users/lihb/data/wiki/enwikinews-20140410-pages-articles-multistream.xml")
+wikipedia(bucket, "../../data/wiki/enwikinews-20140410-pages-articles-multistream.xml")
