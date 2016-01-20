@@ -21,35 +21,35 @@ import unicorn.bigtable.hbase.HBase
 import unicorn.json._
 import unicorn.util._
 
-/** A UniBase is a database of documents. A collection of documents are called bucket.
+/** A UniBase is a database of documents. A collection of documents are called table.
   *
   * @author Haifeng Li
   */
 class UniBase[+T <: BigTable](db: Database[T]) {
-  /** Returns a document bucket.
+  /** Returns a document table.
     * @param name the name of bucket.
     */
-  def apply(name: String): Bucket = {
-    new Bucket(db(name), BucketMeta(db, name))
+  def apply(name: String): Table = {
+    new Table(db(name), TableMeta(db, name))
   }
 
-  /** Creates a document bucket.
+  /** Creates a document table.
     * @param name the name of bucket.
     * @param families the column family that documents resident.
     * @param locality a map of document fields to column families for storing of sets of fields in column families
     *                 separately to allow clients to scan over fields that are frequently used together efficient
     *                 and to avoid scanning over column families that are not requested.
     */
-  def createBucket(name: String,
-                   families: Seq[String] = Seq(
-                     UniBase.DefaultIdColumnFamily,
-                     UniBase.DefaultDocumentColumnFamily,
-                     UniBase.DefaultGraphColumnFamily),
-                   locality: Map[String, String] = Map(
-                     UniBase.$id -> UniBase.DefaultIdColumnFamily,
-                     UniBase.$graph -> UniBase.DefaultGraphColumnFamily
-                   ).withDefaultValue(UniBase.DefaultDocumentColumnFamily),
-                   appendOnly: Boolean = false): Unit = {
+  def createTable(name: String,
+                  families: Seq[String] = Seq(
+                    UniBase.DefaultIdColumnFamily,
+                    UniBase.DefaultDocumentColumnFamily,
+                    UniBase.DefaultGraphColumnFamily),
+                  locality: Map[String, String] = Map(
+                    UniBase.$id -> UniBase.DefaultIdColumnFamily,
+                    UniBase.$graph -> UniBase.DefaultGraphColumnFamily
+                  ).withDefaultValue(UniBase.DefaultDocumentColumnFamily),
+                  appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
     // If the meta data table doesn't exist, create it.
@@ -59,16 +59,37 @@ class UniBase[+T <: BigTable](db: Database[T]) {
     // Bucket meta data table
     val metaTable = db(BucketMetaTableName)
     val serializer = new ColumnarJsonSerializer
-    val meta = BucketMeta(families, locality, appendOnly)
+    val meta = TableMeta(families, locality, appendOnly)
     val columns = serializer.serialize(meta).map {
       case (path, value) => Column(path.getBytes(utf8), value)
     }.toSeq
     metaTable.put(name, BucketMetaTableColumnFamily, columns: _*)
   }
 
-  /** Drops a document bucket. All column families in the table will be dropped. */
+  /** Drops a document table. All column families in the table will be dropped. */
   def dropBucket(name: String): Unit = {
     db.dropTable(name)
+  }
+
+  /** Truncates a table
+    * @param name the name of table.
+    */
+  def truncateTable(name: String): Unit = {
+    db.truncateTable(name)
+  }
+
+  /** Tests if a table exists.
+    * @param name the name of table.
+    */
+  def tableExists(name: String): Boolean = {
+    db.tableExists(name)
+  }
+
+  /** Major compacts a table. Asynchronous operation.
+    * @param name the name of table.
+    */
+  def compactTable(name: String): Unit = {
+    db.compactTable(name)
   }
 }
 
@@ -95,11 +116,11 @@ class HUniBase(hbase: HBase) extends UniBase(hbase) {
     * @param name the name of bucket.
     */
   override def apply(name: String): HBaseBucket = {
-    new HBaseBucket(hbase(name), BucketMeta(hbase, name))
+    new HBaseBucket(hbase(name), TableMeta(hbase, name))
   }
 }
 
-private object BucketMeta {
+private object TableMeta {
   /**
     * Creates JsObject of bucket meta data.
     *

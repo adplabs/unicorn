@@ -32,7 +32,7 @@ class UnibaseSpec extends Specification {
 
   "Unibase" should {
     "create bucket" in {
-      db.createBucket(tableName)
+      db.createTable(tableName)
       bigtable.tableExists(tableName) === true
 
       db.dropBucket(tableName)
