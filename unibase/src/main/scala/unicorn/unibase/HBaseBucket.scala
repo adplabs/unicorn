@@ -22,7 +22,7 @@ import unicorn.bigtable._, hbase.HBaseTable
 import unicorn.oid.BsonObjectId
 import unicorn.util._
 
-class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta) {
+class HBaseBucket(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   /** Visibility expression which can be associated with a cell.
     * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
     */

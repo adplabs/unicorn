@@ -43,7 +43,7 @@ import unicorn.util.ByteArray
   *
   * @author Haifeng Li
   */
-class Bucket(table: BigTable, meta: JsObject) {
+class Table(table: BigTable, meta: JsObject) {
   /** Document id field. */
   val $id = UniBase.$id
 

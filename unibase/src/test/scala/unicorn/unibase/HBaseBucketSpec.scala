@@ -81,7 +81,7 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
     """.stripMargin).asInstanceOf[JsObject]
 
   override def beforeAll = {
-    db.createBucket(tableName)
+    db.createTable(tableName)
   }
 
   override def afterAll = {

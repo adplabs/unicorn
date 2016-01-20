@@ -24,7 +24,7 @@ import unicorn.json._
 /**
  * @author Haifeng Li
  */
-class BucketSpec extends Specification with BeforeAfterAll {
+class TableSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
@@ -79,7 +79,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
     """.stripMargin).asInstanceOf[JsObject]
 
   override def beforeAll = {
-    db.createBucket(tableName)
+    db.createTable(tableName)
   }
 
   override def afterAll = {
@@ -104,7 +104,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
     }
     "locality" in {
       val locality = Map("_id" -> "id", "store" -> "store").withDefaultValue("doc")
-      db.createBucket("unibase_test_locality", Seq("id", "doc", "store"), locality)
+      db.createTable("unibase_test_locality", Seq("id", "doc", "store"), locality)
       val bucket = db("unibase_test_locality")
       val key = bucket.upsert(json)
       key === json("_id")
@@ -165,7 +165,7 @@ class BucketSpec extends Specification with BeforeAfterAll {
       doc.store.book(0) === JsUndefined
     }
     "append only" in {
-      db.createBucket("unicorn_append_only", appendOnly = true)
+      db.createTable("unicorn_append_only", appendOnly = true)
       val bucket = db("unicorn_append_only")
       bucket.delete(JsString("key")) must throwA[UnsupportedOperationException]
       bucket.update(JsObject("a" -> JsInt(1))) must throwA[UnsupportedOperationException]

@@ -17,7 +17,7 @@
 package unicorn.graph
 
 import unicorn.json._
-import unicorn.unibase.{Bucket, UniBase}
+import unicorn.unibase.{Table, UniBase}
 import unicorn.util.Logging
 
 /** Abstract Unibase graph visitor. A default implementation of edges returns
@@ -53,7 +53,7 @@ import unicorn.util.Logging
   *
   * @author Haifeng Li
   */
-class UniBaseVisitor(bucket: Bucket, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
+class UniBaseVisitor(bucket: Table, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
   /** Cache of graph nodes in the database. */
   val cache = collection.mutable.Map[JsValue, JsObject]()
 
