@@ -308,6 +308,17 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     table.delete(deleter)
   }
 
+  override def rollback(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
+    require(!families.isEmpty)
+
+    val deleter = newDelete(row)
+    families.foreach { case (family, columns) =>
+      require(!columns.isEmpty)
+      columns.foreach { column => deleter.addColumn(family, column) }
+    }
+    table.delete(deleter)
+  }
+
   override def append(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
     val append = newAppend(row)
     append.add(family, column, value)

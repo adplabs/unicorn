@@ -150,9 +150,9 @@ class BucketSpec extends Specification with BeforeAfterAll {
         """
           | {
           |   "$unset": {
-          |     "owner": "",
-          |     "address": "",
-          |     "store.book.0": ""
+          |     "owner": 1,
+          |     "address": 1,
+          |     "store.book.0": 1
           |   }
           | }
         """.stripMargin).asInstanceOf[JsObject]

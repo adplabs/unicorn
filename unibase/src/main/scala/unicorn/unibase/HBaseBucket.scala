@@ -111,11 +111,25 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     doc
   }
 
+  /** Updates a document. The supported update operators include
+    *
+    *  - \$set: Sets the value of a field in a document.
+    *  - \$unset: Removes the specified field from a document.
+    *  - \$inc: Increments the value of the field by the specified amount.
+    *  - \$rollback: Rolls back to previous version.
+    *
+    * @param doc the document update operators.
+    */
   override def update(doc: JsObject): Unit = {
     super.update(doc)
 
+    val id = getId(doc)
+
     val $inc = doc("$inc")
-    if ($inc.isInstanceOf[JsObject]) inc(doc($id), $inc.asInstanceOf[JsObject])
+    if ($inc.isInstanceOf[JsObject]) inc(id, $inc.asInstanceOf[JsObject])
+
+    val $rollback= doc("$rollback")
+    if ($rollback.isInstanceOf[JsObject]) rollback(id, $rollback.asInstanceOf[JsObject])
   }
 
   /** The \$inc operator accepts positive and negative values.
@@ -152,6 +166,37 @@ class HBaseBucket(table: HBaseTable, meta: JsObject) extends Bucket(table, meta)
     }
 
     table.addCounter(getKey(id), families)
+  }
+
+  /** The \$rollover operator roll particular fields back to previous version.
+    *
+    * The document key _id should not be rollover.
+    *
+    * Note that if rollover, the latest version will be lost after a major compaction.
+    *
+    * @param id the id of document.
+    * @param doc the fields to delete.
+    */
+  def rollback(id: JsValue, doc: JsObject): Unit = {
+    if (doc.fields.exists(_._1 == $id))
+      throw new IllegalArgumentException(s"Invalid operation: rollover ${$id}")
+
+    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
+      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
+        case -1 => field
+        case end => field.substring(0, end)
+      }
+      locality(head)
+    }
+
+    val families = groups.toSeq.map { case (family, fields) =>
+      val columns = fields.map {
+        case (field, _) => ByteArray(getBytes(jsonPath(field)))
+      }
+      (family, columns)
+    }
+
+    table.rollback(getKey(id), families)
   }
 
   /** Use checkAndPut for insert. */

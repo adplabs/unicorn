@@ -299,8 +299,12 @@ trait CellLevelSecurity {
 
 /** If BigTable supports rollback to previous version of a cell. */
 trait Rollback {
-  /** Rollback to the previous version for the given column of a row. */
+  /** Rollback to the previous version for the given columns of a row.
+    * The parameter columns cannot be empty. */
   def rollback(row: ByteArray, family: String, columns: ByteArray*): Unit
+
+  /** Rollback the columns of a row. The parameter families can not be empty. */
+  def rollback(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit
 }
 
 /** If BigTable supports appending to a cell. */

@@ -279,7 +279,6 @@ class Bucket(table: BigTable, meta: JsObject) {
 
   /** Updates a document. The supported update operators include
     *
-    *  - \$inc: Increments the value of the field by the specified amount.
     *  - \$set: Sets the value of a field in a document.
     *  - \$unset: Removes the specified field from a document.
     *

@@ -124,6 +124,86 @@ class HBaseBucketSpec extends Specification with BeforeAfterAll {
       val doc2 = bucket(key).get
       doc2.store.books === JsCounter(30)
     }
+    "rollback set" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+
+      val update = JsonParser(
+        """
+          | {
+          |   "$set": {
+          |     "owner": "Poor",
+          |     "gender": "M",
+          |     "store.book.0.price": 9.95
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
+
+      val doc = bucket(key, "owner", "store.book.0").get
+      doc.owner === JsString("Poor")
+      doc.gender === JsString("M")
+      doc.store.book(0).price === JsDouble(9.95)
+
+      val rollback = JsonParser(
+        """
+          | {
+          |   "$rollback": {
+          |     "owner": 1,
+          |     "gender": 1,
+          |     "store.book.0.price": 1
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      rollback("_id") = key
+      bucket.update(rollback)
+
+      val old = bucket(key, "owner", "store.book.0").get
+      old.owner === JsString("Rich")
+      old.gender === JsUndefined
+      old.store.book(0).price === JsDouble(8.95)
+    }
+    "rollback unset" in {
+      val bucket = db(tableName)
+      val key = bucket.upsert(json)
+
+      val update = JsonParser(
+        """
+          | {
+          |   "$unset": {
+          |     "owner": 1,
+          |     "address": 1,
+          |     "store.book.0": 1
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      update("_id") = key
+      bucket.update(update)
+
+      val doc = bucket(key, "owner", "store.book.0").get
+      doc.owner === JsUndefined
+      doc.address === JsUndefined
+      doc.store.book(0) === JsUndefined
+
+      val rollback = JsonParser(
+        """
+          | {
+          |   "$rollback": {
+          |     "owner": 1,
+          |     "address": 1,
+          |     "store.book.0": 1
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      rollback("_id") = key
+      bucket.update(rollback)
+
+      val old = bucket(key, "owner", "store.book.0").get
+      old.owner === JsString("Rich")
+      old.address === json.address
+      old.store.book(0).price === JsDouble(8.95)
+    }
     "time travel" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
