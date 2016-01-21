@@ -58,10 +58,9 @@ class Table(table: BigTable, meta: JsObject) {
   /** Document value serializer. */
   val valueSerializer = new ColumnarJsonSerializer
 
-  /**
-   * Column families storing document fields. There may be other column families in the table
-   * for meta data or index.
-   */
+  /** Column families storing document fields. There may be other column families in the table
+    * for meta data or index.
+    */
   val families: Seq[(String, Seq[ByteArray])] = meta.families.asInstanceOf[JsArray].elements.map { e =>
     (e.toString, Seq.empty)
   }
@@ -69,11 +68,10 @@ class Table(table: BigTable, meta: JsObject) {
   /** The table name. */
   val name = table.name
 
-  /**
-   * A map of document fields to column families for storing of sets of fields in column families
-   * separately to allow clients to scan over fields that are frequently used together efficient
-   * and to avoid scanning over column families that are not requested.
-   */
+  /** A map of document fields to column families for storing of sets of fields in column families
+    * separately to allow clients to scan over fields that are frequently used together efficient
+    * and to avoid scanning over column families that are not requested.
+    */
   private[unibase] val locality: Map[String, String] = {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
@@ -212,14 +210,13 @@ class Table(table: BigTable, meta: JsObject) {
     groups.toSeq.map { case (family, _) => (family, Seq.empty) }
   }
 
-  /**
-   * Upserts a document. If a document with same key exists, it will overwritten.
-   * The _id field of document will be used as the primary key in the table.
-   * If the document doesn't have _id field, a random UUID will be generated as _id.
-   *
-   * @param doc the document.
-   * @return the document id.
-   */
+  /** Upserts a document. If a document with same key exists, it will overwritten.
+    * The _id field of document will be used as the primary key in the table.
+    * If the document doesn't have _id field, a random UUID will be generated as _id.
+    *
+    * @param doc the document.
+    * @return the document id.
+    */
   def upsert(doc: JsObject): JsValue = {
     val id = doc($id) match {
       case JsUndefined | JsNull => doc($id) = UUID.randomUUID
@@ -238,13 +235,12 @@ class Table(table: BigTable, meta: JsObject) {
     id
   }
 
-  /**
-   * Inserts a document. Different from upsert, this operation checks if the document already
-   * exists first.
-   *
-   * @param doc the document.
-   * @return true if the document is inserted, false if the document already existed.
-   */
+  /** Inserts a document. Different from upsert, this operation checks if the document already
+    * exists first.
+    *
+    * @param doc the document.
+    * @return true if the document is inserted, false if the document already existed.
+    */
   def insert(doc: JsObject): Unit = {
     val id = getId(doc)
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
