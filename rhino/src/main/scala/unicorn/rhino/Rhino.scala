@@ -111,7 +111,7 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def json(doc: String) = JsonParser(doc).asInstanceOf[JsObject]
+  private def json(doc: String) = doc.parseJson.asInstanceOf[JsObject]
 
   // name it "get" will conflict with spray routing "get"
   private def _get(table: String, id: String, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
@@ -126,9 +126,10 @@ trait Rhino extends HttpService with Logging {
   }
 
   private def upsert(table: String, doc: String) = {
-    onSuccess(Future(unibase(table).upsert(json(doc)))) { Unit =>
+    val js = json(doc)
+    onSuccess(Future(unibase(table).upsert(js))) { Unit =>
       respondWithMediaType(`application/json`) {
-        complete("{}")
+        complete(s"""{"_id": "${js("_id")}"}""")
       }
     }
   }
