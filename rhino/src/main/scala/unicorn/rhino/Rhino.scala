@@ -17,6 +17,8 @@
 package unicorn.rhino
 
 import java.util.UUID
+import com.typesafe.config.ConfigFactory
+
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext, ExecutionContext.Implicits.global
 
@@ -26,11 +28,10 @@ import spray.http._
 import MediaTypes._
 
 import unicorn._, json._
-import unicorn.bigtable.BigTable
-import unicorn.bigtable.hbase.HBase
+import unicorn.bigtable._, accumulo._, cassandra._, hbase._
 import unicorn.oid.BsonObjectId
 import unicorn.unibase._
-
+import unicorn.util.Logging
 
 /**
  * @author Haifeng Li
@@ -49,8 +50,20 @@ class RhinoActor extends Actor with Rhino {
 
 
 // this trait defines our service behavior independently from the service actor
-trait Rhino extends HttpService {
-  val unibase = new HUnibase(HBase())
+trait Rhino extends HttpService with Logging {
+  val config = ConfigFactory.load().getConfig("unicorn.rhino")
+  val unibase = config.getString("bigtable") match {
+    case "hbase" => Unibase(HBase())
+    case "accumulo" =>
+      Unibase(Accumulo(
+        config.getString("accumulo.instance"), config.getString("accumulo.zookeeper"),
+        config.getString("accumulo.user"), config.getString("accumulo.password")))
+    case "cassandra" =>
+      Unibase(Cassandra(config.getString("cassandra.host"), config.getInt("cassandra.port")))
+    case bigtable =>
+      log.error(s"Unknown BigTable setting: $bigtable, try HBase")
+      Unibase(HBase())
+  }
 
   def rawJson = extract { _.request.entity.asString}
 
@@ -143,5 +156,4 @@ trait Rhino extends HttpService {
       }
     }
   }
-
 }
