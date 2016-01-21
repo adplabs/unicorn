@@ -44,7 +44,7 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
 
   "Accumulo" should {
     "get the put" in {
-      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v1", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.delete("row1", "cf1", "c1")
       table("row1", "cf1", "c1".getBytes(utf8)) === None
@@ -73,9 +73,9 @@ class AccumuloSpec extends Specification with BeforeAfterAll {
     }
 
     "get the row" in {
-      table.put("row1",
+      table.put("row1", Seq(
         ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
-        ColumnFamily("cf2", Seq(Column("c3", "v3")))
+        ColumnFamily("cf2", Seq(Column("c3", "v3"))))
       )
       val families = table.get("row1")
       families.size === 2
