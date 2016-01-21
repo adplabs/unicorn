@@ -112,13 +112,13 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
     }.distinct
 
     if (coveredColumns.isEmpty) {
-      super.update(row, family, column, value)
+      super.put(row, family, column, value, timestamp)
     } else {
       val values = get(row, family, coveredColumns: _*)
       val oldValue = RowMap(family, values)
       val newValue = RowMap(family, values)
 
-      super.update(row, family, column, value)
+      super.put(row, family, column, value, timestamp)
 
       // TODO to use the same timestamp as the base cell, we need to read it back.
       // HBase supports key only read by filter.
