@@ -46,7 +46,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
 
   "HBase" should {
     "get the put" in {
-      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v1", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.delete("row1", "cf1", "c1")
       table("row1", "cf1", "c1") === None
@@ -74,9 +74,9 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "get the row" in {
-      table.put("row1",
+      table.put("row1", Seq(
         ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))),
-        ColumnFamily("cf2", Seq(Column("c3", "v3")))
+        ColumnFamily("cf2", Seq(Column("c3", "v3"))))
       )
       val families = table.get("row1")
       families.size === 2
@@ -274,11 +274,11 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "intra row scan" in {
-      table.put("row1".getBytes(utf8),
+      table.put("row1".getBytes(utf8), Seq(
         ColumnFamily("cf1", (1 to 1000).map { i =>
           val bytes = ByteBuffer.allocate(4).putInt(i).array
           Column(bytes, bytes)
-        })
+        }))
       )
 
       val b103 = ByteBuffer.allocate(4).putInt(103).array
@@ -297,8 +297,8 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "rollback" in {
-      table.put("row1", "cf1", "c1", "v1")
-      table.put("row1", "cf1", "c1", "v2")
+      table.put("row1", "cf1", "c1", "v1", 0L)
+      table.put("row1", "cf1", "c1", "v2", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v2"
       table.rollback("row1", "cf1", "c1")
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
@@ -309,7 +309,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
     }
 
     "append" in {
-      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v1", 0L)
       table.append("row1", "cf1", "c1", "v2")
       new String(table("row1", "cf1", "c1").get, utf8) === "v1v2"
       table.delete("row1", "cf1", "c1")

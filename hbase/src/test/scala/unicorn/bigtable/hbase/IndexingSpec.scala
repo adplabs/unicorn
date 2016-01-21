@@ -45,12 +45,12 @@ class IndexingSpec extends Specification with BeforeAfterAll {
     }
     hbase.dropTable(tableName)
     // delete the index meta table
-    hbase.dropTable("unicorn.meta.index")
+    hbase.dropTable("unicorn_meta_index")
   }
 
   "HBase" should {
     "get the put" in {
-      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v1", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       table.delete("row1", "cf1", "c1")
       table("row1", "cf1", "c1") === None
@@ -58,13 +58,13 @@ class IndexingSpec extends Specification with BeforeAfterAll {
     "single column index" in {
       val index = Index(indexName, "cf1", Seq(IndexColumn("c1")))
       table.createIndex(index)
-      table.put("row1", "cf1", "c1", "v1")
+      table.put("row1", "cf1", "c1", "v1", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
 
-      val indexTable = hbase("unicorn.index." + indexName)
+      val indexTable = hbase("unicorn_index_" + indexName)
       indexTable("v1", "index", "row1").isDefined === true
 
-      table.put("row1", "cf1", "c1", "v2")
+      table.put("row1", "cf1", "c1", "v2", 0L)
       indexTable("v1", "index", "row1").isDefined === false
       indexTable("v2", "index", "row1").isDefined === true
 
@@ -85,21 +85,21 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       new String(table("row1", "cf1", "c2").get, utf8) === "v2"
 
-      val indexTable = hbase("unicorn.index." + indexName)
+      val indexTable = hbase("unicorn_index_" + indexName)
       indexTable("v1v2", "index", "row1").isDefined === true
       indexTable("v1", "index", "row1").isDefined === false
       indexTable("v2", "index", "row1").isDefined === false
 
-      table.put("row1", "cf1", "c1", "v3")
+      table.put("row1", "cf1", "c1", "v3", 0L)
       indexTable("v3", "index", "row1").isDefined === false
       indexTable("v3v2", "index", "row1").isDefined === true
 
       table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
       indexTable("v3v2", "index", "row1").isDefined === false
 
-      table.put("row1", ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))), ColumnFamily("cf2", Seq(Column("c3", "v3"))))
+      table.put("row1", Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))), ColumnFamily("cf2", Seq(Column("c3", "v3")))))
       indexTable("v1v2", "index", "row1").isDefined === true
-      val indexTable2 = hbase("unicorn.index." + indexName2)
+      val indexTable2 = hbase("unicorn_index_" + indexName2)
       indexTable2("v3", "index", "row1").isDefined === true
 
       table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
@@ -117,7 +117,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       table.put("row1", "cf1", Column("c1", "adp payroll"), Column("c2", "adp unicorn rocks"))
       new String(table("row1", "cf1", "c1").get, utf8) === "adp payroll"
 
-      val indexTable = hbase("unicorn.index." + indexName)
+      val indexTable = hbase("unicorn_index_" + indexName)
       indexTable.get("adp", "index").size === 2
       indexTable.get("payrol", "index").size === 1
       indexTable.get("unicorn", "index").size === 1
@@ -138,11 +138,11 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       new String(table("row1", "cf1", "c2").get, utf8) === "v2"
 
-      val indexTable = hbase("unicorn.index." + indexName)
+      val indexTable = hbase("unicorn_index_" + indexName)
       indexTable(md5("v1v2"), "index", "row1").isDefined === true
       indexTable("v1v2", "index", "row1").isDefined === false
 
-      table.put("row1", "cf1", "c1", "v3")
+      table.put("row1", "cf1", "c1", "v3", 0L)
       indexTable("v3v2", "index", "row1").isDefined === false
       indexTable(md5("v3v2"), "index", "row1").isDefined === true
 
