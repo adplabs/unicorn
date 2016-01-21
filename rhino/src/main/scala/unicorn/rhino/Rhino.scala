@@ -80,14 +80,20 @@ trait Rhino extends HttpService with Logging {
   val apiRoute = {
     path(Segment / Segment) { (table, id) =>
       get {
-        _get(table, id)
+        _get(table, JsString(id))
       } ~
       delete {
-        remove(table, id)
+        remove(table, JsString(id))
       }
     } ~
     path(Segment) { table =>
       rawJson { doc =>
+        get {
+          _get(table, doc.parseJson)
+        } ~
+        delete {
+          remove(table, doc.parseJson)
+        } ~
         post {
           upsert(table, doc)
         } ~
@@ -101,21 +107,11 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def _id(id: String): JsValue = {
-    id.split(":") match {
-      case Array(_id, "UUID") => JsUUID(UUID.fromString(_id))
-      case Array(_id, "BSONObjectId") => JsObjectId(BsonObjectId(_id))
-      case Array(_id, "Long") => JsLong(_id.toLong)
-      case Array(_id, "Int") => JsInt(_id.toInt)
-      case _ => JsString(id)
-    }
-  }
-
   private def json(doc: String) = doc.parseJson.asInstanceOf[JsObject]
 
   // name it "get" will conflict with spray routing "get"
-  private def _get(table: String, id: String, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
-    onSuccess(Future(unibase(table)(_id(id)))) { doc =>
+  private def _get(table: String, id: JsValue, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
+    onSuccess(Future(unibase(table)(id))) { doc =>
       respondWithMediaType(`application/json`) {
         complete(doc match {
           case None => StatusCodes.NotFound
@@ -150,8 +146,8 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  def remove(table: String, id: String) = {
-    onSuccess(Future(unibase(table).delete(_id(id)))) { Unit =>
+  def remove(table: String, id: JsValue) = {
+    onSuccess(Future(unibase(table).delete(id))) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
