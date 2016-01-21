@@ -15,6 +15,8 @@
  *******************************************************************************/
 
 import java.util.{Date, UUID}
-import unicorn.oid._, unicorn.json._
-import unicorn.bigtable._, hbase._, cassandra._, accumulo._
+import unicorn.util._, unicorn.oid._, unicorn.json._
+import unicorn.bigtable.hbase.HBase
+import unicorn.bigtable.cassandra.Cassandra
+import unicorn.bigtable.accumulo.Accumulo
 import unicorn.unibase._, unicorn.graph._
