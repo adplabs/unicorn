@@ -5,7 +5,6 @@ lazy val commonSettings = Seq(
   version := "2.0.0-SNAPSHOT",
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
-  libraryDependencies += "org.specs2" %% "specs2-core" % "3.6.3" % "test",
   scalacOptions in Test ++= Seq("-Yrangepos"),
   parallelExecution in Test := false
 )

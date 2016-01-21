@@ -15,8 +15,8 @@ executableScriptName := "rhino"
 mainClass in Compile := Some("unicorn.rhino.Boot")
 
 libraryDependencies ++= {
-  val akkaV = "2.3.6"
-  val sprayV = "1.3.2"
+  val akkaV = "2.3.9"
+  val sprayV = "1.3.3"
   Seq(
     "io.spray"            %%  "spray-can"     % sprayV,
     "io.spray"            %%  "spray-routing" % sprayV,
@@ -25,3 +25,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-testkit"  % akkaV   % "test"
   )
 }
+
+libraryDependencies += "org.specs2" %% "specs2-core" % "2.3.11" % "test"
+
+parallelExecution in Test := false
