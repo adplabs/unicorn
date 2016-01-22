@@ -3,6 +3,9 @@
 echo -e "PUT"
 curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/unicorn_rhino_test
 
+echo -e "\nPUT again"
+curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/unicorn_rhino_test
+
 echo -e "\nGET"
 curl -X GET http://localhost:8080/unicorn_rhino_test/dude
 
