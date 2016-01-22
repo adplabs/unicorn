@@ -16,31 +16,43 @@
 
 package unicorn.rhino
 
-import java.util.UUID
-import com.typesafe.config.ConfigFactory
-
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext, ExecutionContext.Implicits.global
 
-import akka.actor.Actor
+import akka.event.Logging._
+import spray.util.LoggingContext
 import spray.routing._
 import spray.http._
 import MediaTypes._
+import com.typesafe.config.ConfigFactory
 
 import unicorn._, json._
 import unicorn.bigtable._, accumulo._, cassandra._, hbase._
-import unicorn.oid.BsonObjectId
 import unicorn.unibase._
 import unicorn.util.Logging
 
 /**
  * @author Haifeng Li
  */
-class RhinoActor extends Actor with Rhino {
+class RhinoActor extends HttpServiceActor with Rhino {
+  /*
+  def loggingMagnet(request: HttpRequest, level: LogLevel) =
+    LogEntry(request.method + " " + request.uri + "\n CONTENT: " + request.entity, level)
+*/
+  implicit def exceptionHandler(implicit log: LoggingContext) =
+    ExceptionHandler {
+      case e: IllegalArgumentException =>
+        //logRequest(loggingMagnet _)
+        logRequest("Invalid argument", ErrorLevel)
+        complete(StatusCodes.BadRequest, "Invalid argument")
+      case e: UnsupportedOperationException =>
+        logRequest("Unsupported operation", ErrorLevel)
+        complete(StatusCodes.BadRequest, "Unsupported operation")
+    }
 
   // the HttpService trait defines only one abstract member, which
   // connects the services environment to the enclosing actor or test
-  def actorRefFactory = context
+  override def actorRefFactory = context
 
   // this actor only runs our route, but you could add
   // other things here, like request stream processing
@@ -135,9 +147,9 @@ trait Rhino extends HttpService with Logging {
       val db = unibase(table)
       db.tenant = tenant
       db.upsert(json(doc))
-    }) { doc =>
+    }) { key =>
       respondWithMediaType(`application/json`) {
-        val response = JsObject("_id" -> doc("_id"))
+        val response = JsObject("_id" -> key)
         complete(response.toString)
       }
     }
