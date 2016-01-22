@@ -17,7 +17,7 @@
 package unicorn.graph
 
 import unicorn.json._
-import unicorn.unibase.{Table, Unibase}
+import unicorn.unibase.{Table, Unibase}, Unibase.{$id, $graph}
 import unicorn.util.Logging
 
 /** Abstract Unibase graph visitor. A default implementation of edges returns
@@ -62,12 +62,19 @@ class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (S
 
   /** Map node to an index. */
   val nodes = scala.collection.mutable.Map[JsValue, Int]()
+
   /** Map edge to a weight. */
   val weights = scala.collection.mutable.Map[(Int, Int), Double]()
 
+  type VisitHook = (JsValue, Edge[JsValue, (String, JsValue)], Int) => Unit
+
   /** Extra action when visiting a vertex. This default implementation does nothing.
     * Applications needing customized visit action should override it. */
-  val visitHooks = Seq[(JsValue, Edge[JsValue, (String, JsValue)], Int) => Unit]()
+  val visitHooks = collection.mutable.ArrayBuffer[VisitHook]()
+
+  def addVisitHook(hook: VisitHook): Unit = {
+    visitHooks += hook
+  }
 
   override def visit(vertex: JsValue, edge: Edge[JsValue, (String, JsValue)], hops: Int): Unit = {
     if (!nodes.contains(vertex)) nodes(vertex) = nodes.size
@@ -98,19 +105,17 @@ class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (S
     }
 
     val neighbors = relationships match {
-      case None => $graph(doc.get).fields
-      case Some(relationships) => $graph(doc.get).fields.filter { link =>
+      case None => links(doc.get)
+      case Some(relationships) => links(doc.get).filter { link =>
         relationships.contains(link._1)
       }
     }
 
-    val links = neighbors.flatMap { case (relationship, neighbor) =>
+    neighbors.flatMap { case (relationship, neighbor) =>
       neighbor.asInstanceOf[JsObject].fields.map { case (_, link) =>
-        new Edge(vertex, link(Unibase.$id), Some((relationship, link.data)))
+        new Edge(vertex, link($id), Some((relationship, link($data))))
       }
-    }
-
-    links.iterator
+    }.iterator
   }
 
   /** Returns the document of given id. */
@@ -133,7 +138,7 @@ class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (S
     * @return the document or None if it doesn't exist.
     */
   def $doc(id: JsValue): Option[JsObject] = {
-    table(id, Unibase.$graph)
+    table(id, $graph)
   }
 
   /** Returns the adjacency list of a document. By default, we assume that
@@ -142,7 +147,10 @@ class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (S
     * @param doc
     * @return
     */
-  def $graph(doc: JsObject): JsObject = {
-    doc.graph.asInstanceOf[JsObject]
+  def links(doc: JsObject): Seq[(String, JsValue)] = {
+    doc($graph) match {
+      case JsObject(fields) => fields.toSeq
+      case _ => Seq.empty
+    }
   }
 }
