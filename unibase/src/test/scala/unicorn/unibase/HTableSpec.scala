@@ -118,11 +118,19 @@ class HTableSpec extends Specification with BeforeAfterAll {
       val doc = bucket(key).get
       doc.store.books === JsCounter(20)
 
-      // update again
-      bucket.update(update)
+      val subtraction = JsonParser(
+        """
+          | {
+          |   "$inc": {
+          |     "store.books": -30
+          |   }
+          | }
+        """.stripMargin).asInstanceOf[JsObject]
+      subtraction("_id") = key
+      bucket.update(subtraction)
 
       val doc2 = bucket(key).get
-      doc2.store.books === JsCounter(30)
+      doc2.store.books === JsCounter(-10)
     }
     "rollback set" in {
       val bucket = db(tableName)
