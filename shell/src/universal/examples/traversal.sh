@@ -2,6 +2,12 @@
 exec unicorn -nc "$0" "$@"
 !#
 
+import unicorn.json._
+import unicorn.bigtable.hbase.HBase
+import unicorn.unibase._
+import unicorn.unibase.Unibase.{$id, $graph}
+import unicorn.graph._
+
 // Google+
 val hbase = Unibase(HBase())
 val gplus = hbase("gplus")

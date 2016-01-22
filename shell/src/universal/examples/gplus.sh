@@ -3,6 +3,11 @@ exec unicorn -nc "$0" "$@"
 !#
 
 import scala.io.Source
+import unicorn.json._
+import unicorn.bigtable.hbase.HBase
+import unicorn.unibase._
+import unicorn.unibase.Unibase.{$id, $graph}
+import unicorn.graph._
 
 def ego(table: Table, files: String*): Unit = {
   files.foreach { file =>
