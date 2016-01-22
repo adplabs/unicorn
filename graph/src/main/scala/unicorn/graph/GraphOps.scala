@@ -116,7 +116,7 @@ class GraphOps[V, E] {
         if (current == goal) return reconstructPath(cameFrom, goal).reverse
 
         neighbors(current).foreach { case (neighbor, edge) =>
-          val alt = distance+ g(current, neighbor, edge)
+          val alt = distance + g(current, neighbor, edge)
           if (alt < dist(neighbor)) {
             dist(neighbor) = alt
             cameFrom(neighbor) = (current, edge)

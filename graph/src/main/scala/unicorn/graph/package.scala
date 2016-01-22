@@ -31,6 +31,15 @@ package object graph {
 package graph {
 
 private[graph] class PimpedJsObject(js: JsObject) {
+  /** Returns an object of neighbors for given relationship.
+    *
+    * @param relationship the relationship of interest.
+    * @return an object of which each field is a neighbor.
+    */
+  def apply(relationship: String): JsObject = {
+    js($graph)(relationship).asInstanceOf[JsObject]
+  }
+
   /** Returns any associated data with a relationship.
     *
     * @param relationship the relationship of interest.
