@@ -39,35 +39,6 @@ class ObjectId(val id: Array[Byte]) extends Comparable[ObjectId] {
   def string: String = {
     new String(id, utf8)
   }
-
-  def toInt: Int = {
-    if (id.length != 4) throw new IllegalStateException("ObjectId is not an Int")
-    val buffer = ByteBuffer.wrap(id)
-    buffer.getInt
-  }
-
-  def toLong: Long = {
-    if (id.length != 8) throw new IllegalStateException("ObjectId is not a Long")
-    val buffer = ByteBuffer.wrap(id)
-    buffer.getLong
-  }
-
-  def toDate: Date = {
-    if (id.length != 8) throw new IllegalStateException("ObjectId is not a Date")
-    val buffer = ByteBuffer.wrap(id)
-    new Date(buffer.getLong)
-  }
-
-  def toUUID: UUID = {
-    if (id.length != 16) throw new IllegalStateException("ObjectId is not a UUID")
-    val buffer = ByteBuffer.wrap(id)
-    new UUID(buffer.getLong, buffer.getLong)
-  }
-
-  def toBsonObjectId: BsonObjectId = {
-    if (id.length != 12) throw new IllegalStateException("ObjectId is not a BSON ObjectId")
-    new BsonObjectId(id)
-  }
 }
 
 object ObjectId {
