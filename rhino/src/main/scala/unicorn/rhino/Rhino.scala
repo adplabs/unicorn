@@ -48,7 +48,6 @@ class RhinoActor extends Actor with Rhino {
   def receive = runRoute(apiRoute ~ staticRoute)
 }
 
-
 // this trait defines our service behavior independently from the service actor
 trait Rhino extends HttpService with Logging {
   val config = ConfigFactory.load().getConfig("unicorn.rhino")
@@ -77,31 +76,37 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
+  def hv(name: String) = headerValueByName(name)
+  def ohv(name: String) = optionalHeaderValueByName(name)
+
   val apiRoute = {
-    path(Segment / Segment) { (table, id) =>
-      get {
-        _get(table, JsString(id))
-      } ~
-      delete {
-        remove(table, JsString(id))
-      }
-    } ~
-    path(Segment) { table =>
-      rawJson { doc =>
+    ohv("tenant") { tenantId =>
+      implicit val tenant = tenantId.map(_.parseJson)
+      path(Segment / Segment) { (table, id) =>
         get {
-          _get(table, doc.parseJson)
+          _get(table, JsString(id))
         } ~
         delete {
-          remove(table, doc.parseJson)
-        } ~
-        post {
-          upsert(table, doc)
-        } ~
-        put {
-          insert(table, doc)
-        } ~
-        patch {
-          update(table, doc)
+          remove(table, JsString(id))
+        }
+      } ~
+      path(Segment) { table =>
+        rawJson { doc =>
+          get {
+            _get(table, doc.parseJson)
+          } ~
+          delete {
+           remove(table, doc.parseJson)
+          } ~
+          post {
+            upsert(table, doc)
+          } ~
+          put {
+            insert(table, doc)
+          } ~
+          patch {
+            update(table, doc)
+          }
         }
       }
     }
@@ -110,8 +115,12 @@ trait Rhino extends HttpService with Logging {
   private def json(doc: String) = doc.parseJson.asInstanceOf[JsObject]
 
   // name it "get" will conflict with spray routing "get"
-  private def _get(table: String, id: JsValue, fields: Option[String] = None)(implicit ec: ExecutionContext) = {
-    onSuccess(Future(unibase(table)(id))) { doc =>
+  private def _get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
+    onSuccess(Future {
+      val db = unibase(table)
+      db.tenant = tenant
+      db(id)
+    }) { doc =>
       respondWithMediaType(`application/json`) {
         complete(doc match {
           case None => StatusCodes.NotFound
@@ -121,33 +130,49 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def upsert(table: String, doc: String) = {
-    val js = json(doc)
-    onSuccess(Future(unibase(table).upsert(js))) { Unit =>
+  private def upsert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+    onSuccess(Future {
+      val db = unibase(table)
+      db.tenant = tenant
+      db.upsert(json(doc))
+    }) { doc =>
       respondWithMediaType(`application/json`) {
-        complete(s"""{"_id": "${js("_id")}"}""")
+        val response = JsObject("_id" -> doc("_id"))
+        complete(response.toString)
       }
     }
   }
 
-  private def insert(table: String, doc: String) = {
-    onSuccess(Future(unibase(table).insert(json(doc)))) { Unit =>
+  private def insert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+    onSuccess(Future {
+      val db = unibase(table)
+      db.tenant = tenant
+      db.insert(json(doc))
+    }) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
     }
   }
 
-  private def update(table: String, doc: String) = {
-    onSuccess(Future(unibase(table).update(json(doc)))) { Unit =>
+  private def update(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+    onSuccess(Future {
+      val db = unibase(table)
+      db.tenant = tenant
+      db.update(json(doc))
+    }) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
     }
   }
 
-  def remove(table: String, id: JsValue) = {
-    onSuccess(Future(unibase(table).delete(id))) { Unit =>
+  def remove(table: String, id: JsValue)(implicit tenant: Option[JsValue]) = {
+    onSuccess(Future {
+      val db = unibase(table)
+      db.tenant = tenant
+      db.delete(id)
+    }) { Unit =>
       respondWithMediaType(`application/json`) {
         complete("{}")
       }
