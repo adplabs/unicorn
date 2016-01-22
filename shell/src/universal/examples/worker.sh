@@ -42,7 +42,7 @@ val person = JsObject(
   "graph" -> JsObject(
     "work with" -> JsObject(
       "Jim" -> JsObject(
-        "id" -> "Jim",
+        "_id" -> "Jim",
         "data" -> 1
       ),
       "Mike" -> JsObject(
@@ -52,7 +52,7 @@ val person = JsObject(
     ),
     "report to" -> JsObject(
       "Tom" -> JsObject(
-        "id" -> "Tome",
+        "_id" -> "Tome",
         "data" -> 1
       )
     )

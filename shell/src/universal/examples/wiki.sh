@@ -38,8 +38,8 @@ def wikipedia(bucket: HBaseBucket, files: String*): Unit = {
                 }
 
                 if (title != "") {
-                  d("_id") = d.id.toString.toInt
-                  println(d("_id"))
+                  d($id) = d.id.toString.toInt
+                  println(d($id))
                   bucket.upsert(d)
                 }
               case _ =>

@@ -94,12 +94,12 @@ def types(table: HBaseBucket, files: String*): Unit = {
     Source.fromFile(file).getLines.foreach { line =>
       if (!line.startsWith("#")) {
         val nt = triple(line)
-        if (nt._1 != doc("_id").toString) {
-          if (doc("_id") != JsUndefined) {
+        if (nt._1 != doc(Unibase.$id).toString) {
+          if (doc(Unibase.$id) != JsUndefined) {
             println(doc)
             bucket.upsert(doc)
           }
-          doc = JsObject("_id" -> JsString(nt._1))
+          doc = JsObject(Unibase.$id -> JsString(nt._1))
         } else {
           doc(nt._3) = "type"
         }
@@ -119,7 +119,7 @@ def properties(table: HBaseBucket, files: String*): Unit = {
         if (nt._1 != doc.id) {
           println(doc.id)
           table.update(doc)
-          doc = JsObject("_id" -> JsString(nt._1))
+          doc = JsObject(Unibase.$id -> JsString(nt._1))
         } else {
           val obj = nt._3
           val isInt = nt._4

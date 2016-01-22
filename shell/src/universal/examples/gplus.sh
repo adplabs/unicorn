@@ -34,9 +34,7 @@ def ego(table: Table, files: String*): Unit = {
       val edge = line.split(" ")
       if (docs.contains(edge(0))) {
         val doc = docs(edge(0))
-        doc.graph.follows(edge(1)) = JsObject(
-          $id -> JsString(edge(1))
-        )
+        graph(doc)("follows", edge(1)) = JsNull
       }
     }
 
