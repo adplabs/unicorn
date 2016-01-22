@@ -37,13 +37,20 @@ class Unigraph(val nodes: Array[JsValue], graph: Graph) {
 object Unigraph {
   val graphOps = new GraphOps[JsValue, (String, JsValue)]()
 
-  /** Returns an in-memory Smile graph built by given visitor from the starting node.
+  /** Returns an in-memory Smile graph built by BFS starting with given node.
     * @param start the staring node of graph traversal.
     * @param visitor the visitor object.
     * @return an in-memory Smile graph for heavy graph computation.
     */
-  def apply(start: JsValue, visitor: UnibaseVisitor): Unigraph = {
-    graphOps.dfs(start, visitor)
+  def apply(start: JsValue, visitor: UnibaseVisitor): Unigraph = bfs(start, visitor)
+
+  /** Returns an in-memory Smile graph built by BFS starting with given node.
+    * @param start the staring node of graph traversal.
+    * @param visitor the visitor object.
+    * @return an in-memory Smile graph for heavy graph computation.
+    */
+  def bfs(start: JsValue, visitor: UnibaseVisitor): Unigraph = {
+    graphOps.bfs(start, visitor)
     
     val nodes = new Array[JsValue](visitor.nodes.size)
     visitor.nodes.foreach { case (doc, index) => nodes(index) = doc }
@@ -51,6 +58,23 @@ object Unigraph {
     val graph = new AdjacencyList(nodes.length, true)
     visitor.weights.foreach { case (key, weight) => graph.addEdge(key._1, key._2, weight)}
     
+    new Unigraph(nodes, graph)
+  }
+
+  /** Returns an in-memory Smile graph built by DFS starting with given node.
+    * @param start the staring node of graph traversal.
+    * @param visitor the visitor object.
+    * @return an in-memory Smile graph for heavy graph computation.
+    */
+  def dfs(start: JsValue, visitor: UnibaseVisitor): Unigraph = {
+    graphOps.dfs(start, visitor)
+
+    val nodes = new Array[JsValue](visitor.nodes.size)
+    visitor.nodes.foreach { case (doc, index) => nodes(index) = doc }
+
+    val graph = new AdjacencyList(nodes.length, true)
+    visitor.weights.foreach { case (key, weight) => graph.addEdge(key._1, key._2, weight)}
+
     new Unigraph(nodes, graph)
   }
 }
