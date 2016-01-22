@@ -19,4 +19,6 @@ import unicorn.util._, unicorn.oid._, unicorn.json._
 import unicorn.bigtable.hbase.HBase
 import unicorn.bigtable.cassandra.Cassandra
 import unicorn.bigtable.accumulo.Accumulo
-import unicorn.unibase._, unicorn.graph._
+import unicorn.unibase._
+import unicorn.unibase.Unibase.{$id, $graph}
+import unicorn.graph._
