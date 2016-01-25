@@ -20,7 +20,7 @@ import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
 import unicorn.json._
-import unicorn.unibase._
+import unicorn.unibase._, Unibase.{$id, $graph}
 
 /**
  * @author Haifeng Li
@@ -42,9 +42,20 @@ class UnigraphSpec extends Specification with BeforeAfterAll {
   }
 
   "Unigraph" should {
-    "travsel" in {
+    "set & unset relationship" in {
       val bucket = db(tableName)
-      1 === 1
+      val tom = JsObject(
+        $id -> "Tom",
+        "job" -> "programmer"
+      )
+      graph(tom)("works with", "Mike") = 1
+      graph(tom)("reports to", "Chris") = 2
+
+      tom.graph("works with").Mike === JsObject($id -> "Mike", $data -> 1)
+      tom.graph("reports to").Chris === JsObject($id -> "Chris", $data -> 2)
+
+      graph(tom)("works with", "Mike") = JsUndefined
+      tom.graph("works with").Mike === JsUndefined
     }
   }
 }
