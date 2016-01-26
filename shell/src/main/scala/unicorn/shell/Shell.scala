@@ -25,7 +25,7 @@ import scala.tools.nsc.interpreter.ILoop
 class Shell extends ILoop {
   override def prompt = "unicorn> "
   override def printWelcome = echo(
-    ("""
+    raw"""
        |                        . . . .
        |                        ,`,`,`,`,
        |  . . . .               `\`\`\`\;
@@ -51,12 +51,11 @@ class Shell extends ILoop {
        |             / /       \. \
        |           _/ /          \_\
        |          /_!/            >_\
-    """ + // s marco has troubles with '\' in the text art.
-   s"""
-       |  Welcome to Unicorn Shell; enter 'help<RETURN>' for list of supported commands.
+       |
+       |  Welcome to Unicorn Shell; enter ':help<RETURN>' for list of commands.
        |  Type ":quit<RETURN>" to leave the Unicorn Shell
        |  Version ${BuildInfo.version}, Scala ${BuildInfo.scalaVersion}, SBT ${BuildInfo.sbtVersion}, Built at ${BuildInfo.builtAtString}
        |===============================================================================
-    """).stripMargin
+    """.stripMargin
   )
 }
