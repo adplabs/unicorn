@@ -227,8 +227,8 @@ object ScanFilter {
 
   import CompareOperator._
   sealed trait Expression
-  case class And(left: Expression, right: Expression) extends Expression
-  case class Or (left: Expression, right: Expression) extends Expression
+  case class And(list: Seq[Expression]) extends Expression
+  case class Or (list: Seq[Expression]) extends Expression
   case class BasicExpression(op: CompareOperator, family: String, column: ByteArray, value: ByteArray) extends Expression
 }
 

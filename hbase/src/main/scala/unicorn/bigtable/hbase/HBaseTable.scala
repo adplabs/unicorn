@@ -188,8 +188,8 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
       }
       f.setFilterIfMissing(true)
       f
-    case And(left, right) => new FilterList(FilterList.Operator.MUST_PASS_ALL, hbaseFilter(left), hbaseFilter(right))
-    case Or(left, right) => new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFilter(left), hbaseFilter(right))
+    case And(list) => new FilterList(FilterList.Operator.MUST_PASS_ALL, list.map(hbaseFilter(_)))
+    case Or(list) => new FilterList(FilterList.Operator.MUST_PASS_ONE, list.map(hbaseFilter(_)))
   }
 
   override def intraRowScan(row: ByteArray, family: String, startColumn: ByteArray, stopColumn: ByteArray): IntraRowScanner = {
