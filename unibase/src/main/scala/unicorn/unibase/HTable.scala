@@ -222,20 +222,20 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   /** Search the table.
     * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
-    * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
+    * @param where the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
     *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le).
     * @return an iterator of matched document.
     */
-  def find(projection: JsObject = JsObject(), query: JsObject = JsObject()): Iterator[JsObject] = {
+  def find(projection: JsObject = JsObject(), where: JsObject = JsObject()): Iterator[JsObject] = {
     val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
 
-    val it = if (query == JsObject()) {
+    val it = if (where == JsObject()) {
       tenant match {
         case None => table.scanAll(families)
         case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
       }
     } else {
-      val filter = queryFilter(query)
+      val filter = queryFilter(where)
       tenant match {
         case None => table.filterScanAll(filter, families)
         case Some(tenant) => table.filterScanPrefix(filter, getBytes(tenant), families)
@@ -249,12 +249,12 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   /** Returns the scan filter based on the query predicts.
     *
-    * @param query query predict object.
+    * @param where query predict object.
     * @return scan filter.
     */
-  private def queryFilter(query: JsObject): ScanFilter.Expression = {
+  private def queryFilter(where: JsObject): ScanFilter.Expression = {
 
-    val filters = query.fields.map {
+    val filters = where.fields.map {
       case ("$or",  condition) =>
         if (!condition.isInstanceOf[JsArray])
           throw new IllegalArgumentException("$or predict is not an array")
