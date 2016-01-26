@@ -96,6 +96,8 @@ astar.insert(stuart)
 astar.insert(don)
 astar.insert(carlos)
 
+println(astar.find(where = JsObject("_id" -> JsString("Haifeng"))).next)
+
 val graphOps = new GraphOps[JsObject, (String, JsValue)]()
 val path = graphOps.dijkstra(haifeng, carlos,
  (doc: JsObject) => {
