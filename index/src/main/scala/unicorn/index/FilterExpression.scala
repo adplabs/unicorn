@@ -37,14 +37,13 @@ case class Ge(left: String, right: Literal) extends FilterExpression
 case class Lt(left: String, right: Literal) extends FilterExpression
 case class Le(left: String, right: Literal) extends FilterExpression
 
-/**
- * The where clause used for scan and index. Currently we support = (equal), <> or != (not equal),
- * > (greater than), >= (greater than or equal), < (less than), and <= (less than or equal).
- * The AND & OR operators can be used to combine multiple conditions. Datetime should be
- * in ISO 8601 format (yyyy-MM-dd'T'HH:mm:ss'Z' or yyyy-MM-dd'T'HH:mm:ss.SSS'Z').
- *
- * @author Haifeng Li
- */
+/** The where clause used for scan and index. Currently we support = (equal), <> or != (not equal),
+  * > (greater than), >= (greater than or equal), < (less than), and <= (less than or equal).
+  * The AND & OR operators can be used to combine multiple conditions. Datetime should be
+  * in ISO 8601 format (yyyy-MM-dd'T'HH:mm:ss'Z' or yyyy-MM-dd'T'HH:mm:ss.SSS'Z').
+  *
+  * @author Haifeng Li
+  */
 class FilterExpressionParser extends JavaTokenParsers with Logging {
   def filterLiteral: Parser[Literal] =
     stringLiteral ^^ { x => StringLiteral(x.substring(1, x.length-1)) } | // dequoted

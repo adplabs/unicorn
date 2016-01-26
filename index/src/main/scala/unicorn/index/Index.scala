@@ -19,13 +19,13 @@ package unicorn.index
 import unicorn.json._
 import unicorn.util._
 
-/**
- * For a composite index of multiple columns, sort order is only
- * meaningful for fixed-width columns (except the last one, which
- * can be of variable length) in case of range search.
- * Otherwise, it can only be used for equality queries.
- * It is the user's responsibility
- */
+/** For a composite index of multiple columns, sort order is only
+  * meaningful for fixed-width columns (except the last one, which
+  * can be of variable length) in case of range search.
+  * Otherwise, it can only be used for equality queries.
+  * It is the user's responsibility to make sure only fixed-width
+  * columns are used in a composite index.
+  */
 object IndexSortOrder extends Enumeration {
   type IndexSortOrder = Value
 
@@ -41,36 +41,26 @@ object IndexSortOrder extends Enumeration {
   val Descending = Value
 }
 
-/**
- * Index type.
- */
+/** Index type. */
 object IndexType extends Enumeration {
   type IndexType = Value
 
-  /**
-   * A regular index allowing duplicates, not hashed, not text.
-   */
+  /** A regular index allowing duplicates, not hashed, not text. */
   val Default = Value
 
-  /**
-   * Unique index/constraint, where the column cannot have duplicated values.
-   */
+  /** Unique index/constraint, where the column cannot have duplicated values. */
   val Unique = Value
 
-  /**
-   * Hashed indexes compute a hash of the value of a field
-   * and index the hashed value. These indexes permit only
-   * equality queries. Internally, this is based on MD5 hash
-   * function, which computes a 16-byte value. Therefore, this
-   * is mostly useful for long byte strings/BLOB. If a column
-   * in a composite index is hashed, the whole index will be hashed.
-   * Hashed index doesn't support unique constraint.
-   */
+  /** Hashed indexes compute a hash of the value
+    * and index the hashed value. These indexes permit only
+    * equality queries. Internally, this is based on MD5 hash
+    * function, which computes a 16-byte value. Therefore, this
+    * is mostly useful for long byte strings/BLOB.
+    * Hashed index doesn't support unique constraint.
+    */
   val Hashed = Value
 
-  /**
-   * Text indexes are for full text search by keywords.
-   */
+  /** Text indexes are for full text search by keywords. */
   val Text = Value
 }
 
