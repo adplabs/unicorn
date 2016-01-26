@@ -21,7 +21,7 @@ import java.util.Date
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
-import org.apache.hadoop.hbase.filter.{ColumnRangeFilter, CompareFilter, FilterList, SingleColumnValueFilter}, CompareFilter.CompareOp
+import org.apache.hadoop.hbase.filter.{ColumnRangeFilter, CompareFilter, FilterList, KeyOnlyFilter, SingleColumnValueFilter}, CompareFilter.CompareOp
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{CellUtil, HConstants}
@@ -170,6 +170,25 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   override def filterGet(filter: ScanFilter.Expression, row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]] = {
     val get = newGet(row)
     get.setFilter(hbaseFilter(filter))
+    getColumns(get, family, columns)
+
+    val result = HBaseTable.getRow(table.get(get))
+    if (result.families.isEmpty) None else Some(result.families.head.columns)
+  }
+
+  val keyOnlyFilter = new KeyOnlyFilter(true)
+
+  override def getKeyOnly(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Option[Seq[ColumnFamily]] = {
+    val get = newGet(row)
+    get.setFilter(keyOnlyFilter)
+    families.foreach { case (family, columns) => getColumns(get, family, columns) }
+    val result = HBaseTable.getRow(table.get(get)).families
+    if (result.isEmpty) None else Some(result)
+  }
+
+  override def getKeyOnly(row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]] = {
+    val get = newGet(row)
+    get.setFilter(keyOnlyFilter)
     getColumns(get, family, columns)
 
     val result = HBaseTable.getRow(table.get(get))
