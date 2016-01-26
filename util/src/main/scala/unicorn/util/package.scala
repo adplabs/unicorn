@@ -14,11 +14,11 @@
  * limitations under the License.
  *******************************************************************************/
 
- package unicorn
+package unicorn
 
- import java.nio.ByteBuffer
- import java.nio.charset.Charset
- import java.time.format.DateTimeFormatter
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import java.time.format.DateTimeFormatter
 
 /**
  * Utility functions.
