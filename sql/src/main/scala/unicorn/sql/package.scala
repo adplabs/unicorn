@@ -14,12 +14,10 @@
  * limitations under the License.
  *******************************************************************************/
 
-import java.util.{Date, UUID}
-import unicorn.util._, unicorn.oid._, unicorn.json._
-import unicorn.bigtable.hbase.HBase
-import unicorn.bigtable.cassandra.Cassandra
-import unicorn.bigtable.accumulo.Accumulo
-import unicorn.unibase._
-import unicorn.unibase.Unibase.{$id, $graph}
-import unicorn.graph._
-import unicorn.sql.hunibase2SQL
+package unicorn
+
+import unicorn.unibase.HUnibase
+
+package object sql {
+  implicit def hunibase2SQL(db: HUnibase) = new SQLContext(db)
+}
