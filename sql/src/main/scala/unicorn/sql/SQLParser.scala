@@ -157,6 +157,11 @@ object SQLParser extends StandardTokenParsers {
     case class FloatLit(chars: String) extends Token {
       override def toString = chars
     }
+
+    // Allow case insensitive keywords by upper casing everything
+    override protected def processIdent(name: String) =
+      if (reserved contains name.toUpperCase) Keyword(name.toUpperCase) else Identifier(name)
+
     override def token: Parser[Token] =
       (identChar ~ rep(identChar | digit) ^^ { case first ~ rest => processIdent(first :: rest mkString "") }
         | rep1(digit) ~ opt('.' ~> rep(digit)) ^^ {
@@ -170,6 +175,7 @@ object SQLParser extends StandardTokenParsers {
         | '\"' ~> failure("unclosed string literal")
         | delim
         | failure("illegal character"))
+
     def regex(r: Regex): Parser[String] = new Parser[String] {
       def apply(in: Input) = {
         val source = in.source
@@ -185,6 +191,7 @@ object SQLParser extends StandardTokenParsers {
       }
     }
   }
+
   override val lexical = new SqlLexical
 
   def floatLit: Parser[String] =
@@ -199,5 +206,4 @@ object SQLParser extends StandardTokenParsers {
 
   lexical.delimiters += (
     "*", "+", "-", "<", "=", "<>", "!=", "<=", ">=", ">", "/", "(", ")", ",", ".", ";")
-
 }
