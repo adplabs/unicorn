@@ -31,7 +31,7 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
+class ColumnarJsonSerializer(val buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
   private def jsonPath(parent: String, field: String) = s"%s${JsonSerializer.pathDelimiter}%s".format(parent, field)

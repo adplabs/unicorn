@@ -220,13 +220,26 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
       throw new IllegalArgumentException(s"Document $id already exists")
   }
 
-  /*
-  def find(projection: JsObject, query: JsObject): Iterator[JsObject] = {
-    val families = project(projection)
+  /** Search the table.
+    * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
+    * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
+    *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le).
+    * @return an iterator of matched document.
+    */
+  def find(projection: JsObject = JsObject(), query: JsObject = JsObject()): Iterator[JsObject] = {
+    val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
 
-    val it = tenant match {
-      case None => table.scanAll(families)
-      case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
+    val it = if (query == JsObject()) {
+      tenant match {
+        case None => table.scanAll(families)
+        case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
+      }
+    } else {
+      val filter = queryFilter(query)
+      tenant match {
+        case None => table.filterScanAll(filter, families)
+        case Some(tenant) => table.filterScanPrefix(filter, getBytes(tenant), families)
+      }
     }
 
     it.map { data =>
@@ -234,8 +247,82 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     }
   }
 
+  /** Returns the scan filter based on the query predicts.
+   *
+   * @param query
+   * @return
+   */
   private def queryFilter(query: JsObject): ScanFilter.Expression = {
 
+    val filters = query.fields.map {
+      case ("$or",  condition) =>
+        if (!condition.isInstanceOf[JsArray])
+          throw new IllegalArgumentException("$or predict is not an array")
+
+        val filters = condition.asInstanceOf[JsArray].elements.map { e =>
+          if (!e.isInstanceOf[JsObject])
+            throw new IllegalArgumentException(s"or predict element $e is not an object")
+          queryFilter(e.asInstanceOf[JsObject])
+        }
+
+        if (filters.size > 1) ScanFilter.Or(filters)
+        else if (filters.size == 1) filters(0)
+        else throw new IllegalArgumentException("find: empty $or array")
+
+      case ("$and", condition) =>
+        if (!condition.isInstanceOf[JsArray])
+          throw new IllegalArgumentException("$and predict is not an array")
+
+        val filters = condition.asInstanceOf[JsArray].elements.map { e =>
+          if (!e.isInstanceOf[JsObject])
+            throw new IllegalArgumentException(s"and predict element $e is not an object")
+          queryFilter(e.asInstanceOf[JsObject])
+        }
+
+        if (filters.size > 1) ScanFilter.And(filters)
+        else if (filters.size == 1) filters(0)
+        else throw new IllegalArgumentException("find: empty $and array")
+
+      case (field, condition) => condition match {
+        case JsObject(fields) => fields.toSeq match {
+          case Seq(("$eq", value)) => basicFilter(ScanFilter.CompareOperator.Equal, field, value)
+          case Seq(("$ne", value)) => basicFilter(ScanFilter.CompareOperator.NotEqual, field, value)
+          case Seq(("$gt", value)) => basicFilter(ScanFilter.CompareOperator.Greater, field, value)
+          case Seq(("$ge", value)) => basicFilter(ScanFilter.CompareOperator.GreaterOrEqual, field, value)
+          case Seq(("$gte", value)) => basicFilter(ScanFilter.CompareOperator.GreaterOrEqual, field, value)
+          case Seq(("$lt", value)) => basicFilter(ScanFilter.CompareOperator.Less, field, value)
+          case Seq(("$le", value)) => basicFilter(ScanFilter.CompareOperator.LessOrEqual, field, value)
+          case Seq(("$lte", value)) => basicFilter(ScanFilter.CompareOperator.LessOrEqual, field, value)
+        }
+        case _ => basicFilter(ScanFilter.CompareOperator.Equal, field, condition)
+      }
+    }.toSeq
+
+    if (filters.size > 1) ScanFilter.And(filters)
+    else if (filters.size == 1) filters(0)
+    else throw new IllegalArgumentException("find: empty filter object")
   }
-  */
+
+  private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue): ScanFilter.Expression = {
+    valueSerializer.buffer.clear
+    value match {
+      case x: JsBoolean  => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsInt      => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsLong     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsDouble   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsString   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsDate     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsUUID     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsObjectId => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case x: JsBinary   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+      case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
+    }
+
+    val buffer = valueSerializer.buffer
+    val bytes = new Array[Byte](buffer.position)
+    buffer.position(0)
+    buffer.get(bytes)
+
+    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes)
+  }
 }

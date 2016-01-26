@@ -196,11 +196,7 @@ class Table(table: BigTable, meta: JsObject) {
   private[unibase] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
 
     val groups = projection.fields.map(_._1).groupBy { field =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
+      getFamily(field)
     }
 
     // We need to get the whole column family.
@@ -294,6 +290,15 @@ class Table(table: BigTable, meta: JsObject) {
     }
   }
 
+  /** Returns the column family of a field. */
+  private[unibase] def getFamily(field: String): String = {
+    val head = field.indexOf(JsonSerializer.pathDelimiter) match {
+      case -1 => field
+      case end => field.substring(0, end)
+    }
+    locality(head)
+  }
+
   /** The \$set operator replaces the values of fields.
     *
     * The document key _id should not be set.
@@ -320,11 +325,7 @@ class Table(table: BigTable, meta: JsObject) {
 
     // Group field by locality
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
+      getFamily(field)
     }
 
     // Map from parent to the fields to update
@@ -422,11 +423,7 @@ class Table(table: BigTable, meta: JsObject) {
       throw new IllegalArgumentException(s"Invalid operation: unset ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
+      getFamily(field)
     }
 
     val families = groups.toSeq.map { case (family, fields) =>

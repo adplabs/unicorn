@@ -237,5 +237,31 @@ class HTableSpec extends Specification with BeforeAfterAll {
       val now = bucket(key)
       now.get.owner === JsString("Poor")
     }
+    "find" in {
+      val bucket = db(tableName)
+      bucket.upsert("""{"name":"Tom","age":30,"home_based":true}""".parseJson.asInstanceOf[JsObject])
+      bucket.upsert("""{"name":"Mike","age":40,"home_based":false}""".parseJson.asInstanceOf[JsObject])
+      bucket.upsert("""{"name":"Chris","age":30,"home_based":false}""".parseJson.asInstanceOf[JsObject])
+
+      val tom = bucket.find(JsObject(), JsObject("name" -> JsString("Tom")))
+      tom.next.name === JsString("Tom")
+      tom.hasNext === false
+
+      val age = bucket.find(JsObject(), JsObject("age" -> JsInt(30)))
+      age.next.age === JsInt(30)
+      age.next.age === JsInt(30)
+      age.hasNext === false
+
+      val and  = bucket.find(JsObject(), JsObject("age" -> 30, "home_based" -> true))
+      and.next.age === JsInt(30)
+      and.hasNext === false
+
+      val or  = bucket.find(JsObject(), JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("home_based" -> JsFalse))))
+      val first = or.next
+      (first.age == JsInt(40) || first.home_based == JsFalse) === true
+      val second = or.next
+      (second.age == JsInt(40) || second.home_based == JsFalse) === true
+      or.hasNext === false
+    }
   }
 }
