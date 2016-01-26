@@ -248,10 +248,10 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   }
 
   /** Returns the scan filter based on the query predicts.
-   *
-   * @param query
-   * @return
-   */
+    *
+    * @param query query predict object.
+    * @return scan filter.
+    */
   private def queryFilter(query: JsObject): ScanFilter.Expression = {
 
     val filters = query.fields.map {
@@ -304,24 +304,18 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   }
 
   private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue): ScanFilter.Expression = {
-    valueSerializer.buffer.clear
-    value match {
-      case x: JsBoolean  => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsInt      => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsLong     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsDouble   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsString   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsDate     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsUUID     => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsObjectId => valueSerializer.serialize(x, None)(valueSerializer.buffer)
-      case x: JsBinary   => valueSerializer.serialize(x, None)(valueSerializer.buffer)
+    val bytes = value match {
+      case x: JsBoolean  => valueSerializer.serialize(x)
+      case x: JsInt      => valueSerializer.serialize(x)
+      case x: JsLong     => valueSerializer.serialize(x)
+      case x: JsDouble   => valueSerializer.serialize(x)
+      case x: JsString   => valueSerializer.serialize(x)
+      case x: JsDate     => valueSerializer.serialize(x)
+      case x: JsUUID     => valueSerializer.serialize(x)
+      case x: JsObjectId => valueSerializer.serialize(x)
+      case x: JsBinary   => valueSerializer.serialize(x)
       case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
     }
-
-    val buffer = valueSerializer.buffer
-    val bytes = new Array[Byte](buffer.position)
-    buffer.position(0)
-    buffer.get(bytes)
 
     ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes)
   }

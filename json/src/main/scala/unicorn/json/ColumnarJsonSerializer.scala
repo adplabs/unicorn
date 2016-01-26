@@ -31,12 +31,75 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class ColumnarJsonSerializer(val buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
+class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
   private def jsonPath(parent: String, field: String) = s"%s${JsonSerializer.pathDelimiter}%s".format(parent, field)
 
   private def jsonPath(parent: String, index: Int) = s"%s${JsonSerializer.pathDelimiter}%d".format(parent, index)
+
+  /** Serialize a string to C null-terminated string. */
+  def serialize(string: String): Array[Byte] = {
+    buffer.clear
+    val bytes = string.getBytes(charset)
+    buffer.put(bytes)
+    buffer.put(END_OF_STRING)
+    buffer
+  }
+
+  def serialize(json: JsBoolean): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsInt): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsLong): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsDouble): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsString): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsDate): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsObjectId): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsUUID): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
+
+  def serialize(json: JsBinary): Array[Byte] = {
+    buffer.clear
+    serialize(json, None)(buffer)
+    buffer
+  }
 
   def serialize(json: JsCounter)(implicit buffer: ByteBuffer): Unit = {
     buffer.putLong(json.value)

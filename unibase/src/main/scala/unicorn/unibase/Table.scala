@@ -355,7 +355,7 @@ class Table(table: BigTable, meta: JsObject) {
         value ++= parent.value.bytes
         val update = children((family, parent.qualifier)).foldLeft[Option[ArrayBuffer[Byte]]](None) { (parent, child) =>
           // appending the null terminal
-          val child0 = valueSerializer.nullstring(child)
+          val child0 = valueSerializer.serialize(child)
           if (isChild(value, child0)) parent
           else {
             value ++= child0

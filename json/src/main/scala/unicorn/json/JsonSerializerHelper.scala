@@ -69,14 +69,6 @@ trait JsonSerializerHelper {
   /** Encoding of "undefined" */
   val undefined = Array(TYPE_UNDEFINED)
 
-  /** Converts a string to C null-terminated string. */
-  def nullstring(string: String): Array[Byte] = {
-    val bytes = string.getBytes(charset)
-    val nullbytes = new Array[Byte](bytes.length + 1)
-    Array.copy(bytes, 0, nullbytes, 0, bytes.length)
-    nullbytes
-  }
-
   def cstring(string: String)(implicit buffer: ByteBuffer): Unit = {
     val bytes = string.getBytes(charset)
     buffer.put(bytes)
