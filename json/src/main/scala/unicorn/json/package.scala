@@ -131,5 +131,6 @@ package object json {
 package json {
   private[json] class PimpedString(string: String) {
     def parseJson: JsValue = JsonParser(string)
+    def parseJsObject: JsObject = parseJson.asInstanceOf[JsObject]
   }
 }
