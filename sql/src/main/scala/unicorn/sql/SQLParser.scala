@@ -88,13 +88,12 @@ object SQLParser extends StandardTokenParsers {
       "/" ^^^ { (a: Expression, b: Expression) => Divide(a, b) })
 
   def parseJsonField: Parser[Expression] = {
-    dotNotation |
-    ident ^^ (FieldIdent(None, _))
+    (dotNotation | ident) ^^ (FieldIdent(None, _))
   }
 
-  val dotNotation: Parser[Expression] = {
-    (ident <~ ".") ~ ident ~ rep("." ~> ident) ^^ {
-      case i1 ~ i2 ~ rest => FieldIdent(None, i1 + "." + i2 + rest.mkString(".", ".", ""))
+  val dotNotation: Parser[String] = {
+    ident ~ (("." ~> ident) | ("[" ~> numericLit <~ "]")) ~ rep(("." ~> ident) | ("[" ~> numericLit <~ "]")) ^^ {
+      case i1 ~ i2 ~ rest => i1 + "." + i2 + (if (rest.isEmpty) "" else rest.mkString(".", ".", ""))
     }
   }
 
@@ -184,6 +183,20 @@ object SQLParser extends StandardTokenParsers {
     "LIMIT" ~> numericLit ^^ { case lim => Limit(lim.toInt) }
   }
 
+  def regex(r: Regex): Parser[String] = new Parser[String] {
+    def apply(in: Input) = {
+      val source = in.source
+      val offset = in.offset
+      val start = offset // handleWhiteSpace(source, offset)
+      (r findPrefixMatchOf (source.subSequence(start, source.length))) match {
+        case Some(matched) =>
+          Success(source.subSequence(start, start + matched.end).toString, in.drop(start + matched.end - offset))
+        case None =>
+          Success("", in)
+      }
+    }
+  }
+
   class SqlLexical extends StdLexical {
     case class FloatLit(chars: String) extends Token {
       override def toString = chars
@@ -198,7 +211,7 @@ object SQLParser extends StandardTokenParsers {
       "DATE", "TOP", "LIMIT")
 
     delimiters += (
-      "*", "+", "-", "<", "=", "<>", "!=", "<=", ">=", ">", "/", "(", ")", ",", ".", ";")
+      "*", "+", "-", "<", "=", "<>", "!=", "<=", ">=", ">", "/", "(", ")", ",", ".", "[", "]", ";")
 
     /* Normal the keyword string */
     def normalizeKeyword(str: String): String = str.toUpperCase
@@ -222,20 +235,6 @@ object SQLParser extends StandardTokenParsers {
       '\"' ~> failure("unclosed string literal") |
       delim |
       failure("illegal character")
-    }
-
-    def regex(r: Regex): Parser[String] = new Parser[String] {
-      def apply(in: Input) = {
-        val source = in.source
-        val offset = in.offset
-        val start = offset // handleWhiteSpace(source, offset)
-        (r findPrefixMatchOf (source.subSequence(start, source.length))) match {
-          case Some(matched) =>
-            Success(source.subSequence(start, start + matched.end).toString, in.drop(start + matched.end - offset))
-          case None =>
-            Success("", in)
-        }
-      }
     }
   }
 
