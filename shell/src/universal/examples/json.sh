@@ -44,7 +44,7 @@ val json =
       }
     }
   }
-  """.parseJson.asInstanceOf[JsObject]
+  """.parseJsObject
 
 println(json("store")("bicycle")("color"))
 println(json.store.bicycle.color)

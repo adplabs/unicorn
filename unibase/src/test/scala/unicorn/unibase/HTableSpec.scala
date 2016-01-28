@@ -239,9 +239,9 @@ class HTableSpec extends Specification with BeforeAfterAll {
     }
     "find" in {
       val bucket = db(tableName)
-      bucket.upsert("""{"name":"Tom","age":30,"home_based":true}""".parseJson.asInstanceOf[JsObject])
-      bucket.upsert("""{"name":"Mike","age":40,"home_based":false}""".parseJson.asInstanceOf[JsObject])
-      bucket.upsert("""{"name":"Chris","age":30,"home_based":false}""".parseJson.asInstanceOf[JsObject])
+      bucket.upsert("""{"name":"Tom","age":30,"home_based":true}""".parseJsObject)
+      bucket.upsert("""{"name":"Mike","age":40,"home_based":false}""".parseJsObject)
+      bucket.upsert("""{"name":"Chris","age":30,"home_based":false}""".parseJsObject)
 
       val tom = bucket.find(JsObject(), JsObject("name" -> JsString("Tom")))
       tom.next.name === JsString("Tom")

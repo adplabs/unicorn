@@ -80,7 +80,7 @@ val update = """
                      "gender": 1
                    }
                  }
-             """.parseJson.asInstanceOf[JsObject]
+             """.parseJsObject
 
 update(Unibase.$id) = key
 time { bucket.update(update) }
@@ -114,13 +114,13 @@ val rollback = """
                      "gender": 1
                    }
                  }
-             """.parseJson.asInstanceOf[JsObject]
+             """.parseJsObject
 
-rollback(Unimase.$id) = key
+rollback(Unibase.$id) = key
 time { hbucket.update(rollback) }
 
 val yesterdayOnceMore = time { hbucket(key).get }
 yesterdayOnceMore.prettyPrint
 
 // delete the bucket
-time { hbase.dropBucket("worker") }
+time { hbase.dropTable("worker") }

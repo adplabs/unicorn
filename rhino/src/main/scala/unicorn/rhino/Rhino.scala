@@ -118,7 +118,7 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def json(doc: String) = doc.parseJson.asInstanceOf[JsObject]
+  private def json(doc: String) = doc.parseJsObject
 
   // name it "get" will conflict with spray routing "get"
   private def _get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
