@@ -20,7 +20,7 @@ import unicorn.json._
 import unicorn.unibase.{Table, Unibase}, Unibase.{$id, $graph}
 import unicorn.util.Logging
 
-/** Abstract Unibase graph visitor. A default implementation of edges returns
+/** Simple Unibase graph visitor. The default implementation of edges returns
   * an adjacency list by checking $.graph in the document.  The field $.graph
   * is an object (usually stored in a separate column family)
   * of which fields are relationships and values are target node IDs.
@@ -31,7 +31,7 @@ import unicorn.util.Logging
   *   {
   *     "graph": {
   *       "work with": {
-  *         "Tom": {  // The field name is the string representation of _id, which could be a complecited JsValue.
+  *         "Tom": {  // The field name is the string representation of _id.
   *           "_id": "Tom",
   *           "data": {
   *             "project": "Call of Duty",
@@ -53,7 +53,7 @@ import unicorn.util.Logging
   *
   * @author Haifeng Li
   */
-class UnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
+class SimpleUnibaseVisitor(table: Table, maxHops: Int = 3) extends Visitor[JsValue, (String, JsValue)] with Logging {
   /** Cache of graph nodes in the database. */
   val cache = collection.mutable.Map[JsValue, JsObject]()
 
