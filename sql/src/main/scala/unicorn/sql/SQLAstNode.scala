@@ -76,7 +76,7 @@ case class Exists(select: SelectStatement) extends Expression {
   def gatherFields = Seq.empty
 }
 
-case class FieldIdent(qualifier: Option[String], name: String, symbol: Symbol = null) extends Expression {
+case class FieldIdent(qualifier: Option[String], name: String) extends Expression {
   def gatherFields = Seq((this, false))
 }
 
