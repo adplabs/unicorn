@@ -18,11 +18,11 @@ def trace(vertex: JsValue, edge: Edge[JsValue, (String, JsValue)], hops: Int) {
 
 val dan = JsString("111065108889012087599")
 
-val visitor = new UnibaseVisitor(gplus, 2)
+val visitor = new SimpleUnibaseVisitor(gplus, 2)
 visitor.relationships = Some(Set("follows"))
 visitor.addVisitHook(trace)
 
-val danCircle = Unigraph(dan, visitor)
+val danCircle = JsGraph(dan, visitor)
 danCircle.topologicalSort
 danCircle.dijkstra
 
