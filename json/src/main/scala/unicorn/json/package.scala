@@ -27,6 +27,12 @@ package object json {
   val JsTrue = new JsBoolean(true)
   val JsFalse = new JsBoolean(false)
 
+  implicit class JsonHelper(private val sc: StringContext) extends AnyVal {
+    def json(args: Any*): JsObject = {
+      JsonParser(sc.s(args: _*).stripMargin).asInstanceOf[JsObject]
+    }
+  }
+
   implicit def jsObjectTopLevel(x: JsObject) = Left(x)
   implicit def jsArrayTopLevel(x: JsArray) = Right(x)
   implicit def pimpString(string: String) = new PimpedString(string)

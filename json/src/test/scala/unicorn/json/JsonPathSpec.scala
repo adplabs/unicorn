@@ -22,32 +22,32 @@ class JsonPathSpec extends Specification {
   "JsonPath" should {
 
     "field" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.id") === JsInt(1)
       jp("$['id']") === JsInt(1)
     }
 
     "recursive field" in {
-      JsonPath(json)("$..id") === JsArray(2, 3, 4, 1)
+      JsonPath(testJson)("$..id") === JsArray(2, 3, 4, 1)
     }
 
     "multi fields" in {
-      JsonPath(json)("$['id', 'name']") === JsArray("Joe", 1)
+      JsonPath(testJson)("$['id', 'name']") === JsArray("Joe", 1)
     }
 
     "any field" in {
-      val jp = JsonPath(json)
-      jp("$.*") === JsArray(json.fields.map(_._2).toArray: _*)
+      val jp = JsonPath(testJson)
+      jp("$.*") === JsArray(testJson.fields.map(_._2).toArray: _*)
       jp("$.tags.*") === JsArray(tags.map(JsString(_)): _*)
       jp("$['tags'].*") === JsArray(tags.map(JsString(_)): _*)
     }
 
     "recursive any" in {
-      JsonPath(json)("$..*") === json
+      JsonPath(testJson)("$..*") === testJson
     }
 
     "array slices" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       tags.indices.foreach{ i =>
         jp("$.tags[" + i + ":]") === JsArray(tags.drop(i).map(JsString(_)): _*)
       }
@@ -58,21 +58,21 @@ class JsonPathSpec extends Specification {
     }
 
     "array random" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.tags[0,2]") === JsArray(JsString(tags(0)), JsString(tags(2)))
       jp("$.tags[-1]") === JsString(tags.last)
     }
 
     "array recursive" in {
-      JsonPath(json)("$.address[*].city").asInstanceOf[JsArray].size === 3
+      JsonPath(testJson)("$.address[*].city").asInstanceOf[JsArray].size === 3
     }
 
     "has filter" in {
-      JsonPath(json)("$.address[?(@.work)]").asInstanceOf[JsArray].size === 1
+      JsonPath(testJson)("$.address[?(@.work)]").asInstanceOf[JsArray].size === 1
     }
 
     "comparison filter" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.address[?(@.id < 3)]").asInstanceOf[JsArray].size === 1
       jp("$.address[?(@.id <= 3)]").asInstanceOf[JsArray].size === 2
 
@@ -85,7 +85,7 @@ class JsonPathSpec extends Specification {
     }
 
     "boolean filter" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.address[?(@.id > 1 && @.state != 'PA')]").asInstanceOf[JsArray].size === 1
       jp("$.address[?(@.id < 4 && @.state == 'PA')]").asInstanceOf[JsArray].size === 2
       jp("$.address[?(@.id == 4 || @.state == 'PA')]").asInstanceOf[JsArray].size === 3
@@ -93,7 +93,7 @@ class JsonPathSpec extends Specification {
     }
 
     "update field" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.id") = 10
       jp("$.id") === JsInt(10)
       jp("$['id']") = 20
@@ -101,13 +101,13 @@ class JsonPathSpec extends Specification {
     }
 
     "update multi fields" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$['id', 'name']") = 30
       jp("$['id', 'name']") === JsArray(30, 30)
     }
 
     "update array slices" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.tags[2]") = "father"
       jp("$.tags[2]") === JsString("father")
       jp("$.tags[0:3:2]") = "coder"
@@ -119,7 +119,7 @@ class JsonPathSpec extends Specification {
     }
 
     "update array random" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.tags[0,2]") = "coder"
       jp("$.tags") === JsArray("coder", "husband", "coder", "golfer")
       jp("$.tags[-1]") = "player"
@@ -127,36 +127,35 @@ class JsonPathSpec extends Specification {
     }
 
     "update field of nonexistent object" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.person.id") = 10
       jp("$.person") !== JsUndefined
       jp("$.person.id") === JsInt(10)
     }
 
     "update multi fields of nonexistent object" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$['person']['id', 'name']") = 30
       jp("$.person") !== JsUndefined
       jp("$['person']['id', 'name']") === JsArray(30, 30)
     }
 
     "update array slices of nonexistent object" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.person.tags[1:3]") = "father"
       jp("$.person.tags") === JsArray(JsUndefined, "father", "father")
     }
 
     "update array random of nonexistent object" in {
-      val jp = JsonPath(json)
+      val jp = JsonPath(testJson)
       jp("$.person.tags[2]") = "father"
       jp("$.person.tags") === JsArray(JsUndefined, JsUndefined, "father")
     }
   }
 
   val tags = Seq("programmer", "husband", "father", "golfer")
-  def json = JsonParser(testJsonStr).asInstanceOf[JsObject]
-  val testJsonStr =
-    """
+  def testJson =
+    json"""
       |{
       | "id": 1,
       | "name": "Joe",
@@ -183,5 +182,5 @@ class JsonPathSpec extends Specification {
       | }
       | ]
       |}
-    """.stripMargin
+    """
 }
