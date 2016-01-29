@@ -19,7 +19,7 @@ package unicorn.sql
 import unicorn.json._
 import unicorn.unibase.HUnibase
 
-/** SQL Executor.
+/** SQL context of a unibase instance.
   *
   * @author Haifeng Li
   */
@@ -47,7 +47,7 @@ class SQLContext(db: HUnibase) {
     val table = select.relations(0) match {
       case Table(name, None) => db(name)
       case Table(name, Some(_)) => throw new UnsupportedOperationException("Table Alias is not supported yet")
-      case Subquery(_, _) => throw new UnsupportedOperationException("Subquery is not supported yet")
+      case Subquery(_, _) => throw new UnsupportedOperationException("Sub query is not supported yet")
     }
 
     table.find(projections2Json(select.projections), where2Json(select.where))
