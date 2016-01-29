@@ -165,37 +165,6 @@ println(jsonPath("$.address[?(@.id < 4 && @.state == 'PA')]"))
 println(jsonPath("$.address[?(@.id == 4 || @.state == 'PA')]"))
 println(jsonPath("$.address[?(@.id == 4 || @.state == 'NJ')]"))
 
-
-// update field
-println(jsonPath("$.id"))
-println(jsonPath("$.id"))
-println(jsonPath("$['id']"))
-println(jsonPath("$['id']"))
-
-
-// update multi fields
-println(jsonPath("$['id', 'name']"))
-println(jsonPath("$['id', 'name']"))
-
-
-// update array slices
-println(jsonPath("$.tags[2]"))
-println(jsonPath("$.tags[2]"))
-println(jsonPath("$.tags[0:3:2]"))
-println(jsonPath("$.tags"))
-println(jsonPath("$.tags[-2:]"))
-println(jsonPath("$.tags"))
-println(jsonPath("$.tags[:-2]"))
-println(jsonPath("$.tags"))
-
-
-// update array random
-println(jsonPath("$.tags[0,2]"))
-println(jsonPath("$.tags"))
-println(jsonPath("$.tags[-1]"))
-println(jsonPath("$.tags"))
-
-
 // update field of nonexistent object
 jsonPath("$.person.id") = 10
 println(jsonPath("$.person"))
