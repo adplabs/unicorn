@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.index
+package unicorn.unibase
 
 import java.time.Instant
 import java.util.Date
