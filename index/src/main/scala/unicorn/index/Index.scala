@@ -17,6 +17,7 @@
 package unicorn.index
 
 import unicorn.json._
+import unicorn.bigtable.ColumnFamily
 import unicorn.util._
 
 /** For a composite index of multiple columns, sort order is only
@@ -41,7 +42,10 @@ object IndexSortOrder extends Enumeration {
   val Descending = Value
 }
 
-/** Index type. */
+/** Index type. Because of the sparse natural of BigTable, all indices are sparse.
+  * That is, we omit references to rows that do not include the indexed field.
+  * The work around for users to set JsUndefined to the missing field.
+  */
 object IndexType extends Enumeration {
   type IndexType = Value
 
@@ -68,22 +72,16 @@ import IndexSortOrder.IndexSortOrder
 import IndexType.IndexType
 
 /** A column in an index */
-case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = IndexSortOrder.Ascending) {
+case class IndexColumn(qualifier: ByteArray, order: IndexSortOrder = IndexSortOrder.Ascending) {
   override def equals(o: Any): Boolean = {
     if (!o.isInstanceOf[IndexColumn]) return false
 
     val that = o.asInstanceOf[IndexColumn]
-    if (this.qualifier.size != that.qualifier.size ||
-        this.order != that.order) return false
-
-    compareByteArray(qualifier, that.qualifier) == 0
+    this.order == that.order && this.qualifier != that.qualifier
   }
 
   override def hashCode: Int = {
-    var hash = 7
-    qualifier.foreach { i => hash = 31 * hash + i }
-    hash = 31 * hash + order.id
-    hash
+    31 * qualifier.hashCode + order.id
   }
 
   override def toString: String = {
@@ -92,57 +90,52 @@ case class IndexColumn(qualifier: Array[Byte], order: IndexSortOrder = IndexSort
   }
 }
 
-/**
- * Secondary index. Index columns must belong to the same column family.
- * In HBase and Accumulo, the row key is sorted.
- * The secondary index implementation uses this fact and reverts
- * the key and value in the index table.
- * If columns has more than one elements, this is a composite index.
- * The order of columns is important as it determine the row key
- * of index table. Only the leading columns of row key can be used for
- * index scan in case that partial index columns are used in query.
- * The index row key may have (stackable) prefix (e.g. tenant id).
- * An index is used in the search only it requires Get operations
- * less than a given threshold (100 by defult).
- *
- * @author Haifeng Li
- */
-case class Index(name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default, prefix: Seq[IndexRowKeyPrefix] = Seq.empty, getThreshold: Int = 100) {
-  require(columns.size > 0)
+/** Secondary index. Index columns must belong to the same column family.
+  * In HBase and Accumulo, the row key is sorted.
+  * The secondary index implementation uses this fact and reverts
+  * the key and value in the index table.
+  * If columns has more than one elements, this is a composite index.
+  * The order of columns is important as it determine the row key
+  * of index table. Only the leading columns of row key can be used for
+  * index scan in case that partial index columns are used in query.
+  * The index row key may have (stackable) prefix (e.g. tenant id).
+  * An index is used in the search only it requires Get operations
+  * less than a given threshold (100 by default).
+  *
+  * The id of index is local. That is, the id is unique among all
+  * indices of a base table. The indices of different tables may
+  * have the same id.
+  */
+case class Index(id: Int, name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default) {
+  require(columns.size > 0, "Index columns cannot be empty")
 
-  val coveredColumns = columns.map { column => new ByteArray(column.qualifier) }.toSet
+  val codec = IndexCodec(this)
+  val qualifiers = columns.map { column => new ByteArray(column.qualifier) }.toSet
 
-  val indexTableName = IndexTableNamePrefix + name
-
-  /**
-   * Returns true if the index covers some of given columns.
-   */
+  /** Returns true if the index covers some of given columns. */
   def cover(family: String, columns: ByteArray*): Boolean = {
-    this.family == family && !(coveredColumns & columns.toSet).isEmpty
+    this.family == family && !(qualifiers & columns.toSet).isEmpty
   }
 
-  /**
-   * If the index doesn't cover any columns to update, return empty set.
-   * Otherwise, returns the covered columns of this index.
-   */
-  def findCoveredColumns(family: String, columns: ByteArray*): Set[ByteArray] = {
-    if (indexType == IndexType.Text) coveredColumns & columns.toSet
-    else if (cover(family, columns: _*)) coveredColumns
+  /** Returns true if the index covers some of given columns. */
+  def cover(families: Seq[ColumnFamily]): Boolean = {
+    families.exists { case ColumnFamily(family, columns) =>
+      cover(family, columns.map(_.qualifier): _*)
+    }
+  }
+
+  /** If the index doesn't cover any columns to update, return empty set.
+    * Otherwise, returns the covered columns of this index.
+    */
+  def coveredColumns(family: String, columns: ByteArray*): Set[ByteArray] = {
+    if (indexType == IndexType.Text) qualifiers & columns.toSet
+    else if (cover(family, columns: _*)) qualifiers
     else Set.empty
-  }
-
-  /** Returns true if both indices cover the same column set (and same order) */
-  def coverSameColumns(that: Index): Boolean = {
-    columns == that.columns
-  }
-
-  /** Returns the prefixed index table row key */
-  def prefixedIndexRowKey(indexTableRowKey: ByteArray, baseTableRowKey: ByteArray) = {
-    prefix.foldRight(indexTableRowKey){ (prefix, value) => prefix(this, baseTableRowKey).bytes ++ value.bytes }
   }
 
   def toJson: JsValue = {
     JsObject(
+      "id" -> id,
       "name" -> name,
       "family" -> family,
       "columns" -> columns.map { column =>
@@ -151,15 +144,14 @@ case class Index(name: String, family: String, columns: Seq[IndexColumn], indexT
           "order" -> column.order.toString
         )
       },
-      "indexType" -> indexType.toString,
-      "prefix" -> prefix.map(_.toString),
-      "getThreshold" -> getThreshold
+      "indexType" -> indexType.toString
     )
   }
 }
 
 object Index {
   def apply(js: JsValue) = {
+    val id: Int = js.id
     val name: String = js.name
     val family: String = js.family
     val columns = js.columns match {
@@ -173,17 +165,6 @@ object Index {
 
     val indexType: String = js.indexType
 
-    val tenantIdPrefixPattern = """tenant\((\d+)\)""".r
-    val indexIdPrefixPattern = """index\((\d+)\)""".r
-    val prefixArray = js.prefix.asInstanceOf[JsArray]
-    val prefix = prefixArray.map ( _ match {
-      case JsString(tenantIdPrefixPattern(size)) => new TenantIdPrefix(size.toInt)
-      case JsString(indexIdPrefixPattern(id)) => new TenantIdPrefix(id.toInt)
-      case _ => throw new IllegalArgumentException("Unsupported index prefix")
-    }).toSeq
-
-    val getThreshold: Int = js.getThreshold
-
-    new Index(name, family, columns, IndexType.withName(indexType), prefix, getThreshold)
+    new Index(id, name, family, columns, IndexType.withName(indexType))
   }
 }

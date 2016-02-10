@@ -116,8 +116,7 @@ object BsonObjectId {
    * `parse(str: String): Try[BSONObjectID]` should be considered instead of this method.
    */
   def apply(id: String): BsonObjectId = {
-    if (id.length != 24)
-      throw new IllegalArgumentException(s"wrong ObjectId: '$id'")
+    require(id.length == 24, s"wrong ObjectId: '$id'")
     /** Constructs a BSON ObjectId element from a hexadecimal String representation */
     new BsonObjectId(hex2Bytes(id))
   }

@@ -52,7 +52,7 @@ class Shell extends ILoop {
        |           _/ /          \_\
        |          /_!/            >_\
        |
-       |  Welcome to Unicorn Shell; enter ':help<RETURN>' for list of commands.
+       |  Welcome to Unicorn Shell; enter ':help<RETURN>' for the list of commands.
        |  Type ":quit<RETURN>" to leave the Unicorn Shell
        |  Version ${BuildInfo.version}, Scala ${BuildInfo.scalaVersion}, SBT ${BuildInfo.sbtVersion}, Built at ${BuildInfo.builtAtString}
        |===============================================================================

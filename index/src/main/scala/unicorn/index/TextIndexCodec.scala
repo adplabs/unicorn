@@ -31,13 +31,12 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec, stemmer: Option[Stemmer] = Some(new PorterStemmer)) extends IndexCodec {
+class TextIndexCodec(val index: Index, codec: TextCodec = new SimpleTextCodec, stemmer: Option[Stemmer] = Some(new PorterStemmer)) extends IndexCodec {
   require(index.indexType == IndexType.Text)
 
-  val qualiferBuffer = ByteBuffer.allocate(64 * 1024)
   val valueBuffer = ByteBuffer.allocate(64 * 1024)
 
-  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     index.columns.flatMap { indexColumn =>
       val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
       if (column.isDefined) {
@@ -45,18 +44,18 @@ class TextIndexCodec(index: Index, codec: TextCodec = new SimpleTextCodec, stemm
         val text = codec.decode(column.get.value)
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
-          val key = index.prefixedIndexRowKey(term.getBytes(utf8), row)
-          qualiferBuffer.clear
-          qualiferBuffer.putInt(row.bytes.size)
-          qualiferBuffer.putInt(indexColumn.qualifier.size)
-          qualiferBuffer.put(row.bytes)
-          qualiferBuffer.put(indexColumn.qualifier)
-          qualiferBuffer.putInt(pos.size)
+          clear
+          val bytes = term.getBytes(utf8)
+          buffer.putInt(bytes.size)
+          buffer.put(bytes)
+          buffer.putInt(indexColumn.qualifier.bytes.size)
+          buffer.put(indexColumn.qualifier)
+          val key = ByteArray(buffer)
 
           valueBuffer.clear
           pos.foreach(valueBuffer.putInt(_))
 
-          Cell(key, IndexColumnFamily, byteBuffer2ByteArray(qualiferBuffer), byteBuffer2ByteArray(valueBuffer), timestamp)
+          Cell(key, IndexColumnFamily, row, byteBuffer2ByteArray(valueBuffer), timestamp)
         }
       } else Seq.empty
     }

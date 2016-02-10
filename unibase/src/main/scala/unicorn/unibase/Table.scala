@@ -160,8 +160,8 @@ class Table(table: BigTable, meta: JsObject) {
   private[unibase] def getId(doc: JsObject): JsValue = {
     val id = doc($id)
 
-    if (id == JsNull || id == JsUndefined)
-      throw new IllegalArgumentException(s"missing ${$id}")
+    require(id != JsNull && id != JsUndefined, s"missing ${$id}")
+    require(!id.isInstanceOf[JsCounter], "${$id} cannot be JsCounter")
 
     id
   }
@@ -244,8 +244,7 @@ class Table(table: BigTable, meta: JsObject) {
     val checkFamily = locality($id)
     val checkColumn = getBytes(idPath)
     val key = getKey(id)
-    if (table.apply(key, checkFamily, checkColumn).isDefined)
-      throw new IllegalArgumentException(s"Document $id already exists")
+    require(table.apply(key, checkFamily, checkColumn).isEmpty, s"Document $id already exists")
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
@@ -320,8 +319,7 @@ class Table(table: BigTable, meta: JsObject) {
     * @param doc the fields to update.
     */
   def set(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == $id))
-      throw new IllegalArgumentException(s"Invalid operation: set ${$id}")
+    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: set ${$id}")
 
     // Group field by locality
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
@@ -419,8 +417,7 @@ class Table(table: BigTable, meta: JsObject) {
     * @param doc the fields to delete.
     */
   def unset(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == $id))
-      throw new IllegalArgumentException(s"Invalid operation: unset ${$id}")
+    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: unset ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       getFamily(field)

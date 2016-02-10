@@ -260,11 +260,11 @@ trait FilterScan extends ScanBase {
 
   /** Get the range for all columns in one or more column families. If families is empty, get all column families.
     */
-  def getKeyOnly(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Option[Seq[ColumnFamily]]
+  def getKeyOnly(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
   /** Get one or more columns. If columns is empty, get all columns in the column family.
     */
-  def getKeyOnly(row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]]
+  def getKeyOnly(row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
 
   /** Scan the whole table. */
   def filterScanAll(filter: ScanFilter.Expression, families: Seq[(String, Seq[ByteArray])] = Seq.empty): RowScanner = {

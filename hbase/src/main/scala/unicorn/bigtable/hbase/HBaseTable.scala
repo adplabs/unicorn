@@ -178,21 +178,20 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
 
   val keyOnlyFilter = new KeyOnlyFilter(true)
 
-  override def getKeyOnly(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Option[Seq[ColumnFamily]] = {
+  override def getKeyOnly(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Seq[ColumnFamily] = {
     val get = newGet(row)
     get.setFilter(keyOnlyFilter)
     families.foreach { case (family, columns) => getColumns(get, family, columns) }
-    val result = HBaseTable.getRow(table.get(get)).families
-    if (result.isEmpty) None else Some(result)
+    HBaseTable.getRow(table.get(get)).families
   }
 
-  override def getKeyOnly(row: ByteArray, family: String, columns: ByteArray*): Option[Seq[Column]] = {
+  override def getKeyOnly(row: ByteArray, family: String, columns: ByteArray*): Seq[Column] = {
     val get = newGet(row)
     get.setFilter(keyOnlyFilter)
     getColumns(get, family, columns)
 
     val result = HBaseTable.getRow(table.get(get))
-    if (result.families.isEmpty) None else Some(result.families.head.columns)
+    if (result.families.isEmpty) Seq.empty else result.families.head.columns
   }
 
   private def hbaseFilter(filter: ScanFilter.Expression): org.apache.hadoop.hbase.filter.Filter = filter match {

@@ -38,7 +38,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
 
   /** Serialize a JsValue to bytes. A shortcut for serialize(json, jsonPath)(jsonPath). */
   def toBytes(json: JsValue): Array[Byte] = {
-    serialize(json)(root)
+    serialize(json, root)(root)
   }
 
   /** Deserialize a byte array to JsValue. A shortcut for deserialize(valueMap, jsonPath). */
@@ -125,7 +125,7 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
 
   override def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String): JsValue = {
     val bytes = values.get(rootJsonPath)
-    if (bytes.isEmpty) throw new IllegalArgumentException(s"""root $rootJsonPath doesn't exist""")
+    require(!bytes.isEmpty, s"""root $rootJsonPath doesn't exist""")
 
     implicit val buffer = ByteBuffer.wrap(bytes.get)
     buffer.get match { // data type

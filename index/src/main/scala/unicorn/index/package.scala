@@ -23,19 +23,34 @@ import unicorn.util._
  * @author Haifeng Li
  */
 package object index {
-  type IndexableTable = BigTable with RowScan with FilterScan with Counter
-  type RowMap = collection.mutable.Map[String, collection.mutable.Map[ByteArray, Column]]
-
-  private[index] val IndexMetaTableName = "unicorn_meta_index"
-  private[index] val IndexMetaTableColumnFamily = "meta"
+  type IndexableTable = BigTable with RowScan with FilterScan with Rollback with Counter
+  type ColumnMap = collection.mutable.Map[String, collection.mutable.Map[ByteArray, Column]]
 
   private[index] val IndexTableNamePrefix = "unicorn_index_"
   private[index] val IndexColumnFamily = "index"
-  private[index] val IndexStatColumnFamily = "stat"
-  private[index] val IndexColumnFamilies = Seq(IndexColumnFamily, IndexStatColumnFamily)
+  private[index] val IndexMetaColumnFamily = "meta"
+  private[index] val IndexColumnFamilies = Seq(IndexColumnFamily, IndexMetaColumnFamily)
 
-  private[index] val IndexTableStatColumnCount: ByteArray = "count"
+  private[index] val IndexTableMetaRow: ByteArray = ".unicorn_index_meta."
+  private[index] val IndexTableNewIndexId: ByteArray = ".new_index_id."
+  private[index] val IndexTableStatColumnCount: ByteArray = ".count."
 
   private[index] val IndexDummyValue = ByteArray(Array[Byte](1))
   private[index] val UniqueIndexColumnQualifier = ByteArray(Array[Byte](1))
+
+  private[index] object ColumnMap {
+    def apply(families: Seq[ColumnFamily]): ColumnMap = {
+      collection.mutable.Map(families.map { case ColumnFamily(family, columns) =>
+        (family, collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
+      }: _*)
+    }
+
+    def apply(family: String, columns: Seq[Column]): ColumnMap = {
+      collection.mutable.Map(family -> collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
+    }
+
+    def apply(row: Row): ColumnMap = {
+      apply(row.families)
+    }
+  }
 }

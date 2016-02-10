@@ -63,8 +63,7 @@ package object util {
 
   /** Hexadecimal string to byte array. */
   def hex2Bytes(s: String): Array[Byte] = {
-    if (s.length % 2 != 0)
-      throw new IllegalArgumentException("Hexadecimal string must contain an even number of characters")
+    require(s.length % 2 == 0, "Hexadecimal string must contain an even number of characters")
 
     val bytes = new Array[Byte](s.length / 2)
     for (i <- 0 until s.length by 2) {

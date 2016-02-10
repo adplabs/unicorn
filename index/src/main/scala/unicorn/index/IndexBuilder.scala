@@ -16,52 +16,113 @@
 
 package unicorn.index
 
-import unicorn.bigtable.{Column, ColumnFamily, Row}
-import unicorn.util.ByteArray
+import java.nio.ByteBuffer
+import scala.collection.mutable.ArrayBuffer
+import IndexType.IndexType
+import unicorn.bigtable.{ColumnFamily, Row, RowScanner}
+import unicorn.json.BsonSerializer
+import unicorn.util._
 
-/**
- * Index builder. Because of the sparse natural of BigTable, all indices are sparse.
- * That is, omit references to rows that do not include the indexed field.
- *
- * @author Haifeng Li
- */
-case class IndexBuilder(index: Index, indexTable: IndexableTable) {
-  val codec = if (index.indexType == IndexType.Hashed) new HashIndexCodec(index)
-    else if (index.indexType == IndexType.Text) new TextIndexCodec(index)
-    else if (index.columns.size == 1) new SingleColumnIndexCodec(index)
-    else new CompositeIndexCodec(index)
-
+/** Index builder. Because of the sparse natural of BigTable, all indices are sparse.
+  * That is, we omit references to rows that do not include the indexed field.
+  * The work around for users to set JsUndefined to the missing field.
+  *
+  * @author Haifeng Li
+  */
+case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index]) {
   def close: Unit = indexTable.close
 
-  def insertIndex(row: ByteArray, map: RowMap): Unit = {
-    val cells = codec(row, map)
-    cells.foreach { cell =>
-      indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
-      indexTable.addCounter(cell.row, IndexStatColumnFamily, IndexTableStatColumnCount, 1)
+  def createIndex(name: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default): Index = {
+    require(columns.size > 0, "Index columns cannot be empty")
+
+    indices.foreach { index =>
+      require(index.name != name, s"Index $name exists")
+      require(family != index.family || columns != index.columns, s"Index ${index.name} covers the same columns")
+    }
+
+    val id = indexTable.getCounter(IndexTableMetaRow, IndexMetaColumnFamily, IndexTableNewIndexId).toShort
+    indexTable.addCounter(IndexTableMetaRow, IndexMetaColumnFamily, IndexTableNewIndexId, 1L)
+    val index = Index(id, name, family, columns, indexType)
+    indices += index
+
+    val bson = new BsonSerializer
+    indexTable.update(IndexTableMetaRow, IndexMetaColumnFamily, name, bson.toBytes(index.toJson))
+
+    index
+  }
+
+  def buildIndex(index: Index, scanner: RowScanner): Unit = {
+    scanner.foreach { case Row(row, families) =>
+      put(Seq(index), row, ColumnMap(families))
     }
   }
 
-  def deleteIndex(row: ByteArray, map: RowMap): Unit = {
-    val cells = codec(row, map)
-    cells.foreach { cell =>
-      indexTable.delete(cell.row, cell.family, cell.qualifier)
-      indexTable.addCounter(cell.row, IndexStatColumnFamily, IndexTableStatColumnCount, -1)
+  def dropIndex(indexName: String): Unit = {
+    val index = indices.find(indexName == _.name)
+    if (index.isDefined) {
+      indices -= index.get
+      indexTable.delete(IndexTableMetaRow, IndexMetaColumnFamily, indexName)
+
+      val prefix = ByteBuffer.allocate(2)
+      prefix.putShort(index.get.id.toShort)
+      indexTable.scanPrefix(prefix.array, IndexMetaColumnFamily, IndexTableStatColumnCount) foreach { row =>
+        indexTable.delete(row.row)
+      }
+    }
+  }
+
+  def indexedColumns(family: String, columns: ByteArray*): (Seq[Index], Seq[ByteArray]) = {
+    val (activedIndices, qualifiers) = indices.filter(_.family == family).map { index =>
+      (index, index.coveredColumns(family, columns: _*))
+    }.filter(!_._2.isEmpty).unzip
+
+    (activedIndices, qualifiers.flatten.distinct)
+  }
+
+  def indexedColumns(families: Seq[(String, Seq[ByteArray])]): (Seq[Index], Seq[(String, Seq[ByteArray])]) = {
+    val (activedIndices, qualifiers) = families.map { case (family, columns) =>
+      val (activedIndices, qualifiers) = indices.filter(_.family == family).map { index =>
+        (index, index.coveredColumns(family, columns: _*))
+      }.filter(!_._2.isEmpty).unzip
+
+      (activedIndices, (family, qualifiers.flatten.distinct))
+    }.filter(!_._1.isEmpty).unzip
+    (activedIndices.flatten, qualifiers)
+  }
+
+  def put(indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
+    indices.foreach { index =>
+      val cells = index.codec(row, columns)
+      cells.foreach { cell =>
+        indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
+        indexTable.addCounter(cell.row, IndexMetaColumnFamily, IndexTableStatColumnCount, 1)
+      }
+    }
+  }
+
+  def delete(indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
+    indices.foreach { index =>
+      val cells = index.codec(row, columns)
+      cells.foreach { cell =>
+        indexTable.delete(cell.row, cell.family, cell.qualifier)
+        indexTable.addCounter(cell.row, IndexMetaColumnFamily, IndexTableStatColumnCount, -1)
+      }
     }
   }
 }
 
-object RowMap {
-  def apply(families: Seq[ColumnFamily]): RowMap = {
-    collection.mutable.Map(families.map { case ColumnFamily(family, columns) =>
-      (family, collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
-    }: _*)
-  }
+object IndexBuilder {
+  /** Gets the meta of all indices of a base table.
+    * Each cell of meta row encodes an index in BSON.
+    * The column name is the index name.
+    */
+  def apply(indexTable: IndexableTable): IndexBuilder = {
+    val bson = new BsonSerializer
 
-  def apply(family: String, columns: Seq[Column]): RowMap = {
-    collection.mutable.Map(family -> collection.mutable.Map(columns.map { column => (ByteArray(column.qualifier), column) }: _*))
-  }
+    val indices = indexTable.get(IndexTableMetaRow, IndexMetaColumnFamily).filter(_.qualifier != IndexTableNewIndexId).map { column =>
+      Index(bson.toJson(column.value.bytes))
+    }
 
-  def apply(row: Row): RowMap = {
-    apply(row.families)
+    IndexBuilder(indexTable, ArrayBuffer(indices: _*))
   }
 }

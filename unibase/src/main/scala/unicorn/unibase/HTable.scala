@@ -147,8 +147,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     * @param doc the fields to increase/decrease.
     */
   def inc(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == $id))
-      throw new IllegalArgumentException(s"Invalid operation: inc ${$id}")
+    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: inc ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(JsonSerializer.pathDelimiter) match {
@@ -180,8 +179,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     * @param doc the fields to delete.
     */
   def rollback(id: JsValue, doc: JsObject): Unit = {
-    if (doc.fields.exists(_._1 == $id))
-      throw new IllegalArgumentException(s"Invalid operation: rollover ${$id}")
+    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: rollover ${$id}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) =>
       val head = field.indexOf(JsonSerializer.pathDelimiter) match {
@@ -216,11 +214,10 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
     val checkFamily = locality($id)
     val checkColumn = getBytes(idPath)
-    if (!table.checkAndPut(getKey(id), checkFamily, checkColumn, families))
-      throw new IllegalArgumentException(s"Document $id already exists")
+    require(table.checkAndPut(getKey(id), checkFamily, checkColumn, families), s"Document $id already exists")
   }
 
-  /** Search the table.
+  /** Searches the table.
     * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
     * @param where the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
     *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le).
@@ -256,32 +253,28 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
     val filters = where.fields.map {
       case ("$or",  condition) =>
-        if (!condition.isInstanceOf[JsArray])
-          throw new IllegalArgumentException("$or predict is not an array")
+        require(condition.isInstanceOf[JsArray], "$or predict is not an array")
 
         val filters = condition.asInstanceOf[JsArray].elements.map { e =>
-          if (!e.isInstanceOf[JsObject])
-            throw new IllegalArgumentException(s"or predict element $e is not an object")
+          require(e.isInstanceOf[JsObject], s"or predict element $e is not an object")
           queryFilter(e.asInstanceOf[JsObject])
         }
 
-        if (filters.size > 1) ScanFilter.Or(filters)
-        else if (filters.size == 1) filters(0)
-        else throw new IllegalArgumentException("find: empty $or array")
+        require(!filters.isEmpty, "find: empty $or array")
+
+        if (filters.size > 1) ScanFilter.Or(filters) else filters(0)
 
       case ("$and", condition) =>
-        if (!condition.isInstanceOf[JsArray])
-          throw new IllegalArgumentException("$and predict is not an array")
+        require(condition.isInstanceOf[JsArray], "$and predict is not an array")
 
         val filters = condition.asInstanceOf[JsArray].elements.map { e =>
-          if (!e.isInstanceOf[JsObject])
-            throw new IllegalArgumentException(s"and predict element $e is not an object")
+          require(e.isInstanceOf[JsObject], s"and predict element $e is not an object")
           queryFilter(e.asInstanceOf[JsObject])
         }
 
-        if (filters.size > 1) ScanFilter.And(filters)
-        else if (filters.size == 1) filters(0)
-        else throw new IllegalArgumentException("find: empty $and array")
+        require(!filters.isEmpty, "find: empty $and array")
+
+        if (filters.size > 1) ScanFilter.And(filters) else filters(0)
 
       case (field, condition) => condition match {
         case JsObject(fields) => fields.toSeq match {
@@ -298,9 +291,9 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
       }
     }.toSeq
 
-    if (filters.size > 1) ScanFilter.And(filters)
-    else if (filters.size == 1) filters(0)
-    else throw new IllegalArgumentException("find: empty filter object")
+    require(!filters.isEmpty, "find: empty filter object")
+
+    if (filters.size > 1) ScanFilter.And(filters) else filters(0)
   }
 
   private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue): ScanFilter.Expression = {

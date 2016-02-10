@@ -28,12 +28,10 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class HashIndexCodec(index: Index) extends IndexCodec {
+class HashIndexCodec(val index: Index) extends IndexCodec {
   require(index.indexType == IndexType.Hashed)
 
-  val buffer = ByteBuffer.allocate(64 * 1024)
-
-  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     val hasUndefinedColumn = index.columns.exists { indexColumn =>
       columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(_) => false
@@ -55,7 +53,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    buffer.clear
+    clear
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 
@@ -65,7 +63,7 @@ class HashIndexCodec(index: Index) extends IndexCodec {
       }
     }
 
-    val key = index.prefixedIndexRowKey(md5(buffer), row)
+    val key = md5(buffer)
 
     val (qualifier: ByteArray, indexValue: ByteArray) = index.indexType match {
       case IndexType.Unique => (UniqueIndexColumnQualifier, row)

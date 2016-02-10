@@ -27,8 +27,7 @@ class SQLContext(db: HUnibase) {
 
   def sql(query: String): Iterator[JsObject] = {
     val sql = SQLParser.parse(query)
-    if (sql.isEmpty)
-      throw new IllegalArgumentException(s"Invalid SQL statement: $query")
+    require(sql.isDefined, s"Invalid SQL statement: $query")
 
     val select = sql.get
 

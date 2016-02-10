@@ -17,6 +17,7 @@
 package unicorn.index
 
 import unicorn.bigtable._
+import unicorn.index.IndexType._
 import unicorn.json._
 import unicorn.util._
 
@@ -28,76 +29,35 @@ import unicorn.util._
   *
   * @author Haifeng Li
   */
-trait Indexing extends BigTable with RowScan with FilterScan with Counter {
+trait Indexing extends BigTable with RowScan with FilterScan with Rollback with Counter {
   val db: Database[IndexableTable]
 
-  var builders = getIndexBuilders
+  val indexTableName = IndexTableNamePrefix + name
+
+  if (!db.tableExists(indexTableName)) {
+    db.createTable(indexTableName, IndexColumnFamilies: _*)
+  }
+
+  val indexBuilder = IndexBuilder(db(indexTableName))
 
   /** Closes the base table and the index table */
   abstract override def close(): Unit = {
     super.close
-    builders.foreach(_.close)
-  }
-
-  /** Gets the meta of all indices of a base table.
-    * Each row of metaTable encodes the index information for a table
-    * The row key is the base table name. Each column is a BSON object
-    * about the index. The column name is the index name.
-    */
-  private def getIndexBuilders: Seq[IndexBuilder] = {
-    if (!db.tableExists(IndexMetaTableName)) return Seq[IndexBuilder]()
-
-    // Index meta data table
-    val metaTable = db(IndexMetaTableName)
-
-    // Meta data encoded in BSON format.
-    val bson = new BsonSerializer
-
-    metaTable.get(name, IndexMetaTableColumnFamily).map { column =>
-      val index = Index(bson.deserialize(collection.immutable.Map(JsonSerializer.root -> column.value.bytes)))
-      val indexTable = db(index.indexTableName)
-      IndexBuilder(index, indexTable)
-    }
-  }
-
-  /** Adds an index to meta data.    */
-  private def addIndex(index: Index): Unit = {
-    // If the index meta data table doesn't exist, create it.
-    if (!db.tableExists(IndexMetaTableName))
-      db.createTable(IndexMetaTableName, IndexMetaTableColumnFamily)
-
-    val metaTable = db(IndexMetaTableName)
-    val bson = new BsonSerializer
-    metaTable.update(name, IndexMetaTableColumnFamily, index.name, bson.toBytes(index.toJson))
+    indexBuilder.close
   }
 
   /** Creates an index. */
-  def createIndex(index: Index): Unit = {
-    builders.foreach { builder =>
-      if (builder.index.name == index.name) throw new IllegalArgumentException(s"Index ${index.name} exists")
-      if (builder.index.coverSameColumns(index)) throw new IllegalArgumentException(s"Index ${index.name} covers the same columns")
-    }
+  def createIndex(indexName: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default): Unit = {
+    val index = indexBuilder.createIndex(name, family, columns, indexType)
 
-    val indexTable = db.createTable(index.indexTableName, IndexColumnFamilies: _*)
-    val builder = IndexBuilder(index, indexTable)
-    scan(startRowKey, endRowKey, index.family, index.columns.map(_.qualifier): _*).foreach { case Row(row, families) =>
-      builder.insertIndex(row, RowMap(families))
-    }
-
-    addIndex(index)
-    builders = getIndexBuilders
+    // Build the index
+    val scanner = super.scanAll(family, columns.map(_.qualifier): _*)
+    indexBuilder.buildIndex(index, scanner)
   }
 
   /** Drops an index. */
   def dropIndex(indexName: String): Unit = {
-    val indexBuilder = builders.find(_.index.name == indexName)
-
-    if (indexBuilder.isDefined) {
-      val metaTable = db(IndexMetaTableName)
-      metaTable.delete(name, IndexMetaTableColumnFamily, indexName)
-      db.dropTable(indexBuilder.get.index.indexTableName)
-      builders = getIndexBuilders
-    }
+    indexBuilder.dropIndex(indexName)
   }
 
   abstract override def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit = {
@@ -105,104 +65,49 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
   }
 
   abstract override def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit = {
-    val coveredColumns = builders.flatMap { builder =>
-      if (builder.index.family == family) {
-        builder.index.findCoveredColumns(family, column)
-      } else Seq.empty
-    }.distinct
+    val (indices, qualifiers) = indexBuilder.indexedColumns(family, column)
 
-    if (coveredColumns.isEmpty) {
+    if (indices.isEmpty) {
       super.put(row, family, column, value, timestamp)
     } else {
-      val values = get(row, family, coveredColumns: _*)
-      val oldValue = RowMap(family, values)
-      val newValue = RowMap(family, values)
-
+      val oldValues = get(row, family, qualifiers: _*)
       super.put(row, family, column, value, timestamp)
+      val newValues = get(row, family, qualifiers: _*)
 
-      // TODO to use the same timestamp as the base cell, we need to read it back.
-      // HBase supports key only read by filter.
-      newValue(family)(column) = Column(column, value)
-
-      builders.foreach { builder =>
-        if (builder.index.cover(family, column)) {
-          if (!values.isEmpty) builder.deleteIndex(row, oldValue)
-          builder.insertIndex(row, newValue)
-        }
-      }
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(family, oldValues))
+      indexBuilder.put(indices, row, ColumnMap(family, newValues))
     }
   }
 
   abstract override def put(row: ByteArray, family: String, columns: Column*): Unit = {
-    val qualifiers = columns.map(_.qualifier)
+    val (indices, qualifiers) = indexBuilder.indexedColumns(family, columns.map(_.qualifier): _*)
 
-    val coveredColumns = builders.flatMap { builder =>
-      if (builder.index.family == family) {
-        builder.index.findCoveredColumns(family, qualifiers: _*)
-      } else Seq.empty
-    }.distinct
-
-    if (coveredColumns.isEmpty) {
+    if (indices.isEmpty) {
       super.put(row, family, columns: _*)
     } else {
-      val values = get(row, family, coveredColumns: _*)
-      val oldValue = RowMap(family, values)
-      val newValue = RowMap(family, values)
-
+      val oldValues = get(row, family, qualifiers: _*)
       super.put(row, family, columns: _*)
+      val newValues = get(row, family, qualifiers: _*)
 
-      // TODO to use the same timestamp as the base cell, we need to read it back.
-      // HBase supports key only read by filter.
-      columns.foreach { column =>
-        newValue.getOrElseUpdate(family, collection.mutable.Map.empty)(column.qualifier) = column
-      }
-
-      builders.foreach { builder =>
-        if (builder.index.cover(family, qualifiers: _*)) {
-          builder.deleteIndex(row, oldValue)
-          builder.insertIndex(row, newValue)
-        }
-      }
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(family, oldValues))
+      indexBuilder.put(indices, row, ColumnMap(family, newValues))
     }
   }
 
   abstract override def put(row: ByteArray, families: Seq[ColumnFamily]): Unit = {
-    val coveredColumns = families.map { case ColumnFamily(family, columns) =>
-      val qualifiers = columns.map(_.qualifier)
-      val c = builders.flatMap { builder =>
-        if (builder.index.family == family) {
-          builder.index.findCoveredColumns(family, qualifiers: _*)
-        } else Seq.empty
-      }.distinct
-      (family, c)
-    }
+    val (indices, qualifiers) = indexBuilder.indexedColumns(families.map { case ColumnFamily(family, columns) =>
+      (family, columns.map(_.qualifier))
+    })
 
-    if (coveredColumns.isEmpty) {
+    if (indices.isEmpty) {
       super.put(row, families)
     } else {
-      val values = get(row, coveredColumns)
-      val oldValue = RowMap(values)
-      val newValue = RowMap(values)
-
+      val oldValues = get(row, qualifiers)
       super.put(row, families)
+      val newValues = get(row, qualifiers)
 
-      // TODO to use the same timestamp as the base cell, we need to read it back.
-      // HBase supports key only read by filter.
-      families.foreach { case ColumnFamily(family, columns) =>
-        columns.foreach { column =>
-          newValue.getOrElseUpdate(family, collection.mutable.Map.empty)(column.qualifier) = column
-        }
-      }
-
-      families.foreach { case ColumnFamily(family, columns) =>
-        val qualifiers = columns.map(_.qualifier)
-        builders.foreach { builder =>
-          if (builder.index.cover(family, qualifiers: _*)) {
-            builder.deleteIndex(row, oldValue)
-            builder.insertIndex(row, newValue)
-          }
-        }
-      }
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(oldValues))
+      indexBuilder.put(indices, row, ColumnMap(newValues))
     }
   }
 
@@ -213,73 +118,64 @@ trait Indexing extends BigTable with RowScan with FilterScan with Counter {
   }
 
   abstract override def delete(row: ByteArray, family: String, columns: ByteArray*): Unit = {
-    val coveredColumns = builders.flatMap { builder =>
-      if (builder.index.family == family) {
-        if (columns.isEmpty) builder.index.coveredColumns
-        else builder.index.findCoveredColumns(family, columns: _*)
-      } else Seq.empty
-    }.distinct
+    val (indices, qualifiers) = indexBuilder.indexedColumns(family, columns: _*)
 
-    if (coveredColumns.isEmpty) {
+    if (indices.isEmpty) {
       super.delete(row, family, columns: _*)
     } else {
-      val values = get(row, family, coveredColumns: _*)
-      val rowMap = RowMap(family, values)
-
+      val oldValues = get(row, family, qualifiers: _*)
       super.delete(row, family, columns: _*)
 
-      builders.foreach { builder =>
-        if (builder.index.family == family) {
-          if (columns.isEmpty || builder.index.cover(family, columns: _*)) {
-            builder.deleteIndex(row, rowMap)
-          }
-        }
-      }
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(family, oldValues))
     }
   }
 
   abstract override def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
-    val coveredFamilies = if (families.isEmpty) {
-      builders.map { builder => (builder.index.family, builder.index.coveredColumns.toSeq) }
-    } else {
-      families.map { case (family, columns) =>
-        val coveredColumns = builders.flatMap { builder =>
-          if (builder.index.family == family) {
-            if (columns.isEmpty) builder.index.coveredColumns
-            else builder.index.findCoveredColumns(family, columns: _*)
-          } else Seq.empty
-        }.distinct
-        (family, coveredColumns)
-      }.filter(!_._2.isEmpty)
-    }
+    val (indices, qualifiers) = indexBuilder.indexedColumns(families)
 
-    if (coveredFamilies.isEmpty) {
+    if (indices.isEmpty) {
       super.delete(row, families)
     } else {
-      val values = get(row, coveredFamilies)
-      val rowMap = RowMap(values)
-
+      val oldValues = get(row, qualifiers)
       super.delete(row, families)
 
-      if (families.isEmpty) {
-        builders.foreach { builder =>
-          builder.deleteIndex(row, rowMap)
-        }
-      } else {
-        families.map { case (family, _) =>
-          builders.foreach { builder =>
-            if (builder.index.family == family) {
-              builder.deleteIndex(row, rowMap)
-            }
-          }
-        }
-      }
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(oldValues))
     }
   }
 
   abstract override def deleteBatch(rows: Seq[ByteArray]): Unit = {
     rows.foreach { row =>
       delete(row)
+    }
+  }
+
+  abstract override def rollback(row: ByteArray, family: String, columns: ByteArray*): Unit = {
+    val (indices, qualifiers) = indexBuilder.indexedColumns(family, columns: _*)
+
+    if (indices.isEmpty) {
+      super.rollback(row, family, columns: _*)
+    } else {
+      val oldValues = get(row, family, qualifiers: _*)
+      super.rollback(row, family, columns: _*)
+      val newValues = get(row, family, qualifiers: _*)
+
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(family, oldValues))
+      indexBuilder.put(indices, row, ColumnMap(family, newValues))
+    }
+  }
+
+  abstract override def rollback(row: ByteArray, families: Seq[(String, Seq[ByteArray])]): Unit = {
+    val (indices, qualifiers) = indexBuilder.indexedColumns(families)
+
+    if (indices.isEmpty) {
+      super.rollback(row, families)
+    } else {
+      val oldValues = get(row, qualifiers)
+      super.rollback(row, families)
+      val newValues = get(row, qualifiers)
+
+      if (!oldValues.isEmpty) indexBuilder.delete(indices, row, ColumnMap(oldValues))
+      indexBuilder.put(indices, row, ColumnMap(newValues))
     }
   }
 

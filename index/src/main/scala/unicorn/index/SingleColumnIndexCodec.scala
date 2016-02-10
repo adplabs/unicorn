@@ -20,17 +20,16 @@ import unicorn.bigtable.Cell
 import unicorn.index.IndexSortOrder._
 import unicorn.util._
 
-/**
- * Calculate the cell in the index table for a single column in the base table.
- *
- * @author Haifeng Li
- */
-class SingleColumnIndexCodec(index: Index) extends IndexCodec {
+/** Calculates the cell in the index table for a single column in the base table.
+  *
+  * @author Haifeng Li
+  */
+class SingleColumnIndexCodec(val index: Index) extends IndexCodec {
   require(index.columns.size == 1)
 
   val indexColumn = index.columns.head
 
-  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
       case None => Seq.empty
       case Some(column) =>
@@ -39,7 +38,9 @@ class SingleColumnIndexCodec(index: Index) extends IndexCodec {
           case Descending => ~column.value
         }
 
-        val key = index.prefixedIndexRowKey(value, row)
+        clear
+        buffer.put(value)
+        val key: Array[Byte] = buffer
 
         val (qualifier, indexValue) = index.indexType match {
           case IndexType.Unique => (UniqueIndexColumnQualifier, row)

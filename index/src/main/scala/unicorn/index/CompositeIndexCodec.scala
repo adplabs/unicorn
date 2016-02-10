@@ -36,12 +36,10 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class CompositeIndexCodec(index: Index) extends IndexCodec {
+class CompositeIndexCodec(val index: Index) extends IndexCodec {
   require(index.columns.size > 1)
 
-  val buffer = ByteBuffer.allocate(64 * 1024)
-
-  override def apply(row: ByteArray, columns: RowMap): Seq[Cell] = {
+  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     val hasUndefinedColumn = index.columns.exists { indexColumn =>
       columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(_) => false
@@ -63,7 +61,7 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    buffer.clear
+    clear
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 
@@ -73,7 +71,7 @@ class CompositeIndexCodec(index: Index) extends IndexCodec {
       }
     }
 
-    val key = index.prefixedIndexRowKey(ByteArray(buffer), row)
+    val key = ByteArray(buffer)
 
     val (qualifier, indexValue) = index.indexType match {
       case IndexType.Unique => (UniqueIndexColumnQualifier, row)
