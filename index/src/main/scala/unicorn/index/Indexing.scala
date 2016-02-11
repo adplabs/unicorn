@@ -48,7 +48,7 @@ trait Indexing extends BigTable with RowScan with FilterScan with Rollback with 
 
   /** Creates an index. */
   def createIndex(indexName: String, family: String, columns: Seq[IndexColumn], indexType: IndexType = IndexType.Default): Unit = {
-    val index = indexBuilder.createIndex(name, family, columns, indexType)
+    val index = indexBuilder.createIndex(indexName, family, columns, indexType)
 
     // Build the index
     val scanner = super.scanAll(family, columns.map(_.qualifier): _*)

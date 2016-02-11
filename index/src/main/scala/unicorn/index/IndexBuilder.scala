@@ -73,7 +73,7 @@ case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index])
 
   def indexedColumns(family: String, columns: ByteArray*): (Seq[Index], Seq[ByteArray]) = {
     val (activedIndices, qualifiers) = indices.filter(_.family == family).map { index =>
-      (index, index.coveredColumns(family, columns: _*))
+      (index, index.indexedColumns(columns: _*))
     }.filter(!_._2.isEmpty).unzip
 
     (activedIndices, qualifiers.flatten.distinct)
@@ -82,7 +82,7 @@ case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index])
   def indexedColumns(families: Seq[(String, Seq[ByteArray])]): (Seq[Index], Seq[(String, Seq[ByteArray])]) = {
     val (activedIndices, qualifiers) = families.map { case (family, columns) =>
       val (activedIndices, qualifiers) = indices.filter(_.family == family).map { index =>
-        (index, index.coveredColumns(family, columns: _*))
+        (index, index.indexedColumns(columns: _*))
       }.filter(!_._2.isEmpty).unzip
 
       (activedIndices, (family, qualifiers.flatten.distinct))
@@ -120,6 +120,8 @@ object IndexBuilder {
     val bson = new BsonSerializer
 
     val indices = indexTable.get(IndexTableMetaRow, IndexMetaColumnFamily).filter(_.qualifier != IndexTableNewIndexId).map { column =>
+      println(column)
+      println(bson.toJson(column.value.bytes))
       Index(bson.toJson(column.value.bytes))
     }
 

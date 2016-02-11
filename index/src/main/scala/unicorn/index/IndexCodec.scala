@@ -18,7 +18,7 @@ package unicorn.index
 
 import java.nio.ByteBuffer
 
-import unicorn.bigtable.Cell
+import unicorn.bigtable.{Cell, Column}
 import unicorn.util.ByteArray
 
 /** Calculate the cell(s) in the index table for a given column set in the base table.
@@ -39,6 +39,16 @@ trait IndexCodec {
     * @return a seq of index entries.
     */
   def apply(row: ByteArray, columns: ColumnMap): Seq[Cell]
+
+  /** A helper function useful for testing. */
+  def apply(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Seq[Cell] = {
+    apply(row, ColumnMap(family, Seq(Column(column, value))))
+  }
+
+  /** A helper function useful for testing. */
+  def apply(row: ByteArray, family: String, columns: Column*): Seq[Cell] = {
+    apply(row, ColumnMap(family, columns))
+  }
 
   /** Optional tenant id. */
   val tenant: Option[ByteArray] = None

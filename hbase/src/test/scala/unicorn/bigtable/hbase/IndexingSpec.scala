@@ -29,8 +29,6 @@ class IndexingSpec extends Specification with BeforeAfterAll {
   val hbase = HBase()
   val tableName = "unicorn_test"
   var table: HBaseTable with Indexing = null
-  val indexName = "test-index-cf1"
-  val indexName2 = "test-index-cf2"
 
   override def beforeAll = {
     hbase.createTable(tableName, "cf1", "cf2")
@@ -39,13 +37,10 @@ class IndexingSpec extends Specification with BeforeAfterAll {
 
   override def afterAll = {
     if (table != null) {
-      table.dropIndex(indexName)
-      table.dropIndex(indexName2)
       table.close
     }
     hbase.dropTable(tableName)
-    // delete the index meta table
-    hbase.dropTable("unicorn_meta_index")
+    hbase.dropTable("unicorn_index_unicorn_test")
   }
 
   "HBase" should {
@@ -56,100 +51,118 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       table("row1", "cf1", "c1") === None
     }
     "single column index" in {
-      val index = Index(indexName, "cf1", Seq(IndexColumn("c1")))
-      table.createIndex(index)
+      val indexName = "test-index-cf1-single"
+      table.createIndex(indexName, "cf1", Seq(IndexColumn("c1")))
       table.put("row1", "cf1", "c1", "v1", 0L)
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
 
-      val indexTable = hbase("unicorn_index_" + indexName)
-      indexTable("v1", "index", "row1").isDefined === true
+      val indexTable = table.indexBuilder.indexTable
+      val index = table.indexBuilder.indices(0)
+      var cell = index.codec("row1", "cf1", "c1", "v1")(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.put("row1", "cf1", "c1", "v2", 0L)
-      indexTable("v1", "index", "row1").isDefined === false
-      indexTable("v2", "index", "row1").isDefined === true
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
+      cell = index.codec("row1", "cf1", "c1", "v2")(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.delete("row1", "cf1", "c1")
-      indexTable("v2", "index", "row1").isDefined === false
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
 
-      table.dropIndex(index.name)
+      table.dropIndex(indexName)
 
       table("row1", "cf1", "c1") === None
     }
     "composite index" in {
-      val index = Index(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")))
-      val index2 = Index(indexName2, "cf2", Seq(IndexColumn("c3")))
-      table.createIndex(index)
-      table.createIndex(index2)
+      val indexName = "test-index-cf1-composite"
+      val indexName2 = "test-index-cf2-composite"
+      table.createIndex(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")))
+      table.createIndex(indexName2, "cf2", Seq(IndexColumn("c3")))
 
       table.put("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       new String(table("row1", "cf1", "c2").get, utf8) === "v2"
 
-      val indexTable = hbase("unicorn_index_" + indexName)
-      indexTable("v1v2", "index", "row1").isDefined === true
-      indexTable("v1", "index", "row1").isDefined === false
-      indexTable("v2", "index", "row1").isDefined === false
+      val indexTable = table.indexBuilder.indexTable
+      val index = table.indexBuilder.indices.filter(_.name == indexName)(0)
+      var cell = index.codec("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.put("row1", "cf1", "c1", "v3", 0L)
-      indexTable("v3", "index", "row1").isDefined === false
-      indexTable("v3v2", "index", "row1").isDefined === true
-
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
+      cell = index.codec("row1", "cf1", Column("c1", "v3"), Column("c2", "v2"))(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
+      
       table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
-      indexTable("v3v2", "index", "row1").isDefined === false
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
 
       table.put("row1", Seq(ColumnFamily("cf1", Seq(Column("c1", "v1"), Column("c2", "v2"))), ColumnFamily("cf2", Seq(Column("c3", "v3")))))
-      indexTable("v1v2", "index", "row1").isDefined === true
-      val indexTable2 = hbase("unicorn_index_" + indexName2)
-      indexTable2("v3", "index", "row1").isDefined === true
+      val index2 = table.indexBuilder.indices.filter(_.name == indexName2)(0)
+      cell = index.codec("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
+      cell = index2.codec("row1", "cf2", "c3", "v3")(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
-      indexTable("v1v2", "index", "row1").isDefined === false
-      indexTable2("v3", "index", "row1").isDefined === false
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
 
-      table.dropIndex(index.name)
-      table.dropIndex(index2.name)
+      table.dropIndex(indexName)
+      table.dropIndex(indexName2)
 
       table("row1", "cf1", "c1") === None
     }
     "text index" in {
-      val index = Index(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")), IndexType.Text)
-      table.createIndex(index)
+      val indexName = "test-index-cf1-text"
+      table.createIndex(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")), IndexType.Text)
       table.put("row1", "cf1", Column("c1", "adp payroll"), Column("c2", "adp unicorn rocks"))
       new String(table("row1", "cf1", "c1").get, utf8) === "adp payroll"
 
-      val indexTable = hbase("unicorn_index_" + indexName)
-      indexTable.get("adp", "index").size === 2
-      indexTable.get("payrol", "index").size === 1
-      indexTable.get("unicorn", "index").size === 1
-      indexTable.get("rock", "index").size === 1
+      val indexTable = table.indexBuilder.indexTable
+      val index = table.indexBuilder.indices.filter(_.name == indexName)(0)
+      var cells = index.codec("row1", "cf1", Column("c1", "adp payroll"), Column("c2", "adp unicorn rocks"))
+      cells.foreach { cell =>
+        indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
+      }
 
       table.delete("row1", "cf1", "c1")
-      indexTable.get("adp", "index").size === 1
-      indexTable.get("payrol", "index").size === 0
+      cells = index.codec("row1", "cf1", Column("c1", "adp payroll"))
+      cells.foreach { cell =>
+        indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
+      }
 
-      table.dropIndex(index.name)
+      cells = index.codec("row1", "cf1", Column("c2", "adp unicorn rocks"))
+      cells.foreach { cell =>
+        indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
+      }
 
+      table.dropIndex(indexName)
+
+      cells.foreach { cell =>
+        indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
+      }
       table("row1", "cf1", "c1") === None
     }
     "hashed index" in {
-      val index = Index(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")), IndexType.Hashed)
-      table.createIndex(index)
+      val indexName = "test-index-cf1-hash"
+      table.createIndex(indexName, "cf1", Seq(IndexColumn("c1"), IndexColumn("c2")), IndexType.Hashed)
       table.put("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))
       new String(table("row1", "cf1", "c1").get, utf8) === "v1"
       new String(table("row1", "cf1", "c2").get, utf8) === "v2"
 
-      val indexTable = hbase("unicorn_index_" + indexName)
-      indexTable(md5("v1v2"), "index", "row1").isDefined === true
-      indexTable("v1v2", "index", "row1").isDefined === false
+      val indexTable = table.indexBuilder.indexTable
+      val index = table.indexBuilder.indices.filter(_.name == indexName)(0)
+      var cell = index.codec("row1", "cf1", Column("c1", "v1"), Column("c2", "v2"))(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.put("row1", "cf1", "c1", "v3", 0L)
-      indexTable("v3v2", "index", "row1").isDefined === false
-      indexTable(md5("v3v2"), "index", "row1").isDefined === true
+      cell = index.codec("row1", "cf1", Column("c1", "v3"), Column("c2", "v2"))(0)
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
 
       table.delete("row1", "cf1") // delete all columns in the family
-      indexTable(md5("v3v2"), "index", "row1").isDefined  === false
+      indexTable(cell.row, cell.family, cell.qualifier).isDefined  === false
 
-      table.dropIndex(index.name)
+      table.dropIndex(indexName)
 
       table("row1", "cf1", "c1") === None
     }

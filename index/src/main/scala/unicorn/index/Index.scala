@@ -112,25 +112,17 @@ case class Index(id: Int, name: String, family: String, columns: Seq[IndexColumn
   val codec = IndexCodec(this)
   val qualifiers = columns.map { column => new ByteArray(column.qualifier) }.toSet
 
-  /** Returns true if the index covers some of given columns. */
-  def cover(family: String, columns: ByteArray*): Boolean = {
-    this.family == family && !(qualifiers & columns.toSet).isEmpty
-  }
-
-  /** Returns true if the index covers some of given columns. */
-  def cover(families: Seq[ColumnFamily]): Boolean = {
-    families.exists { case ColumnFamily(family, columns) =>
-      cover(family, columns.map(_.qualifier): _*)
-    }
-  }
-
   /** If the index doesn't cover any columns to update, return empty set.
-    * Otherwise, returns the covered columns of this index.
+    * Otherwise, returns the covered columns of this index. The columns must be
+    * in the same column family of index.
     */
-  def coveredColumns(family: String, columns: ByteArray*): Set[ByteArray] = {
-    if (indexType == IndexType.Text) qualifiers & columns.toSet
-    else if (cover(family, columns: _*)) qualifiers
-    else Set.empty
+  def indexedColumns(columns: ByteArray*): Set[ByteArray] = {
+    if (columns.isEmpty) qualifiers
+    else {
+      if (indexType == IndexType.Text) qualifiers & columns.toSet
+      else if (!(qualifiers & columns.toSet).isEmpty) qualifiers
+      else Set.empty
+    }
   }
 
   def toJson: JsValue = {
