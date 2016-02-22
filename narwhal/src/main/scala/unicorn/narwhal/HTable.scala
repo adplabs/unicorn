@@ -14,12 +14,14 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase
+package unicorn.narwhal
 
 import java.util.{UUID, Date}
 import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
+import unicorn.index._, IndexType._, IndexSortOrder._
 import unicorn.oid.BsonObjectId
+import unicorn.unibase.Table
 import unicorn.util._
 
 /** Unibase table specialized for HBase with additional functions such
@@ -115,10 +117,10 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   /** Updates a document. The supported update operators include
     *
-    *  - \$set: Sets the value of a field in a document.
-    *  - \$unset: Removes the specified field from a document.
-    *  - \$inc: Increments the value of the field by the specified amount.
-    *  - \$rollback: Rolls back to previous version.
+    * - \$set: Sets the value of a field in a document.
+    * - \$unset: Removes the specified field from a document.
+    * - \$inc: Increments the value of the field by the specified amount.
+    * - \$rollback: Rolls back to previous version.
     *
     * @param doc the document update operators.
     */
@@ -130,7 +132,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     val $inc = doc("$inc")
     if ($inc.isInstanceOf[JsObject]) inc(id, $inc.asInstanceOf[JsObject])
 
-    val $rollback= doc("$rollback")
+    val $rollback = doc("$rollback")
     if ($rollback.isInstanceOf[JsObject]) rollback(id, $rollback.asInstanceOf[JsObject])
   }
 
@@ -149,13 +151,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   def inc(id: JsValue, doc: JsObject): Unit = {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: inc ${$id}")
 
-    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
-    }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
@@ -181,13 +177,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   def rollback(id: JsValue, doc: JsObject): Unit = {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: rollover ${$id}")
 
-    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-        case -1 => field
-        case end => field.substring(0, end)
-      }
-      locality(head)
-    }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
@@ -252,7 +242,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   private def queryFilter(where: JsObject): ScanFilter.Expression = {
 
     val filters = where.fields.map {
-      case ("$or",  condition) =>
+      case ("$or", condition) =>
         require(condition.isInstanceOf[JsArray], "$or predict is not an array")
 
         val filters = condition.asInstanceOf[JsArray].elements.map { e =>
@@ -298,18 +288,53 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue): ScanFilter.Expression = {
     val bytes = value match {
-      case x: JsBoolean  => valueSerializer.serialize(x)
-      case x: JsInt      => valueSerializer.serialize(x)
-      case x: JsLong     => valueSerializer.serialize(x)
-      case x: JsDouble   => valueSerializer.serialize(x)
-      case x: JsString   => valueSerializer.serialize(x)
-      case x: JsDate     => valueSerializer.serialize(x)
-      case x: JsUUID     => valueSerializer.serialize(x)
+      case x: JsBoolean => valueSerializer.serialize(x)
+      case x: JsInt => valueSerializer.serialize(x)
+      case x: JsLong => valueSerializer.serialize(x)
+      case x: JsDouble => valueSerializer.serialize(x)
+      case x: JsString => valueSerializer.serialize(x)
+      case x: JsDate => valueSerializer.serialize(x)
+      case x: JsUUID => valueSerializer.serialize(x)
       case x: JsObjectId => valueSerializer.serialize(x)
-      case x: JsBinary   => valueSerializer.serialize(x)
+      case x: JsBinary => valueSerializer.serialize(x)
       case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
     }
 
     ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes)
+  }
+}
+
+class HTableWithIndex(table: HBaseTable with Indexing, meta: JsObject) extends HTable(table, meta) {
+  override def tenant_=(x: JsValue) {
+    super.tenant_=(x)
+
+    _tenant match {
+      case None => table.tenant = None
+      case Some(tenant) => table.tenant = Some(keySerializer.toBytes(tenant))
+    }
+  }
+
+  /** Creates an index. */
+  def createIndex(indexName: String, fields: String*): Unit = {
+    createIndex(indexName, fields.map((_, Ascending)), IndexType.Default)
+  }
+
+  /** Creates an index. */
+  def createIndex(indexName: String, fields: Seq[(String, IndexSortOrder)], indexType: IndexType = IndexType.Default): Unit = {
+    val (families, columns) = fields.map { case (field, order) =>
+      val family = getFamily(field)
+      val column = IndexColumn(jsonPath(field), order)
+      (family, column)
+    }.unzip
+
+    val family = families.distinct
+    require(family.size == 1, "Index fields must be in the same column family")
+
+    table.createIndex(indexName, family(0), columns, indexType)
+  }
+
+  /** Drops an index. */
+  def dropIndex(indexName: String): Unit = {
+    table.dropIndex(indexName)
   }
 }

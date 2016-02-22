@@ -1,10 +1,10 @@
 /*******************************************************************************
  * (C) Copyright 2015 ADP, LLC.
- *
+ *   
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ *  
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,10 +14,24 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn
+package unicorn.narwhal
 
-import unicorn.narwhal.Narwhal
+import unicorn.bigtable.hbase.HBase
+import unicorn.unibase.{TableMeta, Unibase}
 
-package object sql {
-  implicit def narwhalSQLContext(db: Narwhal) = new SQLContext(db)
+/** Unibase specialized for HBase. */
+class Narwhal(hbase: HBase) extends Unibase(hbase) {
+  /** Returns a document table.
+    * @param name the name of table.
+    */
+  override def apply(name: String): HTable = {
+    new HTable(hbase(name), TableMeta(hbase, name))
+  }
+
+  /** Returns a document table.
+    * @param name the name of table.
+    */
+  def getTableWithIndex(name: String): HTableWithIndex = {
+    new HTableWithIndex(hbase.getTableWithIndex(name), TableMeta(hbase, name))
+  }
 }

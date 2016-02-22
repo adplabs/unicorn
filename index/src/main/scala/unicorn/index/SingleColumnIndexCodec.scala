@@ -29,7 +29,14 @@ class SingleColumnIndexCodec(val index: Index) extends IndexCodec {
 
   val indexColumn = index.columns.head
 
-  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
+  override def prefix(tenant: Option[Array[Byte]], value: ByteArray): ByteArray = {
+    resetBuffer(tenant)
+    buffer.put(value)
+    val key: Array[Byte] = buffer
+    key
+  }
+
+  override def apply(tenant: Option[Array[Byte]], row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
       case None => Seq.empty
       case Some(column) =>
@@ -38,16 +45,15 @@ class SingleColumnIndexCodec(val index: Index) extends IndexCodec {
           case Descending => ~column.value
         }
 
-        clear
+        resetBuffer(tenant)
         buffer.put(value)
-        val key: Array[Byte] = buffer
 
         val (qualifier, indexValue) = index.indexType match {
           case IndexType.Unique => (UniqueIndexColumnQualifier, row)
           case _ => (row, IndexDummyValue)
         }
 
-        Seq(Cell(key, IndexColumnFamily, qualifier, indexValue, column.timestamp))
+        Seq(Cell(buffer, IndexColumnFamily, qualifier, indexValue, column.timestamp))
     }
   }
 }

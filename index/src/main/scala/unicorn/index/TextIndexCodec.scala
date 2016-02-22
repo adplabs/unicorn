@@ -36,7 +36,7 @@ class TextIndexCodec(val index: Index, codec: TextCodec = new SimpleTextCodec, s
 
   val valueBuffer = ByteBuffer.allocate(64 * 1024)
 
-  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
+  override def apply(tenant: Option[Array[Byte]], row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     index.columns.flatMap { indexColumn =>
       val column = columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None)
       if (column.isDefined) {
@@ -44,7 +44,7 @@ class TextIndexCodec(val index: Index, codec: TextCodec = new SimpleTextCodec, s
         val text = codec.decode(column.get.value)
         val terms = tokenize(text)
         terms.map { case (term, pos) =>
-          clear
+          resetBuffer(tenant)
           val bytes = term.getBytes(utf8)
           buffer.putInt(bytes.size)
           buffer.put(bytes)

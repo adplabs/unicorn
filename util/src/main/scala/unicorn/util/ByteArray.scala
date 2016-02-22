@@ -21,7 +21,7 @@ package unicorn.util
  *
  * @author Haifeng Li
  */
-case class ByteArray(bytes: Array[Byte]) extends Comparable[ByteArray] {
+case class ByteArray(bytes: Array[Byte]) extends Ordered[ByteArray] {
   /** Flip each bit of a byte string */
   def unary_~ = ByteArray(bytes.map { b => (~b).toByte })
 
@@ -31,15 +31,13 @@ case class ByteArray(bytes: Array[Byte]) extends Comparable[ByteArray] {
   /** Covert UTF-8 bytes back to string */
   override def toString = new String(bytes, utf8)
 
-  override def compareTo(o: ByteArray): Int = compareByteArray(bytes, o.bytes)
+  override def compare(that: ByteArray): Int = compareByteArray(bytes, that.bytes)
 
-  override def equals(o: Any): Boolean = {
-    if (!o.isInstanceOf[ByteArray]) return false
-    
-    val that = o.asInstanceOf[ByteArray]
-    if (this.bytes.size != that.bytes.size) return false
-    
-    compareTo(that) == 0
+  override def compareTo(that: ByteArray): Int = compareByteArray(bytes, that.bytes)
+
+  override def equals(that: Any): Boolean = {
+    if (!that.isInstanceOf[ByteArray]) return false
+    compareTo(that.asInstanceOf[ByteArray]) == 0
   }
 
   override def hashCode: Int = {

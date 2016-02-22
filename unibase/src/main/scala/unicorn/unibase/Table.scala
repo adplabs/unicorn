@@ -48,7 +48,7 @@ class Table(table: BigTable, meta: JsObject) {
   val $id = Unibase.$id
 
   /** Returns the json path of a dot notation path as in MongoDB. */
-  private[unibase] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
+  private[unicorn] def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
 
   /** Json path of id, i.e. the column qualifier in BigTable. */
   val idPath = jsonPath($id)
@@ -72,19 +72,28 @@ class Table(table: BigTable, meta: JsObject) {
     * separately to allow clients to scan over fields that are frequently used together efficient
     * and to avoid scanning over column families that are not requested.
     */
-  private[unibase] val locality: Map[String, String] = {
+  private[unicorn] val locality: Map[String, String] = {
     val default = meta.apply(DefaultLocalityField).toString
     val map = meta.locality.asInstanceOf[JsObject].fields.mapValues(_.toString).toMap
     map.withDefaultValue(default)
   }
 
-  private[unibase] def getBytes(s: String) = s.getBytes(JsonSerializer.charset)
+  private[unicorn] def getBytes(s: String) = s.getBytes(JsonSerializer.charset)
 
   /** True if the table is append only. */
   val appendOnly: Boolean = meta.appendOnly
 
   /** Optional tenant id in case of multi-tenancy. */
-  var tenant: Option[JsValue] = None
+  var _tenant: Option[JsValue] = None
+
+  def tenant = _tenant
+  def tenant_=(x: JsValue) {
+    _tenant = x match {
+      case JsUndefined | JsNull => None
+      case JsBoolean(_) | JsCounter(_) | JsDate(_) | JsDouble(_) => throw new IllegalArgumentException("tenant id cannot be of type JsBoolean, JsCounter, JsDate, or JsDouble")
+      case _ => Some(x)
+    }
+  }
 
   /** Gets a document. */
   def apply(id: Int, fields: String*): Option[JsObject] = {
@@ -123,6 +132,8 @@ class Table(table: BigTable, meta: JsObject) {
     * @return an option of document. None if it doesn't exist.
     */
   def apply(id: JsValue, fields: String*): Option[JsObject] = {
+    require(!id.isInstanceOf[JsCounter], "Document ID cannot be a counter")
+
     if (fields.isEmpty) {
       val data = table.get(getKey(id), families)
       assemble(data)
@@ -134,7 +145,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Assembles the document from multi-column family data. */
-  private[unibase] def assemble(data: Seq[ColumnFamily]): Option[JsObject] = {
+  private[unicorn] def assemble(data: Seq[ColumnFamily]): Option[JsObject] = {
     val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
         (new String(qualifier, JsonSerializer.charset), value.bytes)
@@ -157,7 +168,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Returns the _id of a document. Throws exception if missing. */
-  private[unibase] def getId(doc: JsObject): JsValue = {
+  private[unicorn] def getId(doc: JsObject): JsValue = {
     val id = doc($id)
 
     require(id != JsNull && id != JsUndefined, s"missing ${$id}")
@@ -193,7 +204,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Maps a  projection to the seq of column families to fetch. */
-  private[unibase] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
+  private[unicorn] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
 
     val groups = projection.fields.map(_._1).groupBy { field =>
       getFamily(field)
@@ -290,7 +301,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Returns the column family of a field. */
-  private[unibase] def getFamily(field: String): String = {
+  private[unicorn] def getFamily(field: String): String = {
     val head = field.indexOf(JsonSerializer.pathDelimiter) match {
       case -1 => field
       case end => field.substring(0, end)
@@ -322,9 +333,7 @@ class Table(table: BigTable, meta: JsObject) {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: set ${$id}")
 
     // Group field by locality
-    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      getFamily(field)
-    }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     // Map from parent to the fields to update
     val children = scala.collection.mutable.Map[(String, ByteArray), Seq[String]]().withDefaultValue(Seq.empty)
@@ -382,7 +391,7 @@ class Table(table: BigTable, meta: JsObject) {
   /** Given the column value of an object (containing its children field names), return
     * true if node is its child.
     */
-  private[unibase] def isChild(parent: ArrayBuffer[Byte], node: Array[Byte]): Boolean = {
+  private[unicorn] def isChild(parent: ArrayBuffer[Byte], node: Array[Byte]): Boolean = {
     def isChild(start: Int): Boolean = {
       for (i <- 0 until node.size) {
         if (parent(start + i) != node(i)) return false
@@ -419,9 +428,7 @@ class Table(table: BigTable, meta: JsObject) {
   def unset(id: JsValue, doc: JsObject): Unit = {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: unset ${$id}")
 
-    val groups = doc.fields.toSeq.groupBy { case (field, _) =>
-      getFamily(field)
-    }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
@@ -434,7 +441,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Serialize document id. */
-  private[unibase] def getKey(id: JsValue): Array[Byte] = {
+  private[unicorn] def getKey(id: JsValue): Array[Byte] = {
     val key = tenant match {
       case None => id
       case Some(tenant) => JsArray(tenant, id)

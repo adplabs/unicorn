@@ -31,7 +31,7 @@ import unicorn.util._
 class HashIndexCodec(val index: Index) extends IndexCodec {
   require(index.indexType == IndexType.Hashed)
 
-  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
+  override def apply(tenant: Option[Array[Byte]], row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     val hasUndefinedColumn = index.columns.exists { indexColumn =>
       columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(_) => false
@@ -53,7 +53,7 @@ class HashIndexCodec(val index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    clear
+    resetBuffer(tenant)
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 

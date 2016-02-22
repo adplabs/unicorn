@@ -48,13 +48,15 @@ package object util {
   }
 
   /** Helper function convert ByteBuffer to Array[Byte]. */
-  implicit def byteBuffer2ByteArray(buffer: ByteBuffer): Array[Byte] = {
+  implicit def byteBuffer2ArrayByte(buffer: ByteBuffer): Array[Byte] = {
     val bytes = new Array[Byte](buffer.position)
     buffer.position(0)
     buffer.get(bytes)
     bytes
   }
 
+  /** Helper function convert ByteBuffer to ByteArray. */
+  implicit def byteBuffer2ByteArray(buffer: ByteBuffer): ByteArray = ByteArray(byteBuffer2ArrayByte(buffer))
 
   /** Byte array to hexadecimal string. */
   def bytes2Hex(bytes: Array[Byte]): String = {

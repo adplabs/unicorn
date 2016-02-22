@@ -17,13 +17,13 @@
 package unicorn.sql
 
 import unicorn.json._
-import unicorn.unibase.HUnibase
+import unicorn.narwhal.Narwhal
 
 /** SQL context of a unibase instance.
   *
   * @author Haifeng Li
   */
-class SQLContext(db: HUnibase) {
+class SQLContext(db: Narwhal) {
 
   def sql(query: String): Iterator[JsObject] = {
     val sql = SQLParser.parse(query)

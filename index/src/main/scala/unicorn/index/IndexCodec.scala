@@ -19,7 +19,8 @@ package unicorn.index
 import java.nio.ByteBuffer
 
 import unicorn.bigtable.{Cell, Column}
-import unicorn.util.ByteArray
+import unicorn.index.IndexSortOrder._
+import unicorn.util._
 
 /** Calculate the cell(s) in the index table for a given column set in the base table.
   * In case of text index, we have multiple index entries (for each word).
@@ -33,32 +34,42 @@ trait IndexCodec {
   /** Workspace to encode index row keys. */
   val buffer = ByteBuffer.allocate(16 * 1024)
 
+  /** Returns the index row key prefix. */
+  def prefix(tenant: Option[Array[Byte]], value: ByteArray): ByteArray = {
+    resetBuffer(tenant)
+    index.columns.head.order match {
+      case Ascending => buffer.put(value)
+      case Descending => buffer.put(~value)
+    }
+    buffer.put(value)
+    buffer
+  }
+
   /** Given a row, calculate the index entries.
     * @param row the row key.
     * @param columns a map of family to map of qualifier to cell.
     * @return a seq of index entries.
     */
-  def apply(row: ByteArray, columns: ColumnMap): Seq[Cell]
+  def apply(tenant: Option[Array[Byte]], row: ByteArray, columns: ColumnMap): Seq[Cell]
 
   /** A helper function useful for testing. */
-  def apply(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Seq[Cell] = {
-    apply(row, ColumnMap(family, Seq(Column(column, value))))
+  def apply(tenant: Option[Array[Byte]], row: ByteArray, family: String, column: ByteArray, value: ByteArray): Seq[Cell] = {
+    apply(tenant, row, ColumnMap(family, Seq(Column(column, value))))
   }
 
   /** A helper function useful for testing. */
-  def apply(row: ByteArray, family: String, columns: Column*): Seq[Cell] = {
-    apply(row, ColumnMap(family, columns))
+  def apply(tenant: Option[Array[Byte]], row: ByteArray, family: String, columns: Column*): Seq[Cell] = {
+    apply(tenant, row, ColumnMap(family, columns))
   }
 
-  /** Optional tenant id. */
-  val tenant: Option[ByteArray] = None
-
-  /** Clear buffer. */
-  def clear: Unit = {
+  /** Resets buffer. */
+  def resetBuffer(tenant: Option[Array[Byte]]): Unit = {
     buffer.clear
     buffer.putShort(index.id.toShort)
-    if (tenant.isDefined) buffer.put(tenant.get.length.toByte).put(tenant.get)
-    else buffer.put(0.toByte)
+    tenant match {
+      case None => buffer.put(0.toByte)
+      case Some(tenant) => buffer.put(tenant.length.toByte).put(tenant)
+    }
   }
 }
 

@@ -92,7 +92,7 @@ class IndexingSpec extends Specification with BeforeAfterAll {
       indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
       cell = index.codec("row1", "cf1", Column("c1", "v3"), Column("c2", "v2"))(0)
       indexTable(cell.row, cell.family, cell.qualifier).isDefined === true
-      
+
       table.delete("row1", Seq(("cf1", Seq.empty), ("cf2", Seq.empty))) // delete multiple column families
       indexTable(cell.row, cell.family, cell.qualifier).isDefined === false
 

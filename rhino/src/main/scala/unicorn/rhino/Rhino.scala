@@ -120,11 +120,19 @@ trait Rhino extends HttpService with Logging {
 
   private def json(doc: String) = doc.parseJsObject
 
+  private def bucket(table: String, tenant: Option[JsValue]): Table = {
+    val db = unibase(table)
+    db.tenant = tenant match {
+      case Some(tenant) => tenant
+      case None => JsUndefined
+    }
+    db
+  }
+
   // name it "get" will conflict with spray routing "get"
   private def _get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
     onSuccess(Future {
-      val db = unibase(table)
-      db.tenant = tenant
+      val db = bucket(table, tenant)
       db(id)
     }) { doc =>
       respondWithMediaType(`application/json`) {
@@ -138,8 +146,7 @@ trait Rhino extends HttpService with Logging {
 
   private def upsert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
-      val db = unibase(table)
-      db.tenant = tenant
+      val db = bucket(table, tenant)
       db.upsert(json(doc))
     }) { key =>
       respondWithMediaType(`application/json`) {
@@ -151,8 +158,7 @@ trait Rhino extends HttpService with Logging {
 
   private def insert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
-      val db = unibase(table)
-      db.tenant = tenant
+      val db = bucket(table, tenant)
       db.insert(json(doc))
     }) { Unit =>
       respondWithMediaType(`application/json`) {
@@ -163,8 +169,7 @@ trait Rhino extends HttpService with Logging {
 
   private def update(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
-      val db = unibase(table)
-      db.tenant = tenant
+      val db = bucket(table, tenant)
       db.update(json(doc))
     }) { Unit =>
       respondWithMediaType(`application/json`) {
@@ -175,8 +180,7 @@ trait Rhino extends HttpService with Logging {
 
   def remove(table: String, id: JsValue)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
-      val db = unibase(table)
-      db.tenant = tenant
+      val db = bucket(table, tenant)
       db.delete(id)
     }) { Unit =>
       respondWithMediaType(`application/json`) {

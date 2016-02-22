@@ -17,7 +17,6 @@
 package unicorn.unibase
 
 import unicorn.bigtable.{Column, BigTable, Database}
-import unicorn.bigtable.hbase.HBase
 import unicorn.json._
 import unicorn.util._
 
@@ -103,24 +102,9 @@ object Unibase {
   def apply[T <: BigTable](db: Database[T]): Unibase[T] = {
     new Unibase[T](db)
   }
-
-  def apply(db: HBase): HUnibase = {
-    new HUnibase(db)
-  }
 }
 
-/** Unibase specialized for HBase. */
-class HUnibase(hbase: HBase) extends Unibase(hbase) {
-  /**
-    * Returns a document table.
-    * @param name the name of table.
-    */
-  override def apply(name: String): HTable = {
-    new HTable(hbase(name), TableMeta(hbase, name))
-  }
-}
-
-private object TableMeta {
+private[unicorn] object TableMeta {
   /** Creates JsObject of table meta data.
     *
     * @param families Column families of document store. There may be other column families in the underlying table

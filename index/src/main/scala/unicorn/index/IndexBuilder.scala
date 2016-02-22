@@ -52,8 +52,9 @@ case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index])
   }
 
   def buildIndex(index: Index, scanner: RowScanner): Unit = {
+    val seq = Seq(index)
     scanner.foreach { case Row(row, families) =>
-      put(Seq(index), row, ColumnMap(families))
+     // put(index, row, ColumnMap(families))
     }
   }
 
@@ -90,9 +91,9 @@ case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index])
     (activedIndices.flatten, qualifiers)
   }
 
-  def put(indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
+  def put(tenant: Option[Array[Byte]], indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
     indices.foreach { index =>
-      val cells = index.codec(row, columns)
+      val cells = index.codec(tenant, row, columns)
       cells.foreach { cell =>
         indexTable.put(cell.row, cell.family, cell.qualifier, cell.value, cell.timestamp)
         indexTable.addCounter(cell.row, IndexMetaColumnFamily, IndexTableStatColumnCount, 1)
@@ -100,9 +101,9 @@ case class IndexBuilder(indexTable: IndexableTable, indices: ArrayBuffer[Index])
     }
   }
 
-  def delete(indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
+  def delete(tenant: Option[Array[Byte]], indices: Seq[Index], row: ByteArray, columns: ColumnMap): Unit = {
     indices.foreach { index =>
-      val cells = index.codec(row, columns)
+      val cells = index.codec(tenant, row, columns)
       cells.foreach { cell =>
         indexTable.delete(cell.row, cell.family, cell.qualifier)
         indexTable.addCounter(cell.row, IndexMetaColumnFamily, IndexTableStatColumnCount, -1)

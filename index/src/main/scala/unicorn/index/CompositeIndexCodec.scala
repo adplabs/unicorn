@@ -16,7 +16,6 @@
 
 package unicorn.index
 
-import java.nio.ByteBuffer
 import unicorn.bigtable.Cell
 import unicorn.index.IndexSortOrder._
 import unicorn.util._
@@ -39,7 +38,7 @@ import unicorn.util._
 class CompositeIndexCodec(val index: Index) extends IndexCodec {
   require(index.columns.size > 1)
 
-  override def apply(row: ByteArray, columns: ColumnMap): Seq[Cell] = {
+  override def apply(tenant: Option[Array[Byte]], row: ByteArray, columns: ColumnMap): Seq[Cell] = {
     val hasUndefinedColumn = index.columns.exists { indexColumn =>
       columns.get(index.family).map(_.get(indexColumn.qualifier)).getOrElse(None) match {
         case Some(_) => false
@@ -61,7 +60,7 @@ class CompositeIndexCodec(val index: Index) extends IndexCodec {
       Math.max(b, ts)
     }
 
-    clear
+    resetBuffer(tenant)
     index.columns.foreach { indexColumn =>
       val column = columns(index.family)(indexColumn.qualifier).value
 
@@ -71,13 +70,11 @@ class CompositeIndexCodec(val index: Index) extends IndexCodec {
       }
     }
 
-    val key = ByteArray(buffer)
-
     val (qualifier, indexValue) = index.indexType match {
       case IndexType.Unique => (UniqueIndexColumnQualifier, row)
       case _ => (row, IndexDummyValue)
     }
 
-    Seq(Cell(key, IndexColumnFamily, qualifier, indexValue, timestamp))
+    Seq(Cell(buffer, IndexColumnFamily, qualifier, indexValue, timestamp))
   }
 }
