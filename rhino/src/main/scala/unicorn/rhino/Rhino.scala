@@ -161,9 +161,7 @@ trait Rhino extends HttpService with Logging {
       val db = bucket(table, tenant)
       db.insert(json(doc))
     }) { Unit =>
-      respondWithMediaType(`application/json`) {
-        complete("{}")
-      }
+      complete(StatusCodes.OK)
     }
   }
 
@@ -172,9 +170,7 @@ trait Rhino extends HttpService with Logging {
       val db = bucket(table, tenant)
       db.update(json(doc))
     }) { Unit =>
-      respondWithMediaType(`application/json`) {
-        complete("{}")
-      }
+      complete(StatusCodes.OK)
     }
   }
 
@@ -183,9 +179,7 @@ trait Rhino extends HttpService with Logging {
       val db = bucket(table, tenant)
       db.delete(id)
     }) { Unit =>
-      respondWithMediaType(`application/json`) {
-        complete("{}")
-      }
+      complete(StatusCodes.OK)
     }
   }
 }
