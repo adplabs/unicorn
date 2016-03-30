@@ -19,7 +19,6 @@ package unicorn.rhino
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext, ExecutionContext.Implicits.global
 
-import spray.util.LoggingContext
 import spray.routing._
 import spray.http._
 import MediaTypes._
@@ -34,15 +33,6 @@ import unicorn.util.Logging
  * @author Haifeng Li
  */
 class RhinoActor extends HttpServiceActor with Rhino {
-
-  implicit def exceptionHandler(implicit log: LoggingContext) =
-    ExceptionHandler {
-      case e @ (_: IllegalArgumentException | _: UnsupportedOperationException) =>
-        requestInstance { request =>
-          log.error("{} encountered while handling request: {}", e, request)
-          complete(StatusCodes.BadRequest, e.toString)
-        }
-    }
 
   // the HttpService trait defines only one abstract member, which
   // connects the services environment to the enclosing actor or test
