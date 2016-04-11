@@ -7,7 +7,7 @@ import unicorn.json._
 
 // Basic JSON
 val json =
-  """
+  json"""
   {
     "store": {
       "book": [
@@ -44,7 +44,7 @@ val json =
       }
     }
   }
-  """.parseJsObject
+  """
 
 println(json("store")("bicycle")("color"))
 println(json.store.bicycle.color)
@@ -82,7 +82,7 @@ println(obj \ "key1" \\ "tags")
 
 // JsonPath
 val jsonPath = JsonPath(
-  """
+  json"""
     {
      "id": 1,
      "name": "Joe",
@@ -109,7 +109,7 @@ val jsonPath = JsonPath(
        }
      ]
   }
-  """.parseJson)//.asInstanceOf[JsObject]
+  """)
 
 // field
 println(jsonPath("$.id"))
