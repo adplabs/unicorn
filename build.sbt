@@ -1,3 +1,7 @@
+name := "smile"
+
+import com.typesafe.sbt.pgp.PgpKeys.{useGpg, publishSigned, publishLocalSigned}
+
 lazy val commonSettings = Seq(
   organization := "com.adp.unicorn",
   organizationName := "ADP, LLC",
@@ -6,10 +10,51 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
   scalacOptions in Test ++= Seq("-Yrangepos"),
-  parallelExecution in Test := false
+  parallelExecution in Test := false,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+  },
+  publishArtifact in Test := false ,
+  publishMavenStyle := true,
+  useGpg := true,
+  pomIncludeRepository := { _ => false },
+  pomExtra := (
+    <url>https://github.com/haifengl/unicorn</url>
+      <licenses>
+        <license>
+          <name>Apache License, Version 2.0</name>
+          <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
+      <scm>
+        <url>git@github.com:haifengl/unicorn.git</url>
+        <connection>scm:git:git@github.com:haifengl/unicorn.git</connection>
+      </scm>
+      <developers>
+        <developer>
+          <id>haifengl</id>
+          <name>Haifeng Li</name>
+          <url>http://haifengl.github.io/smile/</url>
+        </developer>
+      </developers>
+    )
 )
 
-lazy val root = project.in(file(".")).aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, shell, graph, rhino)
+lazy val nonPubishSettings = commonSettings ++ Seq(
+  publishArtifact := false,
+  publishLocal := {},
+  publish := {},
+  publishSigned := {},
+  publishLocalSigned := {}
+)
+
+lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, shell, graph, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
