@@ -40,6 +40,6 @@ object Boot extends App {
   val conf = ConfigFactory.load()
   val serverPort = conf.getInt("spray.can.server.port")
 
-  // start a new HTTP server on port 3801 with our service actor as the handler
-  IO(Http) ? Http.Bind(service, interface = "0.0.0.0", port = serverPort)
+  val ip = if (System.getProperty("loopback.only") != null) "127.0.0.1" else "0.0.0.0"
+  IO(Http) ? Http.Bind(service, interface = ip, port = serverPort)
 }
