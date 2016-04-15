@@ -572,6 +572,10 @@ regardless of the context.
 It is also possible to update fields with JSONPath. Currently,
 we support only child and array slice operators for update.
 
+```scala
+  jspath("$['store']['book'][1:3]['price']") = 30
+```
+
 Document
 ========
 
