@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.cassandra.thrift.{Column => CassandraColumn}
 import org.apache.cassandra.thrift.ColumnParent
 import org.apache.cassandra.thrift.ColumnPath
+import org.apache.cassandra.thrift.CounterColumn
 import org.apache.cassandra.thrift.ConsistencyLevel
 import org.apache.cassandra.thrift.Mutation
 import org.apache.cassandra.thrift.NotFoundException
@@ -37,7 +38,7 @@ import unicorn.util._
   *
   * @author Haifeng Li
   */
-class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable with IntraRowScan {
+class CassandraTable(val db: Cassandra, val name: String, consistency: ConsistencyLevel = ConsistencyLevel.LOCAL_QUORUM) extends BigTable with IntraRowScan with Counter {
   val client = db.client
   client.set_keyspace(name)
   override val columnFamilies = client.describe_keyspace(name).getCf_defs.map(_.getName)
@@ -293,6 +294,27 @@ class CassandraTable(val db: Cassandra, val name: String, consistency: Consisten
       updates.put(key, row)
     } else if (!updates.get(key).containsKey(family)) {
       updates.get(key).put(family, new java.util.ArrayList[Mutation])
+    }
+  }
+
+  override def getCounter(row: ByteArray, family: String, column: ByteArray): Long = {
+    val key = ByteBuffer.wrap(row)
+    val path = new ColumnPath(family).setColumn(column)
+    client.get(key, path, consistency).counter_column.value
+  }
+
+  override def addCounter(row: ByteArray, family: String, column: ByteArray, value: Long): Unit = {
+    val key = ByteBuffer.wrap(row)
+    val parent = new ColumnParent(family)
+    val counter = new CounterColumn(ByteBuffer.wrap(column), value)
+    client.add(key, parent, counter, consistency)
+  }
+
+  override def addCounter(row: ByteArray, families: Seq[(String, Seq[(ByteArray, Long)])]): Unit = {
+    families.foreach { case (family, columns) =>
+      columns.foreach { case (column, value) =>
+        addCounter(row, family, column, value)
+      }
     }
   }
 }
