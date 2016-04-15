@@ -1,0 +1,21 @@
+[Unit]
+Description=Unicorn REST API
+Documentation=https://github.com/haifengl/unicorn
+After=network.target remote-fs.target nss-lookup.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=unicorn
+Group=unicorn
+WorkingDirectory=/opt/${{app_name}}
+UMask=0022
+ExecStartPre=-/usr/bin/rm -f /opy/${{app_name}}/${{app_name}}.pid
+ExecStart=/opt/${{app_name}}/bin/${{exec}}
+ExecStop=/bin/kill -s QUIT $MAINPID
+PrivateTmp=true
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

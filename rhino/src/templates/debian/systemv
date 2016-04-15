@@ -1,0 +1,63 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          Unicorn Rhino
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Should-Start:      $named
+# Should-Stop:       $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Unicorn REST API
+# Description:       Control the rhino daemon.
+### END INIT INFO
+
+set -e
+
+if [ -z "${JAVA_HOME}" ]; then
+        JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::")
+fi
+JAVA_OPTS="-Xms1024m -Xmx2048m"
+
+APP=${{app_name}}
+
+PID=/var/run/${APP}.pid
+OUT_LOG=/var/log/${APP}/${APP}_out.log
+ERR_LOG=/var/log/${APP}/${APP}_err.log
+
+DAEMON_USER=${{daemon_user}}
+
+APP_HOME=/opt/${APP}
+APP_CLASSPATH=${{app_classpath}}
+APP_CLASS=${{app_main_class}}
+APP_LOG_CONFIG=${APP_HOME}/conf/log4j.properties
+APP_CONFIG=${APP_HOME}/conf/application.conf
+
+if [ -n "$APP_LOG_CONFIG}" ]; then
+        JAVA_OPTS="-Dlog4j.configurationFile=${APP_LOG_CONFIG} ${JAVA_OPTS}"
+fi
+
+DAEMON_ARGS="-home ${JAVA_HOME} -Dconfig.file=${APP_CONFIG} ${JAVA_OPTS} -pidfile ${PID}"
+DAEMON_ARGS="$DAEMON_ARGS -user ${DAEMON_USER} -outfile ${OUT_LOG} -errfile ${ERR_LOG}"
+DAEMON_ARGS="$DAEMON_ARGS -cp ${APP_CLASSPATH} ${APP_CLASS}"
+
+. /lib/lsb/init-functions
+
+case "$1" in
+        start)
+                log_daemon_msg "Starting ${APP}"
+                cd ${APP_HOME} && jsvc ${DAEMON_ARGS}
+                log_end_msg 0
+                ;;
+        stop)
+                log_daemon_msg "Stopping ${APP}"
+                cd ${APP_HOME} && jsvc -stop ${DAEMON_ARGS}
+                log_end_msg 0
+                ;;
+        *)
+                log_success_msg "Usage:  {start|stop}"
+                echo "Usage:  {start|stop}"
+                exit 1
+                ;;
+esac
+
+exit 0
