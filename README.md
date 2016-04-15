@@ -327,6 +327,10 @@ It is easy for humans to read and write. It is easy for machines to parse
 and generate. JSON is a text format that is completely language independent
 but uses conventions that are familiar to programmers of the C-family of languages,
 
+JSON has only types of `string`, `number`, `boolean`, `object`, `array`, and `null`.
+Unicorn includes additional types such as `date`, `int`, `long`, `double`, `counter`,
+`binary`, `UUID`, `ObjectId` (as in BSON), etc.
+
 In Unicorn, it is very easy to parse a JSON object:
 
 ```scala
@@ -374,7 +378,7 @@ val doc =
 The interpolator `json` parse a string to `JsObject`. It is also okay to embed
 variable references directly in processed string literals.
 
-```
+```scala
   val x = 1
   json"""
     {
@@ -390,7 +394,191 @@ use `parseJson` method to convert the string to `JsValue`.
   "1".parseJson
 ```
 
-We now just create a document which should have a unique id. Like MongoDB, the documents are JSON-like objects including additional types such as date, int, long, double, byte array, etc. The documents contain one or more fields, and each field contains a value of a specific data type (maybe object or array). Because Unicorn is schemaless, fields are not required to be defined as columns in relational databases. Users are free to put any fields into a document. It’s straightforward to save documents or get them back by id. It is also easy to update or delete fields. When saving the document back, only changed/deleted fields will be updated for efficiency. Saving the document without mutations is essentially a nop.
+To serialize a JSON value (of type `JsValue`) in compact mode, you can just use `toString`.
+To pretty print, use the method `prettyPrint`.
+
+```scala
+  doc.toString
+  doc.prettyPrint
+```
+
+With a `JsObject` or `JsArray`, you can refer to the individual elements
+with a variation of array syntax, like this:
+
+```scala
+  doc("store")("bicycle")("color")
+  // Use symbol instead of string
+  doc('store)('bicycle)('color)
+```
+
+Note that we follow Scala's array access convention by `()` rather than
+`[]` in JavaScript.
+
+Besides, you can use the dot notation to access its fields/elements
+just like in JavaScript:
+
+```scala
+  doc.store.bicycle.color
+  doc.store.book(0).author
+```
+
+It is worth noting that we didn't define the type/schema of the document
+while Scala is a strong type language. In other words, we have both
+they type safe feature of strong type language and flexibility of dynamic
+language in Unicorn's JSON library.
+
+If you try to access a non-exist field, `JsUndefined` is returned.
+
+```scala
+  unicorn> doc.book
+  res11: unicorn.json.JsValue = undefined
+```
+
+Although there are already several nice JSON libraries for Scala, the JSON
+objects are immutable by design, which is a natural choice for a functional
+language. However, Unicorn is designed for database, where data mutation is
+necessary. Therefore, `JsObject` and `JsArray` are mutable data structures in
+Unicorn. You can set/add a field just like in JavaScript:
+
+```scala
+  json.store.bicycle.color = "green"
+```
+
+To delete a field from `JsObject`, use `remove` method:
+
+```scala
+  doc.store.book(0) remove "price"
+```
+
+It is same as setting it `JsUndefined`:
+
+```scala
+  doc.store.book(0).price = JsUndefined
+```
+
+To delete an element from `JsArray`, the `remove` method will effectively
+remove it from the array. However, setting an element to undefined doesn't
+reduce the array size.
+
+```scala
+  // delete the first element and array size is smaller
+  doc.store.book.remove(0)
+  // set the first element to undefined but array size keeps same
+  doc.store.book(0) = JsUndefined
+```
+
+It is also possible to append an element or another array to `JsArray`:
+
+```scala
+  val a = JsArray(1, 2, 3, 4)
+  a += 5
+
+  a ++= JsArray(5, 6)
+```
+
+Common iterative operations such as `foreach`, `map`, `reduce` can be applied to
+`JsArray` too.
+
+```scala
+  doc.store.book.asInstanceOf[JsArray].foreach { book =>
+   println(book.price)
+  }
+```
+
+Because Scala is a static language, it is impossible to know
+`doc.store.book` is an array at compile time. So it is typed
+as generic `JsValue`, which is the parent type of specific
+JSON data types. Therefore, we use `asInstanceOf[JsArray]`
+to convert it to `JsArray` in order to use `foreach`.
+
+With Unicorn, we can also look up field in the current object
+and all descendants:
+
+```scala
+  unicorn> doc \\ "price"
+  res29: unicorn.json.JsArray = [8.95,12.99,8.99,22.99,19.95]
+```
+
+For more advanced query operations, JSONPath can be employed.
+
+JSONPath
+--------
+
+[JSONPath](http://goessner.net/articles/JsonPath/) is a means of
+using XPath-like syntax to query JSON structures.
+JSONPath expressions always refer to a JSON structure in the same way
+as XPath expression are used in combination with an XML document.
+
+```scala
+  val jspath = JsonPath(doc)
+```
+
+Since a JSON structure is usually anonymous and doesn't necessarily
+have a "root member object" JSONPath assumes the abstract name
+`$` assigned to the outer level object. Besides, `@` refers to the
+current object/element.
+
+```scala
+  // the authors of all books in the store
+  jspath("$.store.book[*].author")
+
+  // all authors
+  jspath("$..author")
+
+  // all things in store
+  jspath("$.store.*")
+
+  // the price of everything in the store
+  jspath("$.store..price")
+
+  // the third book
+  jspath("$..book[2]")
+
+  // the last book in order
+  jspath("$..book[-1:]")
+
+  // the first two books
+  jspath("$..book[0,1]")
+  jspath("$..book[:2]")
+
+  // filter all books with isbn number
+  jspath("$..book[?(@.isbn)]")
+
+  //filter all books cheaper than 10
+  jspath("$..book[?(@.price<10)]")
+
+  // all members of JSON structure
+  jspath("$..*")
+```
+
+Our JSONPath parser supports all queries except for queries
+that rely on expressions of the underlying language
+like `$..book[(@.length-1)]`. However, there’s usually
+a ready workaround as you can execute the same query using `$..book[-1:]`.
+
+
+Another deviation from JSONPath is to always flatten the results
+of a recursive query. Using the bookstore example,
+typically a query of `$..book` will return an array with one element,
+the array of books. If there was another book
+array somewhere in the document, then `$..book` will return an array
+with two elements, both arrays of books.
+However, if you were to query `$..book[2]` for our example,
+you would get the second book in the first array,
+which assumes that the `$..book` result has been flattened.
+In Unicorn, we always flatten the result of recursive queries
+regardless of the context.
+
+It is also possible to update fields with JSONPath. Currently,
+we support only child and array slice operators for update.
+
+Document
+========
+
+Because Unicorn is schemaless, fields are not required to be defined as columns
+in relational databases. Users are free to put any fields into a document.
+It’s straightforward to save documents or get them back by id.
+
 
 ```scala
 val partial = Document("myid").from(db).select("name", "zip")
@@ -414,6 +602,9 @@ person.neighbors("work with", "report to")
 person("report to", "Jim")
 person("report to", "Tom")
 ```
+
+Graph
+=====
 
 Beyond documents, Unicorn supports the graph data model. In Unicorn, documents are (optionally) vertices/nodes in a graph, which is permitted to have multiple parallel edges/relationships, that is, edges that have the same end nodes as long as different tags. Each relationship/edge is defined as a tuple (source, target, tag, value), where source and target are documents, tag is the label of relationship, and value is any kind of JSON object associated with the relationship.
 
