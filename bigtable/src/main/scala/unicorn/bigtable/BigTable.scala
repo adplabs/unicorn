@@ -35,8 +35,10 @@ case class Row(row: ByteArray, families: Seq[ColumnFamily])
   * @author Haifeng Li
   */
 trait BigTable extends AutoCloseable {
+  /** Table name. */
   val name: String
 
+  /** Column families in this table. */
   val columnFamilies: Seq[String]
 
   override def toString = name + columnFamilies.mkString("[", ",", "]")
