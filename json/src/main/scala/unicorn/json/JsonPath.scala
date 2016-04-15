@@ -175,7 +175,7 @@ case class JsonPath(json: JsValue) {
         }
 
         case ArraySlice(start, stop, step) =>
-          if (step == 0) error("ArrySlice with step 0")
+          if (step == 0) error("ArraySlice with step 0")
           val arr = js.asInstanceOf[JsArray]
           val from = if (start.getOrElse(0) >= 0) start.getOrElse(0) else Math.abs(start.get)
           val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
@@ -205,7 +205,7 @@ case class JsonPath(json: JsValue) {
         }
 
         case ArraySlice(start, stop, step) =>
-          if (step == 0) error("ArrySlice with step 0")
+          if (step == 0) error("ArraySlice with step 0")
           val arr = js.asInstanceOf[JsArray]
           val from = if (start.getOrElse(0) >= 0) start.getOrElse(0) else Math.abs(start.get)
           val to = if(stop.getOrElse(arr.elements.size) >= 0) stop.getOrElse(arr.elements.size) else Math.abs(stop.get)
