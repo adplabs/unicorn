@@ -1,16 +1,219 @@
 UNICORN
 =======
 
-Unicorn is a NoSQL database supporting key-value pairs, documents, graph, and full text search with relevance ranking. Agility, flexibility and easy to use are our key design goals. Besides, we don’t want to reinvent wheels in areas of data storage, network topology, replication, etc. Instead, we designed Unicorn with pluggable storage engine architecture. Currently, Unicorn supports Accumulo, Cassandra, and HBase as the storage backends. With different storage engine, we can achieve different strategies on consistency, replication, etc. Beyond these, Unicorn adds a unified data model and full text search.
+Unicorn is a simple and flexible abstraction of BigTable-like database such as Cassandra,
+HBase, and Accumulo. Beyond a unified interface to various database systems,
+Unicorn provides easy-to-use document data model and MongoDB-like API.
+Moreover, a graph data model is implemented as a natural extension to document model.
+Even more, full text search is provided with relevance ranking.
+Agility, flexibility and easy to use are our key design goals.
+With different storage engine, we can achieve different strategies on
+consistency, replication, etc.
 
-Unicorn is implemented in Scala and can be easily accessed in most JVM language. Unicorn also provides a console with DSEL in Scala. With the built-in document and graph data models, developers can focus on the business logic rather than work with tedious key-value pair manipulations. Of course, developers are still free to use key-value pairs for flexibility in some special cases. In what follows, we will show some Unicorn features with code snippets that can be directly applied in Unicorn console.
+With the built-in document and graph data models, developers
+can focus on the business logic rather than work with tedious
+key-value pair manipulations. Of course, developers are still
+free to use key-value pairs for flexibility in some special cases.
 
-```scala
-val server = CassandraServer("127.0.0.1", 9160)
-val db = server.dataset("employee")
+Unicorn is implemented in Scala and can be used as a client-side library
+without overhead. Unicorn also provides a shell for quick access of database.
+The code snippets in this document can be directly run in the Shell.
+A REST API, in the module Rhino, is also provided to non-Scala users.
+
+Download
+========
+
+Get pre-packaged Unicorn in universal tarball from the
+[releases page](https://github.com/haifengl/unicorn/releases)
+of the project website.
+
+If you would like to build Unicorn from source, please first
+install Java, Scala and SBT. Then clone the repo and build the package:
+
+```bash
+  git clone https://github.com/haifengl/unicorn.git
+  cd unicorn
+  ./unicorn.sh
 ```
 
-Here we first create a server object pointing to a backend storage engine. Instead of Cassandra in this example, users can also use HBase or Accumulo. Usually this is the only line to change in order to switch the backend. The second line creates a reference to working dataset. There are also create and drop functions to create or drop datasets, correspondingly.
+which also starts the Shell.
+
+Unicorn runs on both Windows and UNIX-like systems (e.g. Linux, Mac OS).
+All you need is to have Java installed on your system PATH,
+or the JAVA_HOME environment variable pointing to a Java installation.
+
+Shell
+=====
+
+Unicorn comes with an interactive shell. In the home directory of Unicorn, type
+
+```bash
+  ./bin/unicorn
+```
+
+to enter the shell, which is based on Scala interpreter. So you can run
+any valid Scala expressions in the shell. In the simplest case, you can
+use it as a calculator. Besides, all high-level Unicorn operators are
+predefined in the shell. Be default, the shell uses up to 4GB memory.
+If you need more memory to handle large data, use the option -J-Xmx.
+For example,
+
+```bash
+  ./bin/unicorn -J-Xmx8192M
+```
+
+You can also modify the configuration file ./conf/application.ini for
+the memory and other JVM settings.
+
+In the shell, type :help to print Scala interpreter help information.
+To exit the shell, type :quit.
+
+Connecting to Database
+======================
+
+Suppose that hbase-site.xml and in hbase-default.xml can be found on the CLASSPATH,
+one can connect to HBase as simple as
+
+```scala
+val db = HBase()
+```
+
+The user may also pass a Configuration object to HBase()
+if HBase configuration files are not in the CLASSPATH.
+
+To connect to Cassandra, please enables Thrift by configuring
+start_rpc to true in the cassandra.yaml file, which is false by default
+after Cassandra 2.0.
+
+```scala
+val db = Cassandra("127.0.0.1", 9160)
+```
+
+To connect to Accumulo,
+
+```scala
+val db = Accumulo("instance", "zookeeper", "user", "password")
+```
+
+where the first parameter is the Accumulo instance name and the second
+is the ZooKeeper connection string.
+
+An interesting feature of Accumulo is to create a mock instance
+that holds all data in memory, and will  not retain any data
+or settings between runs. It presently does not enforce users,
+logins, permissions, etc. This is very convenient for test.
+This doesn't event require an installation of Accumulo. To create
+a mock instance, simply do
+
+```scala
+val db = Accumulo()
+```
+
+With a database instance, we can create, drop, truncate, and compact
+a table. We can also test if a table exists.
+
+```scala
+db.createTable("test_table", "cf1", "cf2")
+val table = db("test_table")
+table("row1", "cf1", "c1") = "data"
+db.dropTable("test_table")
+```
+
+Here we first create a table with two column families.
+We can also pass a Properties object for additional table
+configuration, which usually depends on the backend system.
+For example, sharding and replication strategies, compression,
+time-to-live (TTL), etc.
+Then we get the table object, put some data, and then drop the table.
+In what follows, we will go through the data manipulation APIs.
+
+BigTable-like API
+=================
+
+In BigTable-like stores, data are stored in tables, which are made
+of rows and columns. Columns are grouped into column families.
+A column name is made of its column family prefix and a qualifier.
+The column family prefix must be composed of printable characters.
+The column qualifiers can be made of any arbitrary bytes.
+In Cassandra and HBase, column families must be declared up front at schema
+definition time whereas new columns can bed added
+to any column family without pre-announcing them.
+In contrast, column family are not static in Accumulo and can be
+created on the fly. The only way to get a complete set of columns
+that exist for a column family is to process all the rows.
+
+A cell’s content is an uninterpreted array of bytes. And table
+cells are versioned. A (row, column, version) tuple exactly specifies
+a cell. The version is specified using a long integer. Typically this
+long contains time instances.
+
+The trait unicorn.bigtable.BigTable defines basic operations on
+a table such as Get, Put, and Delete.
+
+```scala
+  /** Get one or more columns of a column family. If columns is empty, get all columns in the column family. */
+  def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
+
+  /** Get all columns in one or more column families. If families is empty, get all column families. */
+  def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
+
+  /** Upsert a value. */
+  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit
+
+  /** Upsert values. */
+  def put(row: ByteArray, family: String, columns: Column*): Unit
+
+  /** Upsert values. */
+  def put(row: ByteArray, families: Seq[ColumnFamily] = Seq.empty): Unit
+
+  /** Delete the columns of a row. If columns is empty, delete all columns in the family. */
+  def delete(row: ByteArray, family: String, columns: ByteArray*): Unit
+
+  /** Delete the columns of a row. If families is empty, delete the whole row. */
+  def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Unit
+```
+
+By default, when doing a Get, the cell whose version has the
+largest value is returned. It is possible to return more than
+one version or to return versions other than the latest. These
+special methods are defined in trait TimeTravel, which is implemented
+in the HBase unicorn.bigtable.hbase.HBaseTable.
+
+Without specifying the version, Put always creates a new version
+of a cell with the server’s currentTimeMillis (for Cassandra, it is
+caller's machine time). But the user may specify the version
+on a per-column level. The user-provided version may be a time
+in the past or the future, or a non-time purpose long value.
+
+```scala
+  def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit
+```
+
+The helper function update is provided as a syntactic sugar
+so that the user can put a value in the way
+
+```scala
+  table(row, family, column) = value
+```
+
+In this case, timestamp is always set as the current machine time.
+
+Delete can happen on a specific version of a cell or all versions.
+Deletes work by creating tombstone markers. Once a tombstone marker
+is set, the “deleted” cells become effectively invisible for Get
+operations but are not immediately removed from store files.
+Note that there is a snag with the tombstone approach, namely
+“deletes mask puts”. Once a tombstone marker is set, even puts
+after the delete will be masked by the delete tombstone.
+Performing the put will not fail. However when you do a get,
+the put has no effect but will start working  after the major
+compaction, which will really remove deletes and tombstone markers.
+
+For these APIs, there are also corresponding batch mode operations
+that work on multiple rows. However, the implementation
+may or may not optimize the batch operations.
+In particular, Accumulo does optimize it in parallel.
+
 
 ```scala
 // Create a document
