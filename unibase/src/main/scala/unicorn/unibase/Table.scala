@@ -242,6 +242,17 @@ class Table(table: BigTable, meta: JsObject) {
     id
   }
 
+  /** Upserts an array of documents. The elements of JsArray must be JsObject.
+    *
+    * @param docs an array of documents.
+    * @return the list of document ids.
+    */
+  def upsert(docs: JsArray): Seq[JsValue] = {
+    docs.map { doc =>
+      upsert(doc.asInstanceOf[JsObject])
+    }.toSeq
+  }
+
   /** Inserts a document. Different from upsert, this operation checks if the document already
     * exists first.
     *
@@ -266,6 +277,18 @@ class Table(table: BigTable, meta: JsObject) {
     }
 
     table.put(key, families)
+  }
+
+  /** Inserts an array of documents. The elements of JsArray must be JsObject.
+    * Note that this is not ACID. If an exception thrown during insertion of one
+    * document, the elements front of it were already inserted and won't be rollback.
+    *
+    * @param docs an array of documents.
+    */
+  def insert(docs: JsArray): Unit = {
+    docs.foreach { doc =>
+      insert(doc.asInstanceOf[JsObject])
+    }
   }
 
   /** Removes a document.
