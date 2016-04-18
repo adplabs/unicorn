@@ -70,19 +70,17 @@ worker.prettyPrint
 val doc = time { bucket(key, "name").get }
 doc.prettyPrint
 
-val update = """
-                 {
-                   "$set": {
-                     "salary": 100.0,
-                     "address.street": "1 ADP Blvd"
-                   },
-                   "$unset": {
-                     "gender": 1
-                   }
-                 }
-             """.parseJsObject
+val update = JsObject(
+   "_id" -> key,
+   "$set" -> JsObject(
+     "salary" -> 100000.0,
+     "address.street" -> "5 ADP Blvd"
+   ),
+   "$unset" -> JsObject(
+     "gender" -> JsTrue
+   )
+)
 
-update(Unibase.$id) = key
 time { bucket.update(update) }
 
 val updated = time { bucket(key, "name").get }
