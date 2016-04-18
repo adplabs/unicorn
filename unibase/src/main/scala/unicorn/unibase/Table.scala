@@ -83,11 +83,17 @@ class Table(table: BigTable, meta: JsObject) {
   /** True if the table is append only. */
   val appendOnly: Boolean = meta.appendOnly
 
+  /** True if the table is multi-tenant. */
+  val multiTenant: Boolean = meta.multiTenant
+
   /** Optional tenant id in case of multi-tenancy. */
   var _tenant: Option[JsValue] = None
 
   def tenant = _tenant
   def tenant_=(x: JsValue) {
+    if (multiTenant == false)
+      throw new UnsupportedOperationException(s"Table $name is not multi-tenant.")
+
     _tenant = x match {
       case JsUndefined | JsNull => None
       case JsBoolean(_) | JsCounter(_) | JsDate(_) | JsDouble(_) => throw new IllegalArgumentException("tenant id cannot be of type JsBoolean, JsCounter, JsDate, or JsDouble")
@@ -466,7 +472,10 @@ class Table(table: BigTable, meta: JsObject) {
   /** Serialize document id. */
   private[unicorn] def getKey(id: JsValue): Array[Byte] = {
     val key = tenant match {
-      case None => id
+      case None =>
+        if (multiTenant)
+          throw new IllegalStateException(s"Multi-tenant table $name has no tenant id set yet.")
+        else id
       case Some(tenant) => JsArray(tenant, id)
     }
     
