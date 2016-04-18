@@ -80,9 +80,9 @@ lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).
 
 lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase)
 
-//lazy val search = project.in(file("search")).settings(commonSettings: _*).dependsOn(unibase)
+//lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(commonSettings: _*).dependsOn(unibase, graph, sql, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, graph, sql, hbase, cassandra, accumulo)
 
-lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(commonSettings: _*).dependsOn(unibase, graph, hbase, cassandra, accumulo)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, graph, hbase, cassandra, accumulo)
 
