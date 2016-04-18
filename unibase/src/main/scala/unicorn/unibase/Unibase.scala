@@ -48,7 +48,8 @@ class Unibase[+T <: BigTable](db: Database[T]) {
                     Unibase.$id -> Unibase.DefaultIdColumnFamily,
                     Unibase.$graph -> Unibase.DefaultGraphColumnFamily
                   ).withDefaultValue(Unibase.DefaultDocumentColumnFamily),
-                  appendOnly: Boolean = false): Unit = {
+                  appendOnly: Boolean = false,
+                  multiTenant: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
     // If the meta data table doesn't exist, create it.
@@ -58,7 +59,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     // meta data table
     val metaTable = db(MetaTableName)
     val serializer = new ColumnarJsonSerializer
-    val meta = TableMeta(families, locality, appendOnly)
+    val meta = TableMeta(families, locality, appendOnly, multiTenant)
     val columns = serializer.serialize(meta).map {
       case (path, value) => Column(path.getBytes(utf8), value)
     }.toSeq
@@ -113,12 +114,13 @@ private[unicorn] object TableMeta {
     * @param appendOnly True if the table is append only.
     * @return JsObject of meta data.
     */
-  def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean): JsObject = {
+  def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean, multiTenant: Boolean): JsObject = {
     JsObject(
       "families" -> families,
       "locality" -> locality.mapValues(JsString(_)),
       DefaultLocalityField -> locality(""), // hacking the default value of a map
-      "appendOnly" -> appendOnly
+      "appendOnly" -> appendOnly,
+      "multiTenant" -> multiTenant
     )
   }
 
