@@ -1,3 +1,37 @@
+```
+
+                        . . . .
+                        ,`,`,`,`,
+  . . . .               `\`\`\`\;
+  `\`\`\`\`,            ~|;!;!;\!
+   ~\;\;\;\|\          (--,!!!~`!       .
+  (--,\\\===~\         (--,|||~`!     ./
+   (--,\\\===~\         `,-,~,=,:. _,//
+    (--,\\\==~`\        ~-=~-.---|\;/J,       Welcome to the Unicorn Database
+     (--,\\\((```==.    ~'`~/       a |         BigTable, Document and Graph
+       (-,.\\('('(`\\.  ~'=~|     \_.  \              Full Text Search
+          (,--(,(,(,'\\. ~'=|       \\_;>
+            (,-( ,(,(,;\\ ~=/        \                  Haifeng Li
+            (,-/ (.(.(,;\\,/          )             ADP Innovation Lab
+             (,--/,;,;,;,\\         ./------.
+               (==,-;-'`;'         /_,----`. \
+       ,.--_,__.-'                    `--.  ` \
+      (='~-_,--/        ,       ,!,___--. \  \_)
+     (-/~(     |         \   ,_-         | ) /_|
+     (~/((\    )\._,      |-'         _,/ /
+      \\))))  /   ./~.    |           \_\;
+   ,__/////  /   /    )  /
+    '===~'   |  |    (, <.
+             / /       \. \
+           _/ /          \_\
+          /_!/            >_\
+
+  Welcome to Unicorn Shell; enter ':help<RETURN>' for the list of commands.
+  Type ":quit<RETURN>" to leave the Unicorn Shell
+  Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-04-18 15:02:18.234
+===============================================================================
+```
+
 UNICORN
 =======
 
@@ -36,6 +70,12 @@ Unicorn also has primarily SQL support (simple SELECT only).
 
 ```scala
   libraryDependencies += "com.github.haifengl" % "unicorn-sql_2.11" % "2.0.0"
+```
+
+To use only JSON library,
+
+```scala
+  libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.0.0"
 ```
 
 Download
@@ -192,7 +232,7 @@ implementations are in `unicorn.bigtable.cassandra.CassandraTable`,
   def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Unit
 ```
 
-Without specifying the version, `Put` always creates a new version
+Setting `timestamp` as `0L`, `Put` creates a new version
 of a cell with the server’s currentTimeMillis (for Cassandra, it is
 caller's machine time). But the user may specify the version
 on a per-column level. The user-provided version may be a time
@@ -457,7 +497,7 @@ It is same as setting it `JsUndefined`:
 ```
 
 To delete an element from `JsArray`, the `remove` method will effectively
-remove it from the array. However, setting an element to undefined doesn't
+remove it from the array. However, setting an element to `undefined` doesn't
 reduce the array size.
 
 ```scala
@@ -579,16 +619,169 @@ we support only child and array slice operators for update.
 Document
 ========
 
-Because Unicorn is schemaless, fields are not required to be defined as columns
-in relational databases. Users are free to put any fields into a document.
-It’s straightforward to save documents or get them back by id.
+Unicorn's document APIs are defined in package `unicorn.unibase`,
+which is independent of backend storage engine. Simply pass
+a reference to storage engine to `Unibase()`, which provides the
+interface of document model.
 
+In relational database, a table is a set of tuples that have
+the same attributes. In Unibase, a table contains documents, which
+are JSON objects and may have nested objects and/or arrays.
+Besides, the tables in Unibase do not enforce a schema. Documents
+in a table may have different fields. Typically, all documents
+in a collection are of similar or related purpose.
+Moreover, documents in a table must have unique IDs/keys, which
+is not necessary in relational databases.
+
+In MongoDB, such a group of documents is called collection. In
+order to avoid the confusion with Java/Scala's collection data
+structures, Unibase simply calls it table.
 
 ```scala
-val partial = Document("myid").from(db).select("name", "zip")
+  val db = Unibase(Accumulo())
+  db.createTable("worker")
+  val bucket = db("worker")
 ```
 
-Because the data schema is usually denormalized in NoSQL, documents are typically large with many fields. It is not efficient to get the whole documents in many situations because only few fields will be accessed. Unicorn supports to retrieve partial documents as shown in the above, which is known as "projection" in relational database and MongoDB.
+In above, we create a table `worker` in Unibase.
+Then we create a JSON object and insert it into
+the worker table as following. Note that we explicitly create
+the `JsObject` by specifying the fields and values
+instead of parsing from a JSON string. This way provides
+fine controls on the data types of fields.
+
+```scala
+  val person = JsObject(
+    "name" -> "Joe",
+    "gender" -> "Male",
+    "salary" -> 50000.0,
+    "address" -> JsObject(
+      "street" -> "1 ADP Blvd",
+      "city" -> "Roseland",
+      "state" -> "NJ",
+      "zip" -> "07068"
+    ),
+    "project" -> JsArray("HCM", "NoSQL", "Analytics")
+  )
+
+  val key = bucket.upsert(person)
+```
+
+Each document should have a field `_id` as the primary key.
+If it is missing, the `upsert` operation will generate a
+random UUID as `_id`, which is returned and also added into
+the input JSON object:
+
+```scala
+  unicorn> person.prettyPrint
+  res1: String =
+  {
+    "address": {
+      "city": "Roseland",
+      "state": "NJ",
+      "zip": "07068",
+      "street": "1 ADP Blvd"
+    },
+    "name": "Joe",
+    "gender": "Male",
+    "salary": 50000.0,
+    "project": ["HCM", "NoSQL", "Analytics"],
+    "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
+  }
+```
+
+If the input object includes `_id` and the table already
+contains a document with same key, the document will be
+overwritten by `upsert`. If this is not the preferred
+behavior, one may use `insert`, which checks if the
+document already exists and throws an exception
+if so.
+
+Besides UUID, one may also `Int`, `Long`, `Date`, `String`,
+and BSON' `ObjectId` (12 bytes including 4 bytes timestamp,
+3 bytes machine id, 2 bytes process id, and 3 bytes incrementer)
+as the primary key. One may even use
+a complex JSON data type such as object or array as the
+primary key. However, this is NOT recommended because primary
+keys cannot be updated once a document inserted. To achieve
+similar effects, the old document has to be delete and
+inserted again with new key. However, the old document
+will be permanently deleted after the major compaction,
+which may not be desired. Even before the document be
+permanently deleted, the time travel functionality is
+broken for this document.
+
+To get the document back, simply treat the table as a
+map and use `_id` as the key:
+
+```scala
+  unicorn> bucket(key).get.prettyPrint
+  res3: String =
+  {
+    "address": {
+      "city": "Roseland",
+      "state": "NJ",
+      "zip": "07068",
+      "street": "1 ADP Blvd"
+    },
+    "name": "Joe",
+    "gender": "Male",
+    "salary": 50000.0,
+    "project": ["HCM", "NoSQL", "Analytics"],
+    "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
+  }
+```
+
+If the document doesn't exist, `None` is returned.
+
+To update a document, we use a MongoDB-like API:
+
+```scala
+  val update = JsObject(
+     "_id" -> key,
+     "$set" -> JsObject(
+       "salary" -> 100000.0,
+       "address.street" -> "5 ADP Blvd"
+     ),
+     "$unset" -> JsObject(
+       "gender" -> JsTrue
+     )
+  )
+
+  bucket.update(update)
+```
+
+The `$set` operator replaces the value of a field with
+the specified value, provided that the new field does not
+violate a type constraint (and the document key `_id`
+should not be set). If the field does not exist, `$set`
+will add a new field with the specified value.
+To specify a field in an embedded object or in an array,
+use dot notation. To be compatible to MongoDB, we concatenate
+the array name with the dot (.) and zero-based index position
+to specify an element of an array by the zero-based index position,
+which is different from the `[]` convention in JavaScript and JSONPath.
+
+In MongoDB, `$set` will create the embedded objects as needed to fulfill
+the dotted path to the field. For example, for a `$set {"a.b.c" : "abc"}`,
+MongoDB will create the embedded object "a.b" if it doesn't exist.
+However, we don't support this behavior because of the performance considerations.
+We suggest the the alternative syntax {"a.b" : {"c" : "abc"}}, which has the
+equivalent effect.
+
+To delete a document, use the method `delete` with the document key:
+
+```scala
+  bucket.delete(key)
+```
+
+Advanced Features
+-----------------
+
+Because documents are typically large with many fields
+and only a few fields are needed in in many situations,
+we can retrieve partial documents as following, which
+is known as "projection" in relational database and MongoDB.
 
 ```scala
 // Add relationships to other persons
