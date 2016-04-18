@@ -1,5 +1,4 @@
 ```
-
                         . . . .
                         ,`,`,`,`,
   . . . .               `\`\`\`\;
@@ -30,6 +29,8 @@
   Type ":quit<RETURN>" to leave the Unicorn Shell
   Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-04-18 15:02:18.234
 ===============================================================================
+
+unicorn>
 ```
 
 UNICORN
@@ -616,8 +617,8 @@ we support only child and array slice operators for update.
   jspath("$['store']['book'][1:3]['price']") = 30
 ```
 
-Document
-========
+Document API
+============
 
 Unicorn's document APIs are defined in package `unicorn.unibase`,
 which is independent of backend storage engine. Simply pass
@@ -640,7 +641,7 @@ structures, Unibase simply calls it table.
 ```scala
   val db = Unibase(Accumulo())
   db.createTable("worker")
-  val bucket = db("worker")
+  val workers = db("worker")
 ```
 
 In above, we create a table `worker` in Unibase.
@@ -651,7 +652,7 @@ instead of parsing from a JSON string. This way provides
 fine controls on the data types of fields.
 
 ```scala
-  val person = JsObject(
+  val joe = JsObject(
     "name" -> "Joe",
     "gender" -> "Male",
     "salary" -> 50000.0,
@@ -664,7 +665,7 @@ fine controls on the data types of fields.
     "project" -> JsArray("HCM", "NoSQL", "Analytics")
   )
 
-  val key = bucket.upsert(person)
+  val key = workers.upsert(joe)
 ```
 
 Each document should have a field `_id` as the primary key.
@@ -673,7 +674,7 @@ random UUID as `_id`, which is returned and also added into
 the input JSON object:
 
 ```scala
-  unicorn> person.prettyPrint
+  unicorn> joe.prettyPrint
   res1: String =
   {
     "address": {
@@ -715,7 +716,7 @@ To get the document back, simply treat the table as a
 map and use `_id` as the key:
 
 ```scala
-  unicorn> bucket(key).get.prettyPrint
+  unicorn> workers(key).get.prettyPrint
   res3: String =
   {
     "address": {
@@ -748,7 +749,7 @@ To update a document, we use a MongoDB-like API:
      )
   )
 
-  bucket.update(update)
+  workers.update(update)
 ```
 
 The `$set` operator replaces the value of a field with
@@ -772,40 +773,52 @@ equivalent effect.
 To delete a document, use the method `delete` with the document key:
 
 ```scala
-  bucket.delete(key)
-```
-
-Advanced Features
------------------
-
-Because documents are typically large with many fields
-and only a few fields are needed in in many situations,
-we can retrieve partial documents as following, which
-is known as "projection" in relational database and MongoDB.
-
-```scala
-// Add relationships to other persons
-person("work with", "Jim") = "Big Data"
-person("work with", "Mike") = "Analytics"
-person("report to", "Tom") = new Date(2014, 1, 1)
- 
-// Query relationships to Jim
-person.relationships("Jim")
-// Query neighbors of given relationship(s)
-person.neighbors("work with")
-person.neighbors("work with", "report to")
-// Gets the value/object associated with the given relationship.
-// If it doesn't exist, undefined will be returned.
-person("report to", "Jim")
-person("report to", "Tom")
+  workers.delete(key)
 ```
 
 Graph
 =====
 
-Beyond documents, Unicorn supports the graph data model. In Unicorn, documents are (optionally) vertices/nodes in a graph, which is permitted to have multiple parallel edges/relationships, that is, edges that have the same end nodes as long as different tags. Each relationship/edge is defined as a tuple (source, target, tag, value), where source and target are documents, tag is the label of relationship, and value is any kind of JSON object associated with the relationship.
+Beyond documents, Unicorn supports the graph data model.
+In Unicorn, documents are (optionally) vertices/nodes
+in a graph, which is permitted to have multiple parallel
+edges/relationships, that is, edges that have the same
+end nodes as long as different tags. Each relationship/edge
+is defined as a tuple (source, target, tag, value), where
+source and target are documents, tag is the label of relationship,
+and value is any kind of JSON value associated with the relationship.
 
-It is easy to query the neighbors or relationships as shown in the code snippet. However, it is more interesting to do graph traversal, shortest path and other graph analysis. Unicorn supports DFS, BFS, A* search, Dijkstra algorithm, topological sort and more with user defined functions. The below code snippet shows how to use A* search to find the shortest path between two nodes.
+
+```scala
+  val tom = json"""
+    {
+      "name": "Haifeng"
+    }
+  """
+
+  workers.upsert(tom)
+
+
+  graph(joe)("works with", tom._id) = 1
+
+  // Query relationships to Jim
+  joe.relationships(tome._id)
+
+  // Query neighbors of given relationship(s)
+  joe.neighbors("works with")
+
+  // Gets the value/object associated with the given relationship.
+  // If it doesn't exist, undefined will be returned.
+  person("works with", tom._id)
+```
+
+It is easy to query the neighbors or relationships as shown
+in the example. However, it is more interesting to do
+graph traversal, shortest path and other graph analysis.
+Unicorn supports DFS, BFS, A* search, Dijkstra algorithm,
+topological sort and more with user defined functions.
+The below code snippet shows how to use A* search to find
+the shortest path between two nodes.
 
 ```scala
 // GraphOps is a companion class providing major graph algorithms.
@@ -835,6 +848,18 @@ val path = graphOps.astar(haifeng, mike,
 )
 ```
 
-In this example, the graph processing is performed on the database directly. This is fine because most nodes will be accessed only once in A* search. However, it will be costly for many advanced graph algorithms that may access nodes or edges multiple times. Unicorn provides DFS and BFS to create in-memory sub-graphs stored in DocumentGraph objects that is more suitable for things like network flow, assignment, coloring, etc.
+In this example, the graph processing is performed on
+the database directly. This is fine because most nodes
+will be accessed only once in A* search. However, it will
+be costly for many advanced graph algorithms that may access
+nodes or edges multiple times. Unicorn provides DFS and BFS
+to create in-memory sub-graphs stored in DocumentGraph objects
+that is more suitable for things like network flow, assignment, coloring, etc.
 
-With the basic features presented so far, it is very easy to add more advanced features in Unicorn. For example, we built the full text search with relevance ranking into Unicorn in only one week (everything homemade, no use of Lucene or Solr).
+Advanced Features
+=================
+
+Because documents are typically large with many fields
+and only a few fields are needed in in many situations,
+we can retrieve partial documents as following, which
+is known as "projection" in relational database and MongoDB.
