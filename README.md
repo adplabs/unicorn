@@ -129,7 +129,7 @@ To exit the shell, type :quit.
 Connecting to Database
 ======================
 
-Suppose that `hbase-site.xml` and in `hbase-default.xml` can be found on the `CLASSPATH`,
+Suppose that `hbase-site.xml` and `hbase-default.xml` can be found on the `CLASSPATH`,
 one can connect to HBase as simple as
 
 ```scala
@@ -433,6 +433,15 @@ use `parseJson` method to convert the string to `JsValue`.
 
 ```scala
   "1".parseJson
+```
+
+The `json` interpolator can only be applied to string literals. If you want to
+parse a string variable, the `parseJson` method can always be employed. If you know the
+string contains a JSON object, you may also use the method `parseJsObject`.
+
+```scala
+  val s = """{"x":1}"""
+  s.parseJsObject
 ```
 
 To serialize a JSON value (of type `JsValue`) in compact mode, you can just use `toString`.
@@ -792,7 +801,7 @@ and value is any kind of JSON value associated with the relationship.
 ```scala
   val tom = json"""
     {
-      "name": "Haifeng"
+      "name": "Tom"
     }
   """
 
@@ -802,14 +811,14 @@ and value is any kind of JSON value associated with the relationship.
   graph(joe)("works with", tom._id) = 1
 
   // Query relationships to Jim
-  joe.relationships(tome._id)
+  graph(joe)(tome._id)
 
   // Query neighbors of given relationship(s)
-  joe.neighbors("works with")
+  graph(joe)("works with")
 
   // Gets the value/object associated with the given relationship.
   // If it doesn't exist, undefined will be returned.
-  person("works with", tom._id)
+  graph(joe)("works with", tom._id)
 ```
 
 It is easy to query the neighbors or relationships as shown
