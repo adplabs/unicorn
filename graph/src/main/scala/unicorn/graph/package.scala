@@ -25,19 +25,22 @@ import unicorn.unibase.Unibase.{$id, $graph}
 package object graph {
   /** The field of data associated with a relationship. */
   val $data = "data"
-  def graph(js: JsObject) = new PimpedJsObject(js)
+  def graph(js: JsObject) = new PimpedDocument(js)
 }
 
 package graph {
 
-private[graph] class PimpedJsObject(js: JsObject) {
+private[graph] class PimpedDocument(doc: JsObject) {
   /** Returns an object of neighbors for given relationship.
     *
     * @param relationship the relationship of interest.
     * @return an object of which each field is a neighbor.
     */
   def apply(relationship: String): JsObject = {
-    js($graph)(relationship).asInstanceOf[JsObject]
+    doc($graph)(relationship) match {
+      case JsUndefined => JsObject()
+      case links => links.asInstanceOf[JsObject]
+    }
   }
 
   /** Returns any associated data with a relationship.
@@ -47,7 +50,10 @@ private[graph] class PimpedJsObject(js: JsObject) {
     * @return any data associated with the relationship.
     */
   def apply(relationship: String, id: String): JsValue = {
-    js($graph)(relationship)(id)
+    doc($graph)(relationship) match {
+      case JsUndefined => JsUndefined
+      case links => links.asInstanceOf[JsObject](id)
+    }
   }
 
   /** Sets or removes a relationship.
@@ -63,20 +69,20 @@ private[graph] class PimpedJsObject(js: JsObject) {
     val link = JsObject($id -> id, $data -> data)
     if (data != JsUndefined && data != JsNull) link($data) = data
 
-    if (js($graph) == JsUndefined) {
-      js($graph) = JsObject(relationship -> JsObject())
+    if (doc($graph) == JsUndefined) {
+      doc($graph) = JsObject(relationship -> JsObject())
     }
 
-    if (js($graph)(relationship) == JsUndefined) {
-      js($graph)(relationship) = JsObject()
+    if (doc($graph)(relationship) == JsUndefined) {
+      doc($graph)(relationship) = JsObject()
     }
 
     if (data == JsUndefined) {
-      js($graph)(relationship).remove(id.toString)
+      doc($graph)(relationship).remove(id.toString)
     } else {
       val link = JsObject($id -> id)
       if (data != JsNull) link($data) = data
-      js($graph)(relationship)(id.toString) = link
+      doc($graph)(relationship)(id.toString) = link
     }
   }
 }
