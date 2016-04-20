@@ -174,9 +174,9 @@ class TableSpec extends Specification with BeforeAfterAll {
     }
     "multi-tenancy" in {
       val bucket = db(tableName)
-      bucket.tenant = Some("IBM")
+      bucket.tenant = "IBM"
       val key = bucket.upsert(json)
-      bucket.tenant = Some("ADP")
+      bucket.tenant = "ADP"
       bucket(key) === None
     }
   }

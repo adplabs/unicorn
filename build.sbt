@@ -64,21 +64,21 @@ lazy val json = project.in(file("json")).settings(commonSettings: _*).dependsOn(
 
 lazy val bigtable = project.in(file("bigtable")).settings(commonSettings: _*).dependsOn(util)
 
-lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable, json)
-
-lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, accumulo % "test")
-
-lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).dependsOn(unibase, hbase, index)
-
-lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
-
-lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable, index)
+lazy val hbase = project.in(file("hbase")).settings(commonSettings: _*).dependsOn(bigtable)
 
 lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).dependsOn(bigtable)
 
 lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
-lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase)
+lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable, json, hbase % "test")
+
+lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, accumulo % "test")
+
+lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).dependsOn(unibase, hbase)
+
+lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
+
+lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase, accumulo % "test")
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 

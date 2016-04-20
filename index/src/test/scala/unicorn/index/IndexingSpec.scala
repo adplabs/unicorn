@@ -14,13 +14,13 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.bigtable.hbase
+package unicorn.index
 
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable._
 import unicorn.util._
-import unicorn.index._
+import unicorn.bigtable.hbase._
 
 class IndexingSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.

@@ -776,7 +776,7 @@ In MongoDB, `$set` will create the embedded objects as needed to fulfill
 the dotted path to the field. For example, for a `$set {"a.b.c" : "abc"}`,
 MongoDB will create the embedded object "a.b" if it doesn't exist.
 However, we don't support this behavior because of the performance considerations.
-We suggest the the alternative syntax {"a.b" : {"c" : "abc"}}, which has the
+We suggest the the alternative syntax ``{"a.b" : {"c" : "abc"}}``, which has the
 equivalent effect.
 
 To delete a document, use the method `delete` with the document key:

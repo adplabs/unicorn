@@ -27,11 +27,12 @@ class Narwhal(hbase: HBase) extends Unibase(hbase) {
   override def apply(name: String): HTable = {
     new HTable(hbase(name), TableMeta(hbase, name))
   }
-
+/*
   /** Returns a document table.
     * @param name the name of table.
     */
   def getTableWithIndex(name: String): HTableWithIndex = {
     new HTableWithIndex(hbase.getTableWithIndex(name), TableMeta(hbase, name))
   }
+  */
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase
+package unicorn.narwhal
 
 import java.util.Date
 import org.specs2.mutable._
@@ -30,7 +30,7 @@ class HTableSpec extends Specification with BeforeAfterAll {
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
   val bigtable = HBase()
-  val db = new HUnibase(bigtable)
+  val db = new Narwhal(bigtable)
   val tableName = "unicorn_unibase_test"
   val json = JsonParser(
     """

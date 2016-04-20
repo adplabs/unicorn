@@ -19,7 +19,7 @@ package unicorn.narwhal
 import java.util.{UUID, Date}
 import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
-import unicorn.index._, IndexType._, IndexSortOrder._
+//import unicorn.index._, IndexType._, IndexSortOrder._
 import unicorn.oid.BsonObjectId
 import unicorn.unibase.Table
 import unicorn.util._
@@ -303,7 +303,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes)
   }
 }
-
+/*
 class HTableWithIndex(table: HBaseTable with Indexing, meta: JsObject) extends HTable(table, meta) {
   override def tenant_=(x: JsValue) {
     super.tenant_=(x)
@@ -338,3 +338,4 @@ class HTableWithIndex(table: HBaseTable with Indexing, meta: JsObject) extends H
     table.dropIndex(indexName)
   }
 }
+*/
