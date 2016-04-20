@@ -58,25 +58,25 @@ A REST API, in the module Rhino, is also provided to non-Scala users.
 To use Unicorn as a library, add the following to SBT build file.
 
 ```scala
-  libraryDependencies += "com.github.haifengl" % "unicorn-unibase_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-unibase_2.11" % "2.0.0"
 ```
 
 If you need additional HBase-only features, use
 
 ```scala
-  libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
 ```
 
 Unicorn also has primarily SQL support (simple SELECT only).
 
 ```scala
-  libraryDependencies += "com.github.haifengl" % "unicorn-sql_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-sql_2.11" % "2.0.0"
 ```
 
 To use only JSON library,
 
 ```scala
-  libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.0.0"
 ```
 
 Download
@@ -89,9 +89,9 @@ If you would like to build Unicorn from source, please first
 install Java, Scala and SBT. Then clone the repo and build the package:
 
 ```bash
-  git clone https://github.com/haifengl/unicorn.git
-  cd unicorn
-  ./unicorn.sh
+git clone https://github.com/haifengl/unicorn.git
+cd unicorn
+./unicorn.sh
 ```
 
 which also starts the Shell.
@@ -106,7 +106,7 @@ Shell
 Unicorn comes with an interactive shell. In the home directory of Unicorn, type
 
 ```bash
-  ./bin/unicorn
+./bin/unicorn
 ```
 
 to enter the shell, which is based on Scala interpreter. So you can run
@@ -117,7 +117,7 @@ If you need more memory to handle large data, use the option `-J-Xmx`.
 For example,
 
 ```bash
-  ./bin/unicorn -J-Xmx8192M
+./bin/unicorn -J-Xmx8192M
 ```
 
 You can also modify the configuration file `./conf/application.ini` for
@@ -211,26 +211,26 @@ implementations are in `unicorn.bigtable.cassandra.CassandraTable`,
 `unicorn.bigtable.hbase.HBaseTable`, and `unicorn.bigtable.accumulo.AccumuloTable`.
 
 ```scala
-  /** Get one or more columns of a column family. If columns is empty, get all columns in the column family. */
-  def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
+/** Get one or more columns of a column family. If columns is empty, get all columns in the column family. */
+def get(row: ByteArray, family: String, columns: ByteArray*): Seq[Column]
 
-  /** Get all columns in one or more column families. If families is empty, get all column families. */
-  def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
+/** Get all columns in one or more column families. If families is empty, get all column families. */
+def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
-  /** Upsert a value. */
-  def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit
+/** Upsert a value. */
+def put(row: ByteArray, family: String, column: ByteArray, value: ByteArray, timestamp: Long): Unit
 
-  /** Upsert values. */
-  def put(row: ByteArray, family: String, columns: Column*): Unit
+/** Upsert values. */
+def put(row: ByteArray, family: String, columns: Column*): Unit
 
-  /** Upsert values. */
-  def put(row: ByteArray, families: Seq[ColumnFamily] = Seq.empty): Unit
+/** Upsert values. */
+def put(row: ByteArray, families: Seq[ColumnFamily] = Seq.empty): Unit
 
-  /** Delete the columns of a row. If columns is empty, delete all columns in the family. */
-  def delete(row: ByteArray, family: String, columns: ByteArray*): Unit
+/** Delete the columns of a row. If columns is empty, delete all columns in the family. */
+def delete(row: ByteArray, family: String, columns: ByteArray*): Unit
 
-  /** Delete the columns of a row. If families is empty, delete the whole row. */
-  def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Unit
+/** Delete the columns of a row. If families is empty, delete the whole row. */
+def delete(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Unit
 ```
 
 Setting `timestamp` as `0L`, `Put` creates a new version
@@ -240,14 +240,14 @@ on a per-column level. The user-provided version may be a time
 in the past or the future, or a non-time purpose long value.
 
 ```scala
-  def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit
+def update(row: ByteArray, family: String, column: ByteArray, value: ByteArray): Unit
 ```
 
 The helper function `update` is provided as a syntactic sugar
 so that the user can put a value in the way
 
 ```scala
-  table(row, family, column) = value
+table(row, family, column) = value
 ```
 
 In this case, timestamp is always set as the current machine time.
@@ -420,19 +420,19 @@ The interpolator `json` parse a string to `JsObject`. It is also okay to embed
 variable references directly in processed string literals.
 
 ```scala
-  val x = 1
-  json"""
-    {
-      "x": $x
-    }
-  """
+val x = 1
+json"""
+  {
+    "x": $x
+  }
+"""
 ```
 
 If the string is not a JSON object but any other valid JSON expression, one may
 use `parseJson` method to convert the string to `JsValue`.
 
 ```scala
-  "1".parseJson
+"1".parseJson
 ```
 
 The `json` interpolator can only be applied to string literals. If you want to
@@ -440,25 +440,25 @@ parse a string variable, the `parseJson` method can always be employed. If you k
 string contains a JSON object, you may also use the method `parseJsObject`.
 
 ```scala
-  val s = """{"x":1}"""
-  s.parseJsObject
+val s = """{"x":1}"""
+s.parseJsObject
 ```
 
 To serialize a JSON value (of type `JsValue`) in compact mode, you can just use `toString`.
 To pretty print, use the method `prettyPrint`.
 
 ```scala
-  doc.toString
-  doc.prettyPrint
+doc.toString
+doc.prettyPrint
 ```
 
 With a `JsObject` or `JsArray`, you can refer to the individual elements
 with a variation of array syntax, like this:
 
 ```scala
-  doc("store")("bicycle")("color")
-  // Use symbol instead of string
-  doc('store)('bicycle)('color)
+doc("store")("bicycle")("color")
+// Use symbol instead of string
+doc('store)('bicycle)('color)
 ```
 
 Note that we follow Scala's array access convention by `()` rather than
@@ -468,8 +468,8 @@ Besides, you can use the dot notation to access its fields/elements
 just like in JavaScript:
 
 ```scala
-  doc.store.bicycle.color
-  doc.store.book(0).author
+doc.store.bicycle.color
+doc.store.book(0).author
 ```
 
 It is worth noting that we didn't define the type/schema of the document
@@ -480,8 +480,8 @@ language in Unicorn's JSON library.
 If you try to access a non-exist field, `JsUndefined` is returned.
 
 ```scala
-  unicorn> doc.book
-  res11: unicorn.json.JsValue = undefined
+unicorn> doc.book
+res11: unicorn.json.JsValue = undefined
 ```
 
 Although there are already several nice JSON libraries for Scala, the JSON
@@ -491,19 +491,19 @@ necessary. Therefore, `JsObject` and `JsArray` are mutable data structures in
 Unicorn. You can set/add a field just like in JavaScript:
 
 ```scala
-  json.store.bicycle.color = "green"
+json.store.bicycle.color = "green"
 ```
 
 To delete a field from `JsObject`, use `remove` method:
 
 ```scala
-  doc.store.book(0) remove "price"
+doc.store.book(0) remove "price"
 ```
 
 It is same as setting it `JsUndefined`:
 
 ```scala
-  doc.store.book(0).price = JsUndefined
+doc.store.book(0).price = JsUndefined
 ```
 
 To delete an element from `JsArray`, the `remove` method will effectively
@@ -511,28 +511,28 @@ remove it from the array. However, setting an element to `undefined` doesn't
 reduce the array size.
 
 ```scala
-  // delete the first element and array size is smaller
-  doc.store.book.remove(0)
-  // set the first element to undefined but array size keeps same
-  doc.store.book(0) = JsUndefined
+// delete the first element and array size is smaller
+doc.store.book.remove(0)
+// set the first element to undefined but array size keeps same
+doc.store.book(0) = JsUndefined
 ```
 
 It is also possible to append an element or another array to `JsArray`:
 
 ```scala
-  val a = JsArray(1, 2, 3, 4)
-  a += 5
+val a = JsArray(1, 2, 3, 4)
+a += 5
 
-  a ++= JsArray(5, 6)
+a ++= JsArray(5, 6)
 ```
 
 Common iterative operations such as `foreach`, `map`, `reduce` can be applied to
 `JsArray` too.
 
 ```scala
-  doc.store.book.asInstanceOf[JsArray].foreach { book =>
-   println(book.price)
-  }
+doc.store.book.asInstanceOf[JsArray].foreach { book =>
+ println(book.price)
+}
 ```
 
 Because Scala is a static language, it is impossible to know
@@ -545,8 +545,8 @@ With Unicorn, we can also look up field in the current object
 and all descendants:
 
 ```scala
-  unicorn> doc \\ "price"
-  res29: unicorn.json.JsArray = [8.95,12.99,8.99,22.99,19.95]
+unicorn> doc \\ "price"
+res29: unicorn.json.JsArray = [8.95,12.99,8.99,22.99,19.95]
 ```
 
 For more advanced query operations, JSONPath can be employed.
@@ -560,7 +560,7 @@ JSONPath expressions always refer to a JSON structure in the same way
 as XPath expression are used in combination with an XML document.
 
 ```scala
-  val jspath = JsonPath(doc)
+val jspath = JsonPath(doc)
 ```
 
 Since a JSON structure is usually anonymous and doesn't necessarily
@@ -569,36 +569,36 @@ have a "root member object" JSONPath assumes the abstract name
 current object/element.
 
 ```scala
-  // the authors of all books in the store
-  jspath("$.store.book[*].author")
+// the authors of all books in the store
+jspath("$.store.book[*].author")
 
-  // all authors
-  jspath("$..author")
+// all authors
+jspath("$..author")
 
-  // all things in store
-  jspath("$.store.*")
+// all things in store
+jspath("$.store.*")
 
-  // the price of everything in the store
-  jspath("$.store..price")
+// the price of everything in the store
+jspath("$.store..price")
 
-  // the third book
-  jspath("$..book[2]")
+// the third book
+jspath("$..book[2]")
 
-  // the last book in order
-  jspath("$..book[-1:]")
+// the last book in order
+jspath("$..book[-1:]")
 
-  // the first two books
-  jspath("$..book[0,1]")
-  jspath("$..book[:2]")
+// the first two books
+jspath("$..book[0,1]")
+jspath("$..book[:2]")
 
-  // filter all books with isbn number
-  jspath("$..book[?(@.isbn)]")
+// filter all books with isbn number
+jspath("$..book[?(@.isbn)]")
 
-  //filter all books cheaper than 10
-  jspath("$..book[?(@.price<10)]")
+//filter all books cheaper than 10
+jspath("$..book[?(@.price<10)]")
 
-  // all members of JSON structure
-  jspath("$..*")
+// all members of JSON structure
+jspath("$..*")
 ```
 
 Our JSONPath parser supports all queries except for queries
@@ -623,7 +623,7 @@ It is also possible to update fields with JSONPath. Currently,
 we support only child and array slice operators for update.
 
 ```scala
-  jspath("$['store']['book'][1:3]['price']") = 30
+jspath("$['store']['book'][1:3]['price']") = 30
 ```
 
 Document API
@@ -648,9 +648,9 @@ order to avoid the confusion with Java/Scala's collection data
 structures, Unibase simply calls it table.
 
 ```scala
-  val db = Unibase(Accumulo())
-  db.createTable("worker")
-  val workers = db("worker")
+val db = Unibase(Accumulo())
+db.createTable("worker")
+val workers = db("worker")
 ```
 
 In above, we create a table `worker` in Unibase.
@@ -661,20 +661,20 @@ instead of parsing from a JSON string. This way provides
 fine controls on the data types of fields.
 
 ```scala
-  val joe = JsObject(
-    "name" -> "Joe",
-    "gender" -> "Male",
-    "salary" -> 50000.0,
-    "address" -> JsObject(
-      "street" -> "1 ADP Blvd",
-      "city" -> "Roseland",
-      "state" -> "NJ",
-      "zip" -> "07068"
-    ),
-    "project" -> JsArray("HCM", "NoSQL", "Analytics")
-  )
+val joe = JsObject(
+  "name" -> "Joe",
+  "gender" -> "Male",
+  "salary" -> 50000.0,
+  "address" -> JsObject(
+    "street" -> "1 ADP Blvd",
+    "city" -> "Roseland",
+    "state" -> "NJ",
+    "zip" -> "07068"
+  ),
+  "project" -> JsArray("HCM", "NoSQL", "Analytics")
+)
 
-  val key = workers.upsert(joe)
+val key = workers.upsert(joe)
 ```
 
 Each document should have a field `_id` as the primary key.
@@ -683,21 +683,21 @@ random UUID as `_id`, which is returned and also added into
 the input JSON object:
 
 ```scala
-  unicorn> joe.prettyPrint
-  res1: String =
-  {
-    "address": {
-      "city": "Roseland",
-      "state": "NJ",
-      "zip": "07068",
-      "street": "1 ADP Blvd"
-    },
-    "name": "Joe",
-    "gender": "Male",
-    "salary": 50000.0,
-    "project": ["HCM", "NoSQL", "Analytics"],
-    "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
-  }
+unicorn> joe.prettyPrint
+res1: String =
+{
+  "address": {
+    "city": "Roseland",
+    "state": "NJ",
+    "zip": "07068",
+    "street": "1 ADP Blvd"
+  },
+  "name": "Joe",
+  "gender": "Male",
+  "salary": 50000.0,
+  "project": ["HCM", "NoSQL", "Analytics"],
+  "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
+}
 ```
 
 If the input object includes `_id` and the table already
@@ -725,21 +725,21 @@ To get the document back, simply treat the table as a
 map and use `_id` as the key:
 
 ```scala
-  unicorn> workers(key).get.prettyPrint
-  res3: String =
-  {
-    "address": {
-      "city": "Roseland",
-      "state": "NJ",
-      "zip": "07068",
-      "street": "1 ADP Blvd"
-    },
-    "name": "Joe",
-    "gender": "Male",
-    "salary": 50000.0,
-    "project": ["HCM", "NoSQL", "Analytics"],
-    "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
-  }
+unicorn> workers(key).get.prettyPrint
+res3: String =
+{
+  "address": {
+    "city": "Roseland",
+    "state": "NJ",
+    "zip": "07068",
+    "street": "1 ADP Blvd"
+  },
+  "name": "Joe",
+  "gender": "Male",
+  "salary": 50000.0,
+  "project": ["HCM", "NoSQL", "Analytics"],
+  "_id": "cc8a6a6d-4305-4b77-a776-6f70f2306d06"
+}
 ```
 
 If the document doesn't exist, `None` is returned.
@@ -747,18 +747,18 @@ If the document doesn't exist, `None` is returned.
 To update a document, we use a MongoDB-like API:
 
 ```scala
-  val update = JsObject(
-     "_id" -> key,
-     "$set" -> JsObject(
-       "salary" -> 100000.0,
-       "address.street" -> "5 ADP Blvd"
-     ),
-     "$unset" -> JsObject(
-       "gender" -> JsTrue
-     )
-  )
+val update = JsObject(
+   "_id" -> key,
+   "$set" -> JsObject(
+     "salary" -> 100000.0,
+     "address.street" -> "5 ADP Blvd"
+   ),
+   "$unset" -> JsObject(
+     "gender" -> JsTrue
+   )
+)
 
-  workers.update(update)
+workers.update(update)
 ```
 
 The `$set` operator replaces the value of a field with
@@ -782,8 +782,244 @@ equivalent effect.
 To delete a document, use the method `delete` with the document key:
 
 ```scala
-  workers.delete(key)
+workers.delete(key)
 ```
+
+Append Only
+-----------
+
+When creating a table, we may declare it append only.
+Such a table is write-once (i.e. the same document is
+never updated). Any updates
+to existing documents will throw exceptions. Deletes are
+not allowed either.
+
+```scala
+db.createTable("stock", appendOnly = true)
+val prices = db("stock")
+val trade = json"""
+  {
+    "ticker": "GOOG",
+    "price": 700.0,
+    "timestamp": ${System.currentTimeMillis}
+  }
+"""
+val key = prices.upsert(trade)
+prices.update(JsObject(
+  "_id" -> key,
+  "$set" -> JsObject(
+    "price" -> JsDouble(800.0)
+  )
+))
+
+
+java.lang.UnsupportedOperationException
+  at unicorn.unibase.Table.update(Table.scala:320)
+  ... 52 elided
+```
+
+Multi-Tenancy
+-------------
+
+Multi-tenant tables are regular tables that
+enables views to be created over the table
+across different tenants.
+This option is useful to share the same physical BigTable
+table across many different tenants.
+
+```scala
+db.createTable("worker", multiTenant = true)
+```
+
+To use a multi-tenant table, the user must firstly
+set the tenant id, which cannot be `undefined`, `null`,
+`boolean`, `counter`, `date`, or `double`.
+The tenats only see their data in such tables.
+
+```scala
+val workers = db("worker")
+workers.tenant = "IBM"
+val ibmer = workers.upsert(json"""
+  {
+    "name": "Tom",
+    "age": 40
+  }
+""")
+
+workers.tenant = "Google"
+val googler = workers.upsert(json"""
+  {
+    "name": "Tom",
+    "age": 30
+  }
+""")
+```
+
+Because the tenant is "Google" now, the data of tenant "IBM"
+are not visible.
+
+```scala
+unicorn> workers(ibmer)
+res5: Option[unicorn.json.JsObject] = None
+unicorn> workers(googler)
+res6: Option[unicorn.json.JsObject] = Some({"name":"Tom","age":30,"_id":"545ed4d1-280c-4b6a-a3cc-e0a3c5fc5b43"})
+```
+
+Switch back to "IBM", the view is different:
+
+```scala
+unicorn> workers.tenant = "IBM"
+workers.tenant: Option[unicorn.json.JsValue] = Some(IBM)
+unicorn> workers(ibmer)
+res8: Option[unicorn.json.JsObject] = Some({"name":"Tom","age":40,"_id":"2b7fb69f-810f-4ca7-a70f-5db767bc8e49"})
+unicorn> workers(googler)
+res9: Option[unicorn.json.JsObject] = None
+```
+
+As a client-side solution, Unicorn does not enforce security on
+multi-tenant tables. In fact, there is no user or role concepts.
+It is the application's responsibility to ensure the authorization
+and the authentication
+on the access of multi-tenant tables.
+
+Locality
+--------
+
+When Unicorn creates a document table, it creates multiple column
+families. By default, one column family for document id,
+the second for document fields, and the third for graph data
+(to be discussed in the next section).
+Such a design is efficient when you need only either the document
+data or the graph data because the storage engine needs scan only
+the necessary column family. It also limits the network data transmission.
+
+This schema can be customized. For example, if you do not have
+graph data, you may want to use only one column family
+for both document id and data.
+
+```scala
+db.createTable("worker",
+  families = Seq(Unibase.DefaultDocumentColumnFamily),
+  locality = Map().withDefaultValue(Unibase.DefaultDocumentColumnFamily))
+```
+
+where the parameter `families` is the list of column families,
+and the parameter `locality`, a map, tells Unicorn how to
+map the data to different column families. Because we have
+only one column families here, we simply set the default
+value of map is the only column family.
+
+When documents in a table have a lot of fields
+and only a few fields are needed in in many situations,
+it is a good idea to organize them into different
+column families based on business logic and access patterns.
+
+```scala
+db.createTable("worker",
+  families = Seq(
+    Unibase.DefaultIdColumnFamily,
+    "address",
+    "project"),
+  locality = Map(
+    Unibase.$id -> Unibase.DefaultIdColumnFamily,
+    "address" -> "address",
+    "project" -> "project"
+  ).withDefaultValue(Unibase.DefaultDocumentColumnFamily))
+```
+
+For simplicity, Unicorn uses only the top level
+fields of documents to determine the locality mapping.
+
+```scala
+val joe = JsObject(
+  "name" -> "Joe",
+  "gender" -> "Male",
+  "salary" -> 50000.0,
+  "address" -> JsObject(
+    "street" -> "1 ADP Blvd",
+    "city" -> "Roseland",
+    "state" -> "NJ",
+    "zip" -> "07068"
+  ),
+  "project" -> JsArray("HCM", "NoSQL", "Analytics")
+)
+
+val key = workers.upsert(joe)
+```
+
+we can retrieve partial documents as following, which
+is known as "projection" in relational database and MongoDB.
+
+```scala
+unicorn> workers(key)
+res17: Option[unicorn.json.JsObject] = Some({"address":{"city":"Roseland","state":"NJ","zip":"07068","street":"1 ADP Blvd"},"project":["HCM","NoSQL","Analytics"],"_id":"6df63cf3-e4dd-4381-8276-ac0c0626dc78"})
+unicorn> workers(key, "address")
+res19: Option[unicorn.json.JsObject] = Some({"address":{"city":"Roseland","state":"NJ","zip":"07068","street":"1 ADP Blvd"},"_id":"6df63cf3-e4dd-4381-8276-ac0c0626dc78"})
+unicorn> workers(key, "project")
+res20: Option[unicorn.json.JsObject] = Some({"project":["HCM","NoSQL","Analytics"],"_id":"6df63cf3-e4dd-4381-8276-ac0c0626dc78"})
+```
+
+You can retrieve data from multiple column families too.
+
+```scala
+unicorn> workers(key, "name", "address")
+res21: Option[unicorn.json.JsObject] = Some({"address":{"city":"Roseland","state":"NJ","zip":"07068","street":"1 ADP Blvd"},"name":"Joe","gender":"Male","salary":50000.0,"_id":"6df63cf3-e4dd-4381-8276-ac0c0626dc78"})
+```
+
+However, there is a semantic difference from regular projection
+as you may notice in the above. Even though the user asks
+for only `name`, all other fields in the same column family
+are returned. This is due to the design of BigTable.
+For example, if a specified
+field is a nested object, there is no easy way to read only the specified object in BigTable.
+Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
+nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+we return the whole object of a column family if some of its fields are in request. This is usually
+good enough for hot-cold data scenario. For instance of a table of events, each event has a
+header in a column family and event body in another column family. In many reads, we only need to
+access the header (the hot data). When only user is interested in the event details, we go to read
+the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
+that we do not support the excluded fields.
+
+Script
+------
+
+We may also run Unicorn code as a shell script or batch command.
+The following bash script can be run directly from the command shell:
+
+```scala
+#!/bin/bash
+exec unicorn -nc "$0" "$@"
+!#
+
+import unicorn.json._
+import unicorn.bigtable._
+import unicorn.bigtable.accumulo._
+import unicorn.bigtable.hbase._
+import unicorn.unibase._
+
+val db = Unibase(Accumulo())
+db.createTable("worker")
+val workers = db("worker")
+
+val joe = JsObject(
+  "name" -> "Joe",
+  "gender" -> "Male",
+  "salary" -> 50000.0,
+  "address" -> JsObject(
+    "street" -> "1 ADP Blvd",
+    "city" -> "Roseland",
+    "state" -> "NJ",
+    "zip" -> "07068"
+  ),
+  "project" -> JsArray("HCM", "NoSQL", "Analytics")
+)
+
+workers.upsert(joe)
+```
+
+Narwhal
+=======
 
 Graph
 =====
@@ -799,26 +1035,26 @@ and value is any kind of JSON value associated with the relationship.
 
 
 ```scala
-  val tom = json"""
-    {
-      "name": "Tom"
-    }
-  """
+val tom = json"""
+  {
+    "name": "Tom"
+  }
+"""
 
-  workers.upsert(tom)
+workers.upsert(tom)
 
 
-  graph(joe)("works with", tom._id) = 1
+graph(joe)("works with", tom._id) = 1
 
-  // Query relationships to Jim
-  graph(joe)(tome._id)
+// Query relationships to Jim
+graph(joe)(tome._id)
 
-  // Query neighbors of given relationship(s)
-  graph(joe)("works with")
+// Query neighbors of given relationship(s)
+graph(joe)("works with")
 
-  // Gets the value/object associated with the given relationship.
-  // If it doesn't exist, undefined will be returned.
-  graph(joe)("works with", tom._id)
+// Gets the value/object associated with the given relationship.
+// If it doesn't exist, undefined will be returned.
+graph(joe)("works with", tom._id)
 ```
 
 It is easy to query the neighbors or relationships as shown
@@ -865,10 +1101,4 @@ nodes or edges multiple times. Unicorn provides DFS and BFS
 to create in-memory sub-graphs stored in DocumentGraph objects
 that is more suitable for things like network flow, assignment, coloring, etc.
 
-Advanced Features
-=================
 
-Because documents are typically large with many fields
-and only a few fields are needed in in many situations,
-we can retrieve partial documents as following, which
-is known as "projection" in relational database and MongoDB.
