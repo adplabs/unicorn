@@ -29,4 +29,4 @@ libraryDependencies ++= {
 
 libraryDependencies += "org.specs2" %% "specs2-core" % "2.3.11" % "test"
 
-parallelExecution in Test := false
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.13"

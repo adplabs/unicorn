@@ -1,9 +1,9 @@
-name := "smile"
+name := "unicorn"
 
 import com.typesafe.sbt.pgp.PgpKeys.{useGpg, publishSigned, publishLocalSigned}
 
 lazy val commonSettings = Seq(
-  organization := "com.adp.unicorn",
+  organization := "com.adp",
   organizationName := "ADP, LLC",
   organizationHomepage := Some(url("http://www.adp.com")),
   version := "2.0.0-SNAPSHOT",
@@ -70,7 +70,7 @@ lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).de
 
 lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
-lazy val index = project.in(file("index")).settings(commonSettings: _*).dependsOn(bigtable, json, hbase % "test")
+lazy val index = project.in(file("index")).settings(nonPubishSettings: _*).dependsOn(bigtable, json, hbase % "test")
 
 lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, accumulo % "test")
 

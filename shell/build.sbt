@@ -21,8 +21,6 @@ bashScriptExtraDefines += """addJava "-Dscala.repl.autoruncode=${app_home}/init.
 
 bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
 
-bashScriptExtraDefines += """addJava "-Dlog4j.configuration=${app_home}/../conf/log4j.properties""""
-
 // G1 garbage collector
 bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""
 
@@ -40,6 +38,4 @@ buildInfoOptions += BuildInfoOption.BuildTime
 
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.7"
 
-libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % "2.2"
-
-libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.2"
+libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.18"
