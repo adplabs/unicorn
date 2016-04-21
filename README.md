@@ -779,6 +779,10 @@ However, we don't support this behavior because of the performance consideration
 We suggest the the alternative syntax ``{"a.b" : {"c" : "abc"}}``, which has the
 equivalent effect.
 
+If you want to use `json` string interpolation to create a
+JSON object for `update`, remember to escape `$set` and `$unset` by double
+dollar sign, e.g. `$$set` and `$$unset`.
+
 To delete a document, use the method `delete` with the document key:
 
 ```scala
@@ -1020,6 +1024,9 @@ workers.upsert(joe)
 
 Narwhal
 =======
+
+Advanced document API with HBase is available in the package
+`unicorn.narwhal`.
 
 Graph
 =====
