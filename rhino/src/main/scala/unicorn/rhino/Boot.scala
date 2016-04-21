@@ -18,6 +18,7 @@ package unicorn.rhino
 
 import scala.concurrent.duration._
 import akka.actor.{ActorSystem, Props}
+import akka.routing.FromConfig
 import akka.io.IO
 import spray.can.Http
 import akka.pattern.ask
@@ -30,10 +31,10 @@ import com.typesafe.config.ConfigFactory
 object Boot extends App {
 
   // we need an ActorSystem to host our application in
-  implicit val system = ActorSystem("unicorn-rhino")
+  implicit val actorSystem = ActorSystem("unicorn-rhino")
 
   // create and start our service actor
-  val service = system.actorOf(Props[RhinoActor], "unicorn-rhino")
+  val service = actorSystem.actorOf(Props[RhinoActor].withRouter(FromConfig()).withDispatcher("rhino-actor-dispatcher"), "rhino-actor-router")
 
   implicit val timeout = Timeout(5.seconds)
 

@@ -14,6 +14,8 @@ executableScriptName := "rhino"
 
 mainClass in Compile := Some("unicorn.rhino.Boot")
 
+bashScriptExtraDefines += """[ -f ${app_home}/../conf/application.conf ] && addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
+
 libraryDependencies ++= {
   val akkaV = "2.3.9"
   val sprayV = "1.3.3"
@@ -29,4 +31,4 @@ libraryDependencies ++= {
 
 libraryDependencies += "org.specs2" %% "specs2-core" % "2.3.11" % "test"
 
-libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.13"
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.7"

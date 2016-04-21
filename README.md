@@ -1028,6 +1028,9 @@ Narwhal
 Advanced document API with HBase is available in the package
 `unicorn.narwhal`.
 
+Rhino
+=====
+
 Graph
 =====
 
