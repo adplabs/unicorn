@@ -9,17 +9,19 @@ maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
 packageName := "unicorn"
 
-packageSummary := "ADP Unicorn"
+packageSummary := "Unicorn"
 
-packageDescription := "ADP Unicorn"
+packageDescription := "Unicorn"
 
 executableScriptName := "unicorn"
+
+bashScriptConfigLocation := Some("${app_home}/../conf/unicorn.ini")
 
 bashScriptExtraDefines += """addJava "-Dsmile.home=${app_home}""""
 
 bashScriptExtraDefines += """addJava "-Dscala.repl.autoruncode=${app_home}/init.scala""""
 
-bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
+bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/unicorn.conf""""
 
 // G1 garbage collector
 bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""

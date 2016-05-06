@@ -1,20 +1,30 @@
 name := "unicorn-rhino"
 
+mainClass in Compile := Some("unicorn.rhino.Boot")
+
 enablePlugins(JavaServerAppPackaging)
 
 maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
 
-packageName := "adp-unicorn-rhino"
+packageName := "unicorn-rhino"
 
-packageSummary := "ADP Unicorn Rhino REST API"
+packageSummary := "Unicorn REST API"
 
-packageDescription := "ADP Unicorn Rhino REST API"
+packageDescription := "Unicorn REST API"
 
 executableScriptName := "rhino"
 
-mainClass in Compile := Some("unicorn.rhino.Boot")
+bashScriptConfigLocation := Some("${app_home}/../conf/rhino.ini")
 
-bashScriptExtraDefines += """[ -f ${app_home}/../conf/application.conf ] && addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
+bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/rhino.conf""""
+
+bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml""""
+
+// G1 garbage collector
+bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""
+
+// Optimize string duplication, which happens a lot when parsing a data file
+bashScriptExtraDefines += """addJava "-XX:+UseStringDeduplication""""
 
 libraryDependencies ++= {
   val akkaV = "2.3.9"
