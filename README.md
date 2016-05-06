@@ -474,7 +474,7 @@ doc.store.book(0).author
 
 It is worth noting that we didn't define the type/schema of the document
 while Scala is a strong type language. In other words, we have both
-they type safe feature of strong type language and flexibility of dynamic
+the type safe features of strong type language and the flexibility of dynamic
 language in Unicorn's JSON library.
 
 If you try to access a non-exist field, `JsUndefined` is returned.
@@ -1026,7 +1026,218 @@ Narwhal
 =======
 
 Advanced document API with HBase is available in the package
-`unicorn.narwhal`.
+`unicorn.narwhal`. To use these features, the user should
+use the class `Narwhal` and `HTable`, which are subclasses
+of `Unibase` and `Table`, respectively.
+
+```scala
+val db = new Narwhal(HBase())
+db.createTable("narwhal")
+
+val rich = json"""
+  {
+    "owner": "Rich",
+    "phone": "123-456-7890",
+    "address": {
+      "street": "1 ADP Blvd.",
+      "city": "Roseland",
+      "state": "NJ"
+    },
+    "children": 2C
+  }
+"""
+
+val bucket = db("narwhal")
+val key = bucket.upsert(rich)
+```
+
+Counter
+-------
+
+The usage of `Narwhal` and `HTable` are similar to their
+parent classes. Besides, additional operators are available
+by taking advantage of HBase's features. Note that in the
+above the field `children` takes the value of `2C`. The suffix
+`C` indicates it is a counter. You may use `JsCounter` to create
+a counter directly too. With counters, we may update them
+in an atomic operation. For a regular integer, we instead have
+to read, update, and write back, which may cause consistency
+problems.
+
+```scala
+val increment = json"""
+  {
+    "$$inc": {
+      "children": 1
+    }
+  }
+"""
+
+increment("_id") = key
+bucket.update(increment)
+
+val doc = bucket(key).get
+println(doc.children)
+```
+
+This example will print out the new value, i.e. 3, of `children`.
+It is also okey to use a negative value in `$inc` operations, which
+effectively decreases the counter.
+
+Rollback
+--------
+
+Another interesting feature is that we can rollback document fields
+back to previous values. If a user accidentally changes a value, don't
+worry. The old values are still in HBase and we can easily rollback.
+
+```scala
+val update = json"""
+  {
+    "$$set": {
+      "phone": "212-456-7890",
+      "gender": "M",
+      "address.street": "5 ADP Blvd."
+    }
+  }
+"""
+
+update("_id") = key
+bucket.update(update)
+```
+
+In the above example, we update three fields `phone`, `gender`,
+and `address.street`. Note that `gender` is actually a new filed.
+Let's verify these fields be updated.
+
+```
+unicorn> bucket(key).get
+res11: unicorn.json.JsObject = {"children":2,"address":{"city":"Roseland","state":"NJ","street":"5 ADP Blvd."},"owner":"Rich","gender":"M","_id":"0c354c07-6e25-4b30-9cf3-9a508b6868fd","phone":"212-456-7890"}
+```
+
+Now we rollback `phone` and `gender`.
+
+```scala
+val rollback = json"""
+  {
+    "$$rollback": {
+      "phone": 1,
+      "gender": 1
+    }
+ }
+"""
+rollback("_id") = key
+bucket.update(rollback)
+```
+
+Printing out the document, we can find that `phone` has the previous value and `gender` disappears now.
+Of course, `address.street` still keeps the latest values.
+
+```
+unicorn> bucket(key).get
+res15: unicorn.json.JsObject = {"children":4,"address":{"city":"Roseland","state":"NJ","street":"5 ADP Blvd."},"owner":"Rich","_id":"0c354c07-6e25-4b30-9cf3-9a508b6868fd","phone":"123-456-7890"}
+```
+
+This example shows how we can rollback `$set` operations. We actually
+can also rollback `$unset` operations.
+
+```scala
+val update = json"""
+  {
+    "$$unset": {
+      "owner": 1,
+      "address": 1
+    }
+  }
+"""
+
+update("_id") = key
+bucket.update(update)
+
+val rollback = json"""
+  {
+    "$$rollback": {
+      "owner": 1,
+      "address": 1
+    }
+  }
+"""
+
+rollback("_id") = key
+bucket.update(rollback)
+```
+
+Time Travel
+-----------
+
+Another cool feature of Narwhal is time travel. Because HBase stores multiple timestamped values,
+we can query the snapshot of a document at a given time point.
+
+```scala
+val asOfDate = new Date
+
+val update = json"""
+  {
+    "$$set": {
+      "phone": "212-456-7890",
+      "gender": "M",
+      "address.street": "5 ADP Blvd."
+    },
+    "$$inc": {
+      "children": 1
+    }
+  }
+"""
+
+update("_id") = key
+bucket.update(update)
+
+bucket(asOfDate, key)
+```
+
+Besides the plain `Get`, we can supply an as-of-date in a time travel `Get`,
+which will retrieval document's value at that time point.
+
+Filter
+------
+
+So far, we get documents by their keys. With HBase, we can also
+query documents with method `find` by filtering field values.
+The `find` method returns an iterator to the documents that match the query criteria.
+
+```scala
+bucket.upsert(json"""{"name":"Tom","age":30,"home_based":true}""")
+bucket.upsert(json"""{"name":"Mike","age":40,"home_based":false}""")
+bucket.upsert(json"""{"name":"Chris","age":30,"home_based":false}""")
+
+val it = bucket.find(json"""{"name": "Tom"}""")
+it.foreach(println(_))
+```
+
+Optionally, the `find` method takes the second parameter
+for projection, which is an object that specifies the fields to return.
+
+The `find` method with no parameters returns all documents
+from a table and returns all fields for the documents.
+
+The syntax of filter object is similar to MongoDB.
+Supported operators include `$and`, `$or``, `$eq``, `$ne`,
+`$gt`, `$gte` (or `$ge`), `$lt`, `$lte` (or `$le`).
+
+```scala
+bucket.find(json"""
+  {
+    "$$or": [
+      {
+        "age": {"$$gt": 30}
+      },
+      {
+        "home_based": false
+      }
+    ]
+  }
+""")
+```
 
 Rhino
 =====
