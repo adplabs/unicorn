@@ -29,11 +29,11 @@ DAEMON_USER=${{daemon_user}}
 APP_HOME=/opt/${APP}
 APP_CLASSPATH=${{app_classpath}}
 APP_CLASS=${{app_main_class}}
-APP_LOG_CONFIG=${APP_HOME}/conf/log4j.properties
+APP_LOG_CONFIG=${APP_HOME}/conf/logback.xml
 APP_CONFIG=${APP_HOME}/conf/application.conf
 
 if [ -n "$APP_LOG_CONFIG}" ]; then
-        JAVA_OPTS="-Dlog4j.configurationFile=${APP_LOG_CONFIG} ${JAVA_OPTS}"
+        JAVA_OPTS="-Dlogback.configurationFile=${APP_LOG_CONFIG} ${JAVA_OPTS}"
 fi
 
 DAEMON_ARGS="-home ${JAVA_HOME} -Dconfig.file=${APP_CONFIG} ${JAVA_OPTS} -pidfile ${PID}"

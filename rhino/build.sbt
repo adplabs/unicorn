@@ -18,7 +18,7 @@ bashScriptConfigLocation := Some("${app_home}/../conf/rhino.ini")
 
 bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/rhino.conf""""
 
-bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml""""
+bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j.properties""""
 
 // G1 garbage collector
 bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""
@@ -40,5 +40,3 @@ libraryDependencies ++= {
 }
 
 libraryDependencies += "org.specs2" %% "specs2-core" % "2.3.11" % "test"
-
-libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.7"

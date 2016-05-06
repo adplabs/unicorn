@@ -1239,8 +1239,104 @@ bucket.find(json"""
 """)
 ```
 
-Rhino
-=====
+Note that the query operation is based on server side filters.
+Although it minimizes the network transmission, it is still
+a costly full table scan. If the table is multi-tenanted and each tenant
+does not have too much data (e.g. SaaS solutions for small business),
+however, the scan will be usually localized
+to one or a few nodes and often quite fast. Compared to secondary index,
+this approach does not have penalty on the write performance and
+still provides fairly good performance on queries in such a situation.
+
+For general purpose queries, secondary index should be built
+to accelerate frequent queries. We will discuss our secondary index
+design in the below.
+
+
+HTTP API
+========
+
+So far we access Unicorn through its Scala APIs. For other programming
+language users, we can manipulate documents with the HTTP API, which
+is provided by the Rhino module.
+
+In the configuration file `conf/rhino.conf`, the underlying BigTable database
+engine should be configured in the section `uncorn.rhino`. The configuration
+file is in the format of [Typesafe Config](https://github.com/typesafehub/config).
+For example,
+
+```
+unicorn.rhino {
+  bigtable = "hbase"
+  accumulo {
+    instance = "local-poc"
+    zookeeper = "127.0.0.1:2181"
+    user = "root"
+    password = "secret"
+  }
+  cassandra {
+    host = "127.0.0.1"
+    port = 9160
+  }
+}
+```
+
+In this example, we use HBase as the BigTable engine. Note that the configuration
+of HBase is in its own configuration files, which should be in the `CLASSPATH` of
+Rhino. Sample configurations of Accumulo and Cassandra are provided in the
+example for demonstration.
+
+Currently, Rhino provides only data manipulation operations.
+Other operations such as table creation/drop should be done in the
+Unicorn Shell.
+
+| Method   | URL            | Operation |
+| -------- | -------------- | --------- |
+| PUT      | /<table>       | Insert    |
+| POST     | /<table>       | Upsert    |
+| PATCH    | /<table>       | Update    |
+| DELETE   | /<table>       | Delete    |
+| DELETE   | /<table>/<key> | Delete    |
+| GET      | /<table>       | Get       |
+| GET      | /<table>/<key> | Get       |
+
+The API is simple and easy to use. To insert a document,
+use the `PUT` method with the JSON object as entity-body.
+
+```bash
+curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
+```
+
+```bash
+curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
+
+curl -X GET http://localhost:8080/unicorn_rhino_test/dude
+
+curl -X POST -H "Content-Type: application/json" -d '{"_id":"dude","username":"dude","password":"xyz"}' http://localhost:8080/rhino_test_table
+
+curl -X GET http://localhost:8080/rhino_test_table/dude
+
+curl -X PATCH -H "Content-Type: application/json" -d '{"_id":"dude","$set":{"password":"abc"}}' http://localhost:8080/rhino_test_table
+
+curl -X GET http://localhost:8080/rhino_test_table/dude
+
+curl -X DELETE http://localhost:8080/rhino_test_table/dude
+
+curl -X GET http://localhost:8080/rhino_test_table/dude
+
+curl -X PUT -H "Content-Type: application/json" --header 'tenant: "IBM"' -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
+
+curl -X GET --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
+
+curl -X GET --header 'tenant: "MSFT"' http://localhost:8080/rhino_test_table/dude
+
+curl -X GET http://localhost:8080/unicorn_rhino_test/dude
+
+curl -X DELETE --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
+
+curl -X GET --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
+```
+
 
 Graph
 =====
