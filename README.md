@@ -1221,7 +1221,7 @@ The `find` method with no parameters returns all documents
 from a table and returns all fields for the documents.
 
 The syntax of filter object is similar to MongoDB.
-Supported operators include `$and`, `$or``, `$eq``, `$ne`,
+Supported operators include `$and`, `$or`, `$eq`, `$ne`,
 `$gt`, `$gte` (or `$ge`), `$lt`, `$lte` (or `$le`).
 
 ```scala
