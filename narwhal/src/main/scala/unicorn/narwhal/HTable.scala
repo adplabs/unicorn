@@ -209,20 +209,20 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   /** Searches the table.
     * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
-    * @param where the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
+    * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
     *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le).
     * @return an iterator of matched document.
     */
-  def find(projection: JsObject = JsObject(), where: JsObject = JsObject()): Iterator[JsObject] = {
+  def find(query: JsObject, projection: JsObject = JsObject()): Iterator[JsObject] = {
     val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
 
-    val it = if (where == JsObject()) {
+    val it = if (query == JsObject()) {
       tenant match {
         case None => table.scanAll(families)
         case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
       }
     } else {
-      val filter = queryFilter(where)
+      val filter = queryFilter(query)
       tenant match {
         case None => table.filterScanAll(filter, families)
         case Some(tenant) => table.filterScanPrefix(filter, getBytes(tenant), families)
@@ -236,12 +236,12 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   /** Returns the scan filter based on the query predicts.
     *
-    * @param where query predict object.
+    * @param query query predict object.
     * @return scan filter.
     */
-  private def queryFilter(where: JsObject): ScanFilter.Expression = {
+  private def queryFilter(query: JsObject): ScanFilter.Expression = {
 
-    val filters = where.fields.map {
+    val filters = query.fields.map {
       case ("$or", condition) =>
         require(condition.isInstanceOf[JsArray], "$or predict is not an array")
 
