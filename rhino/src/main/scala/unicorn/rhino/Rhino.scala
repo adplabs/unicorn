@@ -99,10 +99,10 @@ trait Rhino extends HttpService with Logging {
       path(Segment) { table =>
         rawJson { doc =>
           get {
-            _get(table, doc.parseJsObject("_id"))
+            _get(table, doc.parseJson)
           } ~
           delete {
-            remove(table, doc.parseJsObject("_id"))
+            remove(table, doc.parseJson)
           } ~
           post {
             upsert(table, doc)
