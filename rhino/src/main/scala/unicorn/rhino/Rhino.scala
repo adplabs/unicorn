@@ -56,6 +56,7 @@ class RhinoActor extends HttpServiceActor with Rhino {
 // this trait defines our service behavior independently from the service actor
 trait Rhino extends HttpService with Logging {
   val config = ConfigFactory.load().getConfig("unicorn.rhino")
+
   val unibase = config.getString("bigtable") match {
     case "hbase" => Unibase(HBase())
     case "accumulo" =>
@@ -121,9 +122,9 @@ trait Rhino extends HttpService with Logging {
 
   private def bucket(table: String, tenant: Option[JsValue]): Table = {
     val db = unibase(table)
-    db.tenant = tenant match {
-      case Some(tenant) => tenant
-      case None => JsUndefined
+    tenant match {
+      case Some(tenant) => db.tenant = tenant
+      case None => ()
     }
     db
   }

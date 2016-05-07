@@ -1290,15 +1290,15 @@ Currently, Rhino provides only data manipulation operations.
 Other operations such as table creation/drop should be done in the
 Unicorn Shell.
 
-| Method   | URL            | Operation |
-| -------- | -------------- | --------- |
-| PUT      | /<table>       | Insert    |
-| POST     | /<table>       | Upsert    |
-| PATCH    | /<table>       | Update    |
-| DELETE   | /<table>       | Delete    |
-| DELETE   | /<table>/<key> | Delete    |
-| GET      | /<table>       | Get       |
-| GET      | /<table>/<key> | Get       |
+| Method   | URL          | Operation |
+| -------- | ------------ | --------- |
+| PUT      | /table       | Insert    |
+| POST     | /table       | Upsert    |
+| PATCH    | /table       | Update    |
+| DELETE   | /table       | Delete    |
+| DELETE   | /table/key   | Delete    |
+| GET      | /table       | Get       |
+| GET      | /table/key   | Get       |
 
 The API is simple and easy to use. To insert a document,
 use the `PUT` method with the JSON object as entity-body.
