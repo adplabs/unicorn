@@ -1307,36 +1307,32 @@ use the `PUT` method with the JSON object as entity-body.
 curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
 ```
 
+To read it back, simply use `GET` method. If the key is a string,
+the key can be part of the URI. Otherwise, the key should be
+set in the entity-body. The same rule applies to the `DELETE` method.
+
 ```bash
-curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
-
 curl -X GET http://localhost:8080/unicorn_rhino_test/dude
+```
 
-curl -X POST -H "Content-Type: application/json" -d '{"_id":"dude","username":"dude","password":"xyz"}' http://localhost:8080/rhino_test_table
+To update a document, use the `PATCH` method.
 
-curl -X GET http://localhost:8080/rhino_test_table/dude
-
+```bash
 curl -X PATCH -H "Content-Type: application/json" -d '{"_id":"dude","$set":{"password":"abc"}}' http://localhost:8080/rhino_test_table
+```
 
-curl -X GET http://localhost:8080/rhino_test_table/dude
+In case of multi-tenancy, the tenant id should be sent in
+the header.
 
-curl -X DELETE http://localhost:8080/rhino_test_table/dude
-
-curl -X GET http://localhost:8080/rhino_test_table/dude
-
+```bash
 curl -X PUT -H "Content-Type: application/json" --header 'tenant: "IBM"' -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
 
 curl -X GET --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
 
 curl -X GET --header 'tenant: "MSFT"' http://localhost:8080/rhino_test_table/dude
 
-curl -X GET http://localhost:8080/unicorn_rhino_test/dude
-
 curl -X DELETE --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
-
-curl -X GET --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
 ```
-
 
 Graph
 =====
