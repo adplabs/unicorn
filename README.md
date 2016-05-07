@@ -1321,7 +1321,7 @@ To update a document, use the `PATCH` method.
 curl -X PATCH -H "Content-Type: application/json" -d '{"_id":"dude","$set":{"password":"abc"}}' http://localhost:8080/rhino_test_table
 ```
 
-In case of multi-tenancy, the tenant id should be sent in
+In case of multi-tenancy, the tenant id should be set in
 the header.
 
 ```bash
