@@ -210,7 +210,10 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   /** Searches the table.
     * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
     * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
-    *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le).
+    *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le), and \$exists.
+    *              When the test value is true, $exists matches the documents that contain the field,
+    *              including documents where the field value is null. If the test value is false, the
+    *              query returns only the documents that do not contain the field.
     * @return an iterator of matched document.
     */
   def find(query: JsObject, projection: JsObject = JsObject()): Iterator[JsObject] = {
@@ -276,6 +279,12 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
           case Seq(("$lt", value)) => basicFilter(ScanFilter.CompareOperator.Less, field, value)
           case Seq(("$le", value)) => basicFilter(ScanFilter.CompareOperator.LessOrEqual, field, value)
           case Seq(("$lte", value)) => basicFilter(ScanFilter.CompareOperator.LessOrEqual, field, value)
+          case Seq(("$exists", value)) =>
+            value match {
+              case JsTrue  => basicFilter(ScanFilter.CompareOperator.NotEqual, field, JsUndefined)
+              case JsFalse => basicFilter(ScanFilter.CompareOperator.Equal, field, JsUndefined, false)
+              case _ => throw new IllegalArgumentException(s"Invalid $$exists operator value: $value. Only boolean value accepted.")
+            }
         }
         case _ => basicFilter(ScanFilter.CompareOperator.Equal, field, condition)
       }
@@ -286,7 +295,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     if (filters.size > 1) ScanFilter.And(filters) else filters(0)
   }
 
-  private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue): ScanFilter.Expression = {
+  private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue, filterIfMissing: Boolean = true): ScanFilter.Expression = {
     val bytes = value match {
       case x: JsBoolean => valueSerializer.serialize(x)
       case x: JsInt => valueSerializer.serialize(x)
@@ -297,10 +306,11 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
       case x: JsUUID => valueSerializer.serialize(x)
       case x: JsObjectId => valueSerializer.serialize(x)
       case x: JsBinary => valueSerializer.serialize(x)
+      case JsUndefined => Array(valueSerializer.TYPE_UNDEFINED)
       case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
     }
 
-    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes)
+    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes, filterIfMissing)
   }
 }
 /*

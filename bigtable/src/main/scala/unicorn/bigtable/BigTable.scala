@@ -231,7 +231,8 @@ object ScanFilter {
   sealed trait Expression
   case class And(list: Seq[Expression]) extends Expression
   case class Or (list: Seq[Expression]) extends Expression
-  case class BasicExpression(op: CompareOperator, family: String, column: ByteArray, value: ByteArray) extends Expression
+  /** If the filterIfMissing flag is true, the row will not be emitted if the specified column to check is not found in the row. */
+  case class BasicExpression(op: CompareOperator, family: String, column: ByteArray, value: ByteArray, filterIfMissing: Boolean = true) extends Expression
 }
 
 /** If BigTable supports filter. */

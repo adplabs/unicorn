@@ -195,7 +195,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
   }
 
   private def hbaseFilter(filter: ScanFilter.Expression): org.apache.hadoop.hbase.filter.Filter = filter match {
-    case BasicExpression(op, family, column, value) =>
+    case BasicExpression(op, family, column, value, filterIfMissing) =>
       val f = op match {
         case CompareOperator.Equal => new SingleColumnValueFilter(family, column, CompareOp.EQUAL, value)
         case CompareOperator.NotEqual => new SingleColumnValueFilter(family, column, CompareOp.NOT_EQUAL, value)
@@ -204,7 +204,7 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
         case CompareOperator.Less => new SingleColumnValueFilter(family, column, CompareOp.LESS, value)
         case CompareOperator.LessOrEqual => new SingleColumnValueFilter(family, column, CompareOp.LESS_OR_EQUAL, value)
       }
-      f.setFilterIfMissing(true)
+      f.setFilterIfMissing(filterIfMissing)
       f
     case And(list) => new FilterList(FilterList.Operator.MUST_PASS_ALL, list.map(hbaseFilter(_)))
     case Or(list) => new FilterList(FilterList.Operator.MUST_PASS_ONE, list.map(hbaseFilter(_)))
