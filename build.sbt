@@ -10,6 +10,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
   scalacOptions in Test ++= Seq("-Yrangepos"),
+  libraryDependencies += "org.specs2" %% "specs2-core" % "3.7" % "test",
   parallelExecution in Test := false,
   publishTo := {
     val nexus = "https://oss.sonatype.org/"

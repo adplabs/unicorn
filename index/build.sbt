@@ -4,6 +4,3 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 
 libraryDependencies += "com.github.haifengl" % "smile-nlp" % "1.1.0"
 
-libraryDependencies += "org.specs2" %% "specs2-core" % "3.7" % "test"
-
-parallelExecution in Test := false

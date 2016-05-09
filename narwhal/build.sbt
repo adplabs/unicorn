@@ -1,5 +1,4 @@
 name := "unicorn-narwhal"
 
-libraryDependencies += "org.specs2" %% "specs2-core" % "3.7" % "test"
+libraryDependencies += "org.apache.spark" % "spark-core_2.11" % "1.6.1"
 
-parallelExecution in Test := false
