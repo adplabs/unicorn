@@ -20,6 +20,4 @@ package unicorn.graph
   *
   * @author Haifeng Li
   */
-class Edge[V, E](val source: V, val target: V, val data: Option[E]) {
-
-}
+case class Edge[V, E](val source: V, val target: V, val data: Option[E])
