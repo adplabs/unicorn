@@ -914,7 +914,7 @@ only one column families here, we simply set the default
 value of map is the only column family.
 
 When documents in a table have a lot of fields
-and only a few fields are needed in in many situations,
+and only a few fields are needed in many situations,
 it is a good idea to organize them into different
 column families based on business logic and access patterns.
 
@@ -1337,11 +1337,28 @@ curl -X DELETE --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/d
 Graph
 =====
 
-Beyond documents, Unicorn supports the graph data model.
-In Unicorn, documents are (optionally) vertices/nodes
-in a graph, which is permitted to have multiple parallel
-edges/relationships, that is, edges that have the same
-end nodes as long as different tags. Each relationship/edge
+Graphs are mathematical structures used to model pairwise relations
+between objects. A graph is made up of vertices (nodes) which are
+connected by edges (arcs or lines). A graph may be undirected,
+meaning that there is no distinction between the two vertices
+associated with each edge, or its edges may be directed from
+one vertex to another. Directed edges are also called arrows.
+
+A multigraph is a graph which is permitted to have multiple
+edges (also called parallel edges), that is, edges that have
+the same end nodes.
+The ability to support parallel edges simplifies modeling
+scenarios where there can be multiple relationships
+(e.g., co-worker and friend) between the same vertices.
+
+In a property graph, the generic mathematical graph is often extended
+to support user defined objects attached to each vertex and edge.
+The edges also have associated labels denoting the relationships,
+which are important in a multigraph.
+
+Unicorn supports directed property multigraphs as a natural
+extension to the document model.
+In Unicorn, each document can be a vertex in a multigraph. Each relationship/edge
 is defined as a tuple (source, target, tag, value), where
 source and target are documents, tag is the label of relationship,
 and value is any kind of JSON value associated with the relationship.
