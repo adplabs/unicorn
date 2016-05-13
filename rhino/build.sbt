@@ -27,7 +27,7 @@ bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""
 bashScriptExtraDefines += """addJava "-XX:+UseStringDeduplication""""
 
 libraryDependencies ++= {
-  val akkaV = "2.3.9"
+  val akkaV = "2.4.4"
   val sprayV = "1.3.3"
   Seq(
     "io.spray"            %%  "spray-can"     % sprayV,
