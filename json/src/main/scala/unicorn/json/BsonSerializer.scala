@@ -36,116 +36,75 @@ import unicorn.util._
 class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper with Logging {
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
-  /** Serialize a JsValue to bytes. A shortcut for serialize(json, jsonPath)(jsonPath). */
-  def toBytes(json: JsValue): Array[Byte] = {
-    serialize(json, root)(root)
-  }
-
-  /** Deserialize a byte array to JsValue. A shortcut for deserialize(valueMap, jsonPath). */
-  def toJson(bytes: Array[Byte]): JsValue = {
-    deserialize(Map(root -> bytes))(root)
-  }
-
-  def serialize(json: JsObject, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
-    buffer.put(TYPE_DOCUMENT)
-    if (ename.isDefined) cstring(ename.get)
-
-    val start = buffer.position
-    buffer.putInt(0) // placeholder for document size
-
-    json.fields.toSeq.sortBy(_._1).foreach { case (field, value) => value match {
-      case x: JsBoolean  => serialize(x, Some(field))
-      case x: JsInt      => serialize(x, Some(field))
-      case x: JsLong     => serialize(x, Some(field))
-      case x: JsDouble   => serialize(x, Some(field))
-      case x: JsString   => serialize(x, Some(field))
-      case x: JsDate     => serialize(x, Some(field))
-      case x: JsUUID     => serialize(x, Some(field))
-      case x: JsObjectId => serialize(x, Some(field))
-      case x: JsBinary   => serialize(x, Some(field))
-      case x: JsObject   => serialize(x, Some(field))
-      case x: JsArray    => serialize(x, Some(field))
-      case JsNull        => buffer.put(TYPE_NULL); cstring(field)
-      case JsUndefined   => buffer.put(TYPE_UNDEFINED); cstring(field)
-      case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
-    }}
-
-    buffer.put(END_OF_DOCUMENT)
-    buffer.putInt(start, buffer.position - start) // update document size
-  }
-
-  def serialize(json: JsArray, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
-    buffer.put(TYPE_ARRAY)
-    if (ename.isDefined) cstring(ename.get)
-
-    val start = buffer.position
-    buffer.putInt(0) // placeholder for document size
-
-    json.elements.zipWithIndex.foreach { case (value, index) => value match {
-      case x: JsBoolean  => serialize(x, Some(index.toString))
-      case x: JsInt      => serialize(x, Some(index.toString))
-      case x: JsLong     => serialize(x, Some(index.toString))
-      case x: JsDouble   => serialize(x, Some(index.toString))
-      case x: JsString   => serialize(x, Some(index.toString))
-      case x: JsDate     => serialize(x, Some(index.toString))
-      case x: JsUUID     => serialize(x, Some(index.toString))
-      case x: JsObjectId => serialize(x, Some(index.toString))
-      case x: JsBinary   => serialize(x, Some(index.toString))
-      case x: JsObject   => serialize(x, Some(index.toString))
-      case x: JsArray    => serialize(x, Some(index.toString))
-      case JsNull        => buffer.put(TYPE_NULL); cstring(index.toString)
-      case JsUndefined   => buffer.put(TYPE_UNDEFINED); cstring(index.toString)
-      case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
-    }}
-
-    buffer.put(END_OF_DOCUMENT)
-    buffer.putInt(start, buffer.position - start) // update document size
-  }
-
-  override def serialize(json: JsValue, jsonPath: String): Map[String, Array[Byte]] = {
+  override def serialize(json: JsValue, rootJsonPath: String): Map[String, Array[Byte]] = {
     buffer.clear
+    serialize(json, None)(buffer)
+    Map(rootJsonPath -> buffer)
+  }
+
+  def serialize(buffer: ByteBuffer, json: JsObject, ename: Option[String]): Unit = {
+    buffer.put(TYPE_DOCUMENT)
+    serialize(buffer, ename)
+
+    val start = buffer.position
+    buffer.putInt(0) // placeholder for document size
+
+    json.fields.toSeq.sortBy(_._1).foreach { case (field, value) =>
+      serialize(value, Some(field))(buffer)
+    }
+
+    buffer.put(END_OF_DOCUMENT)
+    buffer.putInt(start, buffer.position - start) // update document size
+  }
+
+  def serialize(buffer: ByteBuffer, json: JsArray, ename: Option[String]): Unit = {
+    buffer.put(TYPE_ARRAY)
+    serialize(buffer, ename)
+
+    val start = buffer.position
+    buffer.putInt(0) // placeholder for document size
+
+    json.elements.zipWithIndex.foreach { case (value, index) =>
+      serialize(value, Some(index.toString))(buffer)
+    }
+
+    buffer.put(END_OF_DOCUMENT)
+    buffer.putInt(start, buffer.position - start) // update document size
+  }
+
+  /** Serializes a JSON value into the object buffer. */
+  def put(json: JsValue): Unit = {
+    serialize(json, None)(buffer)
+  }
+
+  private def serialize(json: JsValue, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
     json match {
-      case x: JsBoolean  => serialize(x, None)(buffer)
-      case x: JsInt      => serialize(x, None)(buffer)
-      case x: JsLong     => serialize(x, None)(buffer)
-      case x: JsDouble   => serialize(x, None)(buffer)
-      case x: JsString   => serialize(x, None)(buffer)
-      case x: JsDate     => serialize(x, None)(buffer)
-      case x: JsUUID     => serialize(x, None)(buffer)
-      case x: JsObjectId => serialize(x, None)(buffer)
-      case x: JsBinary   => serialize(x, None)(buffer)
-      case x: JsObject   => serialize(x, None)(buffer)
-      case x: JsArray    => serialize(x, None)(buffer)
-      case JsNull        => buffer.put(TYPE_NULL)
-      case JsUndefined   => buffer.put(TYPE_UNDEFINED)
+      case x: JsBoolean  => serialize(buffer, x, ename)
+      case x: JsInt      => serialize(buffer, x, ename)
+      case x: JsLong     => serialize(buffer, x, ename)
+      case x: JsDouble   => serialize(buffer, x, ename)
+      case x: JsString   => serialize(buffer, x, ename)
+      case x: JsDate     => serialize(buffer, x, ename)
+      case x: JsUUID     => serialize(buffer, x, ename)
+      case x: JsObjectId => serialize(buffer, x, ename)
+      case x: JsBinary   => serialize(buffer, x, ename)
+      case x: JsObject   => serialize(buffer, x, ename)
+      case x: JsArray    => serialize(buffer, x, ename)
+      case JsNull        => buffer.put(TYPE_NULL); serialize(buffer, ename)
+      case JsUndefined   => buffer.put(TYPE_UNDEFINED); serialize(buffer, ename)
       case JsCounter(_)  => throw new IllegalArgumentException("BSON doesn't support JsCounter")
     }
-    Map(jsonPath -> buffer)
   }
 
   override def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String): JsValue = {
     val bytes = values.get(rootJsonPath)
     require(!bytes.isEmpty, s"""root $rootJsonPath doesn't exist""")
 
-    implicit val buffer = ByteBuffer.wrap(bytes.get)
-    buffer.get match { // data type
-      case TYPE_BOOLEAN   => boolean
-      case TYPE_INT32     => int
-      case TYPE_INT64     => long
-      case TYPE_DOUBLE    => double
-      case TYPE_DATETIME  => date
-      case TYPE_STRING    => string
-      case TYPE_BINARY    => binary
-      case TYPE_OBJECTID  => objectId
-      case TYPE_NULL      => JsNull
-      case TYPE_UNDEFINED => JsUndefined
-      case TYPE_DOCUMENT  => val doc = JsObject(); deserialize(doc)
-      case TYPE_ARRAY     => val doc = JsObject(); deserialize(doc); val elements = doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2); JsArray(elements: _*)
-      case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
-    }
+    val buffer = ByteBuffer.wrap(bytes.get)
+    deserialize(buffer)
   }
 
-  def deserialize(json: JsObject)(implicit buffer: ByteBuffer): JsObject = {
+  def deserialize(buffer: ByteBuffer, json: JsObject): JsObject = {
     val start = buffer.position
     val size = buffer.getInt // document size
 
@@ -154,18 +113,26 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
       while (true) {
         buffer.get match {
           case END_OF_DOCUMENT => loop.break
-          case TYPE_BOOLEAN    => json(ename) = boolean
-          case TYPE_INT32      => json(ename) = int
-          case TYPE_INT64      => json(ename) = long
-          case TYPE_DOUBLE     => json(ename) = double
-          case TYPE_DATETIME   => json(ename) = date
-          case TYPE_STRING     => json(ename) = string
-          case TYPE_OBJECTID   => json(ename) = objectId
-          case TYPE_BINARY     => json(ename) = binary
-          case TYPE_NULL       => json(ename) = JsNull
-          case TYPE_UNDEFINED  => json(ename) = JsUndefined
-          case TYPE_DOCUMENT   => val doc = JsObject(); json(ename) = deserialize(doc)
-          case TYPE_ARRAY      => val doc = JsObject(); val field = ename(); deserialize(doc); json(field) = JsArray(doc.fields.map { case (k, v) => (k.toInt, v) }.toSeq.sortBy(_._1).map(_._2): _*)
+          case TYPE_BOOLEAN    => json(ename(buffer)) = boolean(buffer)
+          case TYPE_INT32      => json(ename(buffer)) = int(buffer)
+          case TYPE_INT64      => json(ename(buffer)) = long(buffer)
+          case TYPE_DOUBLE     => json(ename(buffer)) = double(buffer)
+          case TYPE_DATETIME   => json(ename(buffer)) = date(buffer)
+          case TYPE_STRING     => json(ename(buffer)) = string(buffer)
+          case TYPE_OBJECTID   => json(ename(buffer)) = objectId(buffer)
+          case TYPE_BINARY     => json(ename(buffer)) = binary(buffer)
+          case TYPE_NULL       => json(ename(buffer)) = JsNull
+          case TYPE_UNDEFINED  => json(ename(buffer)) = JsUndefined
+          case TYPE_DOCUMENT   =>
+            val doc = JsObject()
+            json(ename(buffer)) = deserialize(buffer, doc)
+
+          case TYPE_ARRAY      =>
+            val doc = JsObject()
+            val field = ename(buffer)
+            deserialize(buffer, doc)
+            json(field) = JsArray(doc.fields.map { case (k, v) => (k.toInt, v) }.toSeq.sortBy(_._1).map(_._2): _*)
+
           case x               => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
         }
       }
@@ -176,4 +143,36 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
 
     json
   }
+
+  def deserialize(buffer: ByteBuffer): JsValue = {
+    buffer.get match { // data type
+      case TYPE_BOOLEAN   => boolean(buffer)
+      case TYPE_INT32     => int(buffer)
+      case TYPE_INT64     => long(buffer)
+      case TYPE_DOUBLE    => double(buffer)
+      case TYPE_DATETIME  => date(buffer)
+      case TYPE_STRING    => string(buffer)
+      case TYPE_BINARY    => binary(buffer)
+      case TYPE_OBJECTID  => objectId(buffer)
+      case TYPE_NULL      => JsNull
+      case TYPE_UNDEFINED => JsUndefined
+      case TYPE_DOCUMENT  =>
+        val doc = JsObject()
+        deserialize(buffer, doc)
+
+      case TYPE_ARRAY     =>
+        val doc = JsObject()
+        deserialize(buffer, doc)
+        val elements = doc.fields.map{case (k, v) => (k.toInt, v)}.toSeq.sortBy(_._1).map(_._2)
+        JsArray(elements: _*)
+
+      case x => throw new IllegalStateException("Unsupported BSON type: %02X" format x)
+    }
+  }
+
+  /** Clears the object buffer. */
+  def clear: Unit = buffer.clear
+
+  /** Returns the object buffer content as a byte array. */
+  def toBytes: Array[Byte] = buffer
 }

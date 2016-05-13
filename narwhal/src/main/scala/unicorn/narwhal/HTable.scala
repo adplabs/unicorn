@@ -21,12 +21,22 @@ import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
 //import unicorn.index._, IndexType._, IndexSortOrder._
 import unicorn.oid.BsonObjectId
-import unicorn.unibase.Table
+import unicorn.unibase.{DocumentSerializer, Table, Unibase}
 import unicorn.util._
+import org.apache.hadoop.hbase.HBaseConfiguration
+import org.apache.hadoop.hbase.client.{Result, Scan}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.mapreduce.TableInputFormat
+import org.apache.hadoop.hbase.protobuf.ProtobufUtil
+import org.apache.hadoop.hbase.util.Base64
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 /** Unibase table specialized for HBase with additional functions such
   * as \$inc, \$rollback, find, etc. */
 class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
+  import Unibase.{$id, $tenant}
+
   /** Visibility expression which can be associated with a cell.
     * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.
     */
@@ -79,8 +89,8 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     */
   def apply(asOfDate: Date, id: JsValue, fields: String*): Option[JsObject] = {
     if (fields.isEmpty) {
-      val data = table.getAsOf(asOfDate, getKey(id), families)
-      assemble(data)
+      val data = table.getAsOf(asOfDate, rowkey(id), families)
+      serializer.deserialize(data)
     } else {
       val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
       projection($id) = id
@@ -109,8 +119,8 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   def get(asOfDate: Date, projection: JsObject): Option[JsObject] = {
     val id = getId(projection)
     val families = project(projection)
-    val data = table.getAsOf(asOfDate, getKey(id), families)
-    val doc = assemble(data)
+    val data = table.getAsOf(asOfDate, rowkey(id), families)
+    val doc = serializer.deserialize(data)
     doc.map(_($id) = id)
     doc
   }
@@ -150,19 +160,20 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     */
   def inc(id: JsValue, doc: JsObject): Unit = {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: inc ${$id}")
+    require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: inc ${$tenant}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
-        case (field, JsLong(value)) => (ByteArray(getBytes(jsonPath(field))), value)
-        case (field, JsInt(value)) => (ByteArray(getBytes(jsonPath(field))), value.toLong)
+        case (field, JsLong(value)) => (ByteArray(serializer.jsonPathBytes(field)), value)
+        case (field, JsInt(value)) => (ByteArray(serializer.jsonPathBytes(field)), value.toLong)
         case (_, value) => throw new IllegalArgumentException(s"Invalid value: $value")
       }
       (family, columns)
     }
 
-    table.addCounter(getKey(id), families)
+    table.addCounter(rowkey(id), families)
   }
 
   /** The \$rollover operator roll particular fields back to previous version.
@@ -176,17 +187,18 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     */
   def rollback(id: JsValue, doc: JsObject): Unit = {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: rollover ${$id}")
+    require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: rollover ${$tenant}")
 
     val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
-        case (field, _) => ByteArray(getBytes(jsonPath(field)))
+        case (field, _) => ByteArray(serializer.jsonPathBytes(field))
       }
       (family, columns)
     }
 
-    table.rollback(getKey(id), families)
+    table.rollback(rowkey(id), families)
   }
 
   /** Use checkAndPut for insert. */
@@ -196,44 +208,41 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
     val families = groups.toSeq.map { case (family, fields) =>
       val json = JsObject(fields: _*)
-      val columns = valueSerializer.serialize(json).map { case (path, value) =>
-        Column(getBytes(path), value)
-      }.toSeq
+      val columns = serializer.serialize(json)
       ColumnFamily(family, columns)
     }
 
     val checkFamily = locality($id)
-    val checkColumn = getBytes(idPath)
-    require(table.checkAndPut(getKey(id), checkFamily, checkColumn, families), s"Document $id already exists")
+    require(table.checkAndPut(rowkey(id), checkFamily, idColumnQualifier, families), s"Document $id already exists")
   }
 
   /** Searches the table.
     * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
     * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
     *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le), and \$exists.
-    *              When the test value is true, $exists matches the documents that contain the field,
+    *              When the test value is true, \$exists matches the documents that contain the field,
     *              including documents where the field value is null. If the test value is false, the
     *              query returns only the documents that do not contain the field.
     * @return an iterator of matched document.
     */
-  def find(query: JsObject, projection: JsObject = JsObject()): Iterator[JsObject] = {
+  def find(query: JsObject = JsObject(), projection: JsObject = JsObject()): Iterator[JsObject] = {
     val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
 
-    val it = if (query == JsObject()) {
+    val it = if (query.fields.isEmpty) {
       tenant match {
-        case None => table.scanAll(families)
-        case Some(tenant) => table.scanPrefix(getBytes(tenant), families)
+        case JsUndefined => table.scanAll(families)
+        case _ => table.scanPrefix(serializer.prefix(tenant), families)
       }
     } else {
       val filter = queryFilter(query)
       tenant match {
-        case None => table.filterScanAll(filter, families)
-        case Some(tenant) => table.filterScanPrefix(filter, getBytes(tenant), families)
+        case JsUndefined => table.filterScanAll(filter, families)
+        case _ => table.filterScanPrefix(filter, serializer.prefix(tenant), families)
       }
     }
 
     it.map { data =>
-      assemble(data.families).get
+      serializer.deserialize(data.families).get
     }
   }
 
@@ -297,20 +306,77 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
 
   private def basicFilter(op: ScanFilter.CompareOperator.Value, field: String, value: JsValue, filterIfMissing: Boolean = true): ScanFilter.Expression = {
     val bytes = value match {
-      case x: JsBoolean => valueSerializer.serialize(x)
-      case x: JsInt => valueSerializer.serialize(x)
-      case x: JsLong => valueSerializer.serialize(x)
-      case x: JsDouble => valueSerializer.serialize(x)
-      case x: JsString => valueSerializer.serialize(x)
-      case x: JsDate => valueSerializer.serialize(x)
-      case x: JsUUID => valueSerializer.serialize(x)
-      case x: JsObjectId => valueSerializer.serialize(x)
-      case x: JsBinary => valueSerializer.serialize(x)
-      case JsUndefined => Array(valueSerializer.TYPE_UNDEFINED)
+      case x: JsBoolean => serializer.valueSerializer.serialize(x)
+      case x: JsInt => serializer.valueSerializer.serialize(x)
+      case x: JsLong => serializer.valueSerializer.serialize(x)
+      case x: JsDouble => serializer.valueSerializer.serialize(x)
+      case x: JsString => serializer.valueSerializer.serialize(x)
+      case x: JsDate => serializer.valueSerializer.serialize(x)
+      case x: JsUUID => serializer.valueSerializer.serialize(x)
+      case x: JsObjectId => serializer.valueSerializer.serialize(x)
+      case x: JsBinary => serializer.valueSerializer.serialize(x)
+      case JsUndefined => serializer.valueSerializer.undefined
       case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
     }
 
-    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(getBytes(jsonPath(field))), bytes, filterIfMissing)
+    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(serializer.jsonPathBytes(field)), bytes, filterIfMissing)
+  }
+
+  /** Writes the given scan into a Base64 encoded string.
+    *
+    * @param scan  The scan to write out.
+    * @return The scan saved in a Base64 encoded string.
+    */
+  private def convertScanToString(scan: Scan): String = {
+    val proto = ProtobufUtil.toScan(scan)
+    Base64.encodeBytes(proto.toByteArray())
+  }
+
+  /** Returns a Spark RDD of query.
+    *
+    * @param sc Spark context object.
+    * @param projection an object that specifies the fields to return. Empty projection object returns the whole document.
+    * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
+    *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le), and \$exists.
+    *              When the test value is true, \$exists matches the documents that contain the field,
+    *              including documents where the field value is null. If the test value is false, the
+    *              query returns only the documents that do not contain the field.
+
+    * @return an RDD encapsulating the query.
+    */
+  def rdd(sc: SparkContext, query: JsObject = JsObject(), projection: JsObject = JsObject()): RDD[JsObject] = {
+    val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
+    val filter = if (query.fields.isEmpty) None else Some(queryFilter(query))
+    val (startRow, stopRow) = if (tenant == JsUndefined) {
+      (table.startRowKey, table.endRowKey)
+    } else {
+      val prefix = serializer.prefix(tenant)
+      (ByteArray(prefix), ByteArray(table.nextRowKeyForPrefix(prefix)))
+    }
+
+    val scan = table.hbaseScan(startRow, stopRow, families, filter)
+    scan.setCaching(500)
+    scan.setCacheBlocks(false)
+
+    val conf = HBaseConfiguration.create()
+    conf.set(TableInputFormat.INPUT_TABLE, name)
+    conf.set(TableInputFormat.SCAN, convertScanToString(scan))
+
+    val rdd = sc.newAPIHadoopRDD(
+      conf,
+      classOf[TableInputFormat],
+      classOf[ImmutableBytesWritable],
+      classOf[Result]
+    )
+
+    rdd.mapPartitions { it =>
+      val serializer = DocumentSerializer()
+      it.map { tuple =>
+        val result = tuple._2
+        val row = HBaseTable.getRow(result)
+        serializer.deserialize(row.families).get
+      }
+    }
   }
 }
 /*

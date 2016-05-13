@@ -49,137 +49,108 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
 
   def serialize(json: JsBoolean): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsInt): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsLong): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsDouble): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsString): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsDate): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsObjectId): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsUUID): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
   def serialize(json: JsBinary): Array[Byte] = {
     buffer.clear
-    serialize(json, None)(buffer)
+    serialize(buffer, json, None)
     buffer
   }
 
-  def serialize(json: JsCounter)(implicit buffer: ByteBuffer): Unit = {
+  def serialize(json: JsCounter): Array[Byte] = {
+    buffer.clear
     buffer.putLong(json.value)
+    buffer
   }
 
-  def serialize(json: JsObject, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
-    require(ename.isDefined)
+  def serialize(json: JsObject, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
     buffer.clear
     buffer.put(TYPE_DOCUMENT)
-    json.fields.foreach { case (field, _) => cstring(field) }
-    map(ename.getOrElse(root)) = buffer
+    json.fields.foreach { case (field, _) => serialize(buffer, Some(field)) }
+    map(root) = buffer
 
     json.fields.foreach { case (field, value) =>
-      buffer.clear
-      value match {
-        case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsCounter  => serialize(x); map(jsonPath(ename.get, field)) = buffer
-        case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsString   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsUUID     => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsObjectId => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsBinary   => serialize(x, None); map(jsonPath(ename.get, field)) = buffer
-        case x: JsObject   => serialize(x, Some(jsonPath(ename.get, field)), map)
-        case x: JsArray    => serialize(x, Some(jsonPath(ename.get, field)), map)
-        case JsNull        => buffer.put(TYPE_NULL); map(jsonPath(ename.get, field)) = buffer
-        case JsUndefined   => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, field)) = buffer
-      }
+      serialize(value, jsonPath(root, field), map)
     }
   }
 
-  def serialize(json: JsArray, ename: Option[String], map: collection.mutable.Map[String, Array[Byte]])(implicit buffer: ByteBuffer): Unit = {
-    require(ename.isDefined)
+  def serialize(json: JsArray, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
     buffer.clear
     buffer.put(TYPE_ARRAY)
     buffer.putInt(json.elements.size)
-    map(ename.getOrElse(root)) = buffer
+    map(root) = buffer
 
     json.elements.zipWithIndex.foreach { case (value, index) =>
-      buffer.clear
-      value match {
-        case x: JsBoolean  => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsInt      => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsLong     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsCounter  => serialize(x); map(jsonPath(ename.get, index)) = buffer
-        case x: JsDouble   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsString   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsDate     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsUUID     => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsObjectId => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsBinary   => serialize(x, None); map(jsonPath(ename.get, index)) = buffer
-        case x: JsObject   => serialize(x, Some(jsonPath(ename.get, index)), map)
-        case x: JsArray    => serialize(x, Some(jsonPath(ename.get, index)), map)
-        case JsNull        => buffer.put(TYPE_NULL); map(jsonPath(ename.get, index)) = buffer
-        case JsUndefined   => buffer.put(TYPE_UNDEFINED); map(jsonPath(ename.get, index)) = buffer
-      }
+      serialize(value, jsonPath(root, index), map)
+    }
+  }
+
+  private def serialize(json: JsValue, jsonPath: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
+    json match {
+      case x: JsBoolean => map(jsonPath) = serialize(x)
+      case x: JsInt => map(jsonPath) = serialize(x)
+      case x: JsLong => map(jsonPath) = serialize(x)
+      case x: JsCounter => map(jsonPath) = serialize(x)
+      case x: JsDouble => map(jsonPath) = serialize(x)
+      case x: JsString => map(jsonPath) = serialize(x)
+      case x: JsDate => map(jsonPath) = serialize(x)
+      case x: JsUUID => map(jsonPath) = serialize(x)
+      case x: JsObjectId => map(jsonPath) = serialize(x)
+      case x: JsBinary => map(jsonPath) = serialize(x)
+      case JsNull => map(jsonPath) = `null`
+      case JsUndefined => map(jsonPath) = undefined
+      case x: JsObject => serialize(x, jsonPath, map)
+      case x: JsArray => serialize(x, jsonPath, map)
     }
   }
 
   override def serialize(json: JsValue, jsonPath: String): Map[String, Array[Byte]] = {
-    buffer.clear
     val map = collection.mutable.Map[String, Array[Byte]]()
-    json match {
-      case x: JsBoolean  => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsInt      => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsLong     => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsCounter  => serialize(x)(buffer); map(jsonPath) = buffer
-      case x: JsDouble   => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsString   => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsDate     => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsUUID     => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsObjectId => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsBinary   => serialize(x, None)(buffer); map(jsonPath) = buffer
-      case x: JsObject   => serialize(x, Some(jsonPath), map)(buffer)
-      case x: JsArray    => serialize(x, Some(jsonPath), map)(buffer)
-      case JsNull        => buffer.put(TYPE_NULL); map(jsonPath) = buffer
-      case JsUndefined  => buffer.put(TYPE_UNDEFINED); map(jsonPath) = buffer
-    }
+    serialize(json, jsonPath, map)
     map.toMap
   }
 
@@ -190,19 +161,27 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     implicit val buffer = ByteBuffer.wrap(bytes.get)
     buffer.get match {
       // data type
-      case TYPE_BOOLEAN  => boolean
-      case TYPE_INT32     => int
-      case TYPE_INT64     => long
+      case TYPE_BOOLEAN  => boolean(buffer)
+      case TYPE_INT32     => int(buffer)
+      case TYPE_INT64     => long(buffer)
       case END_OF_DOCUMENT | TYPE_MINKEY if bytes.get.length == 8 => JsCounter(buffer.getLong(0)) // hacking counter
-      case TYPE_DOUBLE    => double
-      case TYPE_DATETIME  => date
-      case TYPE_STRING    => string
-      case TYPE_OBJECTID  => objectId
-      case TYPE_BINARY    => binary
+      case TYPE_DOUBLE    => double(buffer)
+      case TYPE_DATETIME  => date(buffer)
+      case TYPE_STRING    => string(buffer)
+      case TYPE_OBJECTID  => objectId(buffer)
+      case TYPE_BINARY    => binary(buffer)
       case TYPE_NULL      => JsNull
       case TYPE_UNDEFINED => JsUndefined
-      case TYPE_DOCUMENT  => val keys = fields(buffer); val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }.filter(_._2 != JsUndefined); JsObject(kv: _*)
-      case TYPE_ARRAY     => val size = buffer.getInt; val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }; JsArray(elements: _*)
+      case TYPE_DOCUMENT  =>
+        val keys = fields(buffer)
+        val kv = keys.map { key => (key, deserialize(values, jsonPath(rootJsonPath, key))) }.filter(_._2 != JsUndefined)
+        JsObject(kv: _*)
+
+      case TYPE_ARRAY     =>
+        val size = buffer.getInt
+        val elements = 0.until(size) map { index => deserialize(values, jsonPath(rootJsonPath, index)) }
+        JsArray(elements: _*)
+
       case x              => throw new IllegalStateException("Unsupported JSON type: %02X" format x)
     }
   }
@@ -210,7 +189,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
   private def fields(buffer: ByteBuffer): Seq[String] = {
     val keys = collection.mutable.ArrayBuffer[String]()
     while (buffer.hasRemaining) {
-      keys += cstring()(buffer)
+      keys += cstring(buffer)
     }
     keys
   }

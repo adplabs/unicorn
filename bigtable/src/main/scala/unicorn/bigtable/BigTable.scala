@@ -128,7 +128,8 @@ trait RowScanner extends Iterator[Row] {
   def close: Unit
 }
 
-trait ScanBase {
+/** If BigTable supports row scan. */
+trait RowScan {
   /** Frist row in a table. */
   val startRowKey: ByteArray
   /** Last row in a table. */
@@ -170,10 +171,7 @@ trait ScanBase {
     stopRow(stopRow.length - 1) = (stopRow(stopRow.length - 1) + one).toByte
     stopRow
   }
-}
 
-/** If BigTable supports row scan. */
-trait RowScan extends ScanBase {
   /** Scan the range for all columns in one or more column families. If families is empty, get all column families.
     * @param startRow row to start scanner at or after (inclusive)
     * @param stopRow row to stop scanner before (exclusive)
@@ -236,7 +234,7 @@ object ScanFilter {
 }
 
 /** If BigTable supports filter. */
-trait FilterScan extends ScanBase {
+trait FilterScan extends RowScan {
   /** Scan the range for all columns in one or more column families. If families is empty, get all column families.
     * @param startRow row to start scanner at or after (inclusive)
     * @param stopRow row to stop scanner before (exclusive)

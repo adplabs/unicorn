@@ -16,5 +16,22 @@ import org.apache.spark.rdd.RDD
 val conf = new SparkConf().setAppName("unicorn").setMaster("local[4]")
 val sc = new SparkContext(conf)
 val db = new Narwhal(HBase())
-val rdd = db.rdd(sc, "narwhal")
+val table = db("narwhal")
+val rdd = table.rdd(sc, json"""
+                          {
+                            "$$or": [
+                              {
+                                "age": {"$$gt": 30}
+                              },
+                              {
+                                "home_based": false
+                              }
+                            ]
+                          }
+                        """)
+rdd.count()
+
+val table = db("worker")
+table.tenant = "IBM"
+val rdd = table.rdd(sc)
 rdd.count()

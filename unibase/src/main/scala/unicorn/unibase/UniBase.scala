@@ -40,16 +40,9 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     *                 and to avoid scanning over column families that are not requested.
     */
   def createTable(name: String,
-                  families: Seq[String] = Seq(
-                    Unibase.DefaultIdColumnFamily,
-                    Unibase.DefaultDocumentColumnFamily,
-                    Unibase.DefaultGraphColumnFamily),
-                  locality: Map[String, String] = Map(
-                    Unibase.$id -> Unibase.DefaultIdColumnFamily,
-                    Unibase.$graph -> Unibase.DefaultGraphColumnFamily
-                  ).withDefaultValue(Unibase.DefaultDocumentColumnFamily),
-                  appendOnly: Boolean = false,
-                  multiTenant: Boolean = false): Unit = {
+                  families: Seq[String] = Seq(Unibase.DefaultDocumentColumnFamily),
+                  locality: Map[String, String] = Map().withDefaultValue(Unibase.DefaultDocumentColumnFamily),
+                  appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
     // If the meta data table doesn't exist, create it.
@@ -59,11 +52,32 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     // meta data table
     val metaTable = db(MetaTableName)
     val serializer = new ColumnarJsonSerializer
-    val meta = TableMeta(families, locality, appendOnly, multiTenant)
+    val meta = TableMeta(families, locality, appendOnly)
     val columns = serializer.serialize(meta).map {
       case (path, value) => Column(path.getBytes(utf8), value)
     }.toSeq
     metaTable.put(name, MetaTableColumnFamily, columns: _*)
+  }
+
+  /** Creates a document table with graph in a separate column family.
+    * @param name the name of table.
+    * @param families the column family that documents resident.
+    * @param locality a map of document fields to column families for storing of sets of fields in column families
+    *                 separately to allow clients to scan over fields that are frequently used together efficient
+    *                 and to avoid scanning over column families that are not requested.
+    */
+  def createTableWithGraph(name: String,
+                  families: Seq[String] = Seq(
+                    Unibase.DefaultIdColumnFamily,
+                    Unibase.DefaultDocumentColumnFamily,
+                    Unibase.DefaultGraphColumnFamily),
+                  locality: Map[String, String] = Map(
+                    Unibase.$id -> Unibase.DefaultIdColumnFamily,
+                    Unibase.$tenant -> Unibase.DefaultIdColumnFamily,
+                    Unibase.$graph -> Unibase.DefaultGraphColumnFamily
+                  ).withDefaultValue(Unibase.DefaultDocumentColumnFamily),
+                  appendOnly: Boolean = false): Unit = {
+    createTable(name, families, locality, appendOnly)
   }
 
   /** Drops a document table. All column families in the table will be dropped. */
@@ -95,7 +109,8 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 
 object Unibase {
   val $id = "_id"
-  val $graph = "graph"
+  val $tenant = "_tenant"
+  val $graph = "_graph"
   val DefaultIdColumnFamily = "id"
   val DefaultDocumentColumnFamily = "doc"
   val DefaultGraphColumnFamily = "graph"
@@ -114,13 +129,12 @@ private[unicorn] object TableMeta {
     * @param appendOnly True if the table is append only.
     * @return JsObject of meta data.
     */
-  def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean, multiTenant: Boolean): JsObject = {
+  def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean): JsObject = {
     JsObject(
       "families" -> families,
       "locality" -> locality.mapValues(JsString(_)),
       DefaultLocalityField -> locality(""), // hacking the default value of a map
-      "appendOnly" -> appendOnly,
-      "multiTenant" -> multiTenant
+      "appendOnly" -> appendOnly
     )
   }
 

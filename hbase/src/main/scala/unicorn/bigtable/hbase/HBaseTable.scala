@@ -32,7 +32,7 @@ import unicorn.util._
   *
   * @author Haifeng Li
   */
-class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan with IntraRowScan with FilterScan with TimeTravel with CheckAndPut with CellLevelSecurity with Appendable with Rollback with Counter {
+class HBaseTable(val db: HBase, val name: String) extends BigTable with FilterScan with IntraRowScan with TimeTravel with CheckAndPut with CellLevelSecurity with Appendable with Rollback with Counter {
 
   val table = db.connection.getTable(TableName.valueOf(name))
 
@@ -150,6 +150,13 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with RowScan 
     scan.setFilter(hbaseFilter(filter))
     families.foreach { case (family, columns) => scanColumns(scan, family, columns) }
     new HBaseRowScanner(table.getScanner(scan))
+  }
+
+  private[unicorn] def hbaseScan(startRow: ByteArray, stopRow: ByteArray, families: Seq[(String, Seq[ByteArray])], filter: Option[ScanFilter.Expression] = None): Scan = {
+    val scan = newScan(startRow, stopRow)
+    if (filter.isDefined) scan.setFilter(hbaseFilter(filter.get))
+    families.foreach { case (family, columns) => scanColumns(scan, family, columns) }
+    scan
   }
 
   override def filterScan(filter: ScanFilter.Expression, startRow: ByteArray, stopRow: ByteArray, family: String, columns: ByteArray*): RowScanner = {

@@ -68,129 +68,131 @@ trait JsonSerializerHelper {
 
   /** Encoding of "undefined" */
   val undefined = Array(TYPE_UNDEFINED)
+  val `null` = Array(TYPE_NULL)
 
-  def cstring(string: String)(implicit buffer: ByteBuffer): Unit = {
-    val bytes = string.getBytes(charset)
-    buffer.put(bytes)
-    buffer.put(END_OF_STRING)
+  def serialize(buffer: ByteBuffer, string: Option[String]): Unit = {
+    if (string.isDefined) {
+      buffer.put(string.get.getBytes(charset))
+      buffer.put(END_OF_STRING)
+    }
   }
 
-  def serialize(json: JsBoolean, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsBoolean, ename: Option[String]): Unit = {
     buffer.put(TYPE_BOOLEAN)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.put(if (json.value) TRUE else FALSE)
   }
 
-  def serialize(json: JsInt, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsInt, ename: Option[String]): Unit = {
     buffer.put(TYPE_INT32)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     // We flip the leading bit so that negative values will
     // sort before 0 in ASC order for bit strings. This is
     // important as integers on JVM are all signed.
     buffer.putInt(json.value ^ 0x80000000)
   }
 
-  def serialize(json: JsLong, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsLong, ename: Option[String]): Unit = {
     buffer.put(TYPE_INT64)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     // We flip the leading bit so that negative values will
     // sort before 0 in ASC order for bit strings. This is
     // important as integers on JVM are all signed.
     buffer.putLong(json.value ^ 0x8000000000000000L)
   }
 
-  def serialize(json: JsDouble, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsDouble, ename: Option[String]): Unit = {
     buffer.put(TYPE_DOUBLE)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.putDouble(json.value)
   }
 
-  def serialize(json: JsString, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsString, ename: Option[String]): Unit = {
     buffer.put(TYPE_STRING)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     val bytes = json.value.getBytes(charset)
     buffer.putInt(bytes.length)
     buffer.put(bytes)
   }
 
-  def serialize(json: JsDate, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsDate, ename: Option[String]): Unit = {
     buffer.put(TYPE_DATETIME)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.putLong(json.value.getTime)
   }
 
-  def serialize(json: JsObjectId, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsObjectId, ename: Option[String]): Unit = {
     buffer.put(TYPE_OBJECTID)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.put(json.value.id)
   }
 
-  def serialize(json: JsUUID, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsUUID, ename: Option[String]): Unit = {
     buffer.put(TYPE_BINARY)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.putInt(16)
     buffer.put(BINARY_SUBTYPE_UUID)
     buffer.putLong(json.value.getMostSignificantBits)
     buffer.putLong(json.value.getLeastSignificantBits)
   }
 
-  def serialize(json: JsBinary, ename: Option[String])(implicit buffer: ByteBuffer): Unit = {
+  def serialize(buffer: ByteBuffer, json: JsBinary, ename: Option[String]): Unit = {
     buffer.put(TYPE_BINARY)
-    if (ename.isDefined) cstring(ename.get)
+    serialize(buffer, ename)
     buffer.putInt(json.value.size)
     buffer.put(BINARY_SUBTYPE_GENERIC)
     buffer.put(json.value)
   }
 
-  def cstring()(implicit buffer: ByteBuffer): String = {
+  def cstring(buffer: ByteBuffer): String = {
     val str = new collection.mutable.ArrayBuffer[Byte](64)
     var b = buffer.get
-    while (b != 0) {str += b; b = buffer.get}
+    while (b != END_OF_STRING) {str += b; b = buffer.get}
     new String(str.toArray)
   }
 
-  def ename()(implicit buffer: ByteBuffer): String = cstring
+  def ename(buffer: ByteBuffer): String = cstring(buffer)
 
-  def boolean()(implicit buffer: ByteBuffer): JsBoolean = {
+  def boolean(buffer: ByteBuffer): JsBoolean = {
     val b = buffer.get
     if (b == 0) JsFalse else JsTrue
   }
 
-  def int()(implicit buffer: ByteBuffer): JsInt = {
+  def int(buffer: ByteBuffer): JsInt = {
     val x = buffer.getInt
     // Remember to flip back the leading bit
     if (x == 0) JsInt.zero else JsInt(x ^ 0x80000000)
   }
 
-  def long()(implicit buffer: ByteBuffer): JsLong = {
+  def long(buffer: ByteBuffer): JsLong = {
     val x = buffer.getLong
     // Remember to flip back the leading bit
     if (x == 0) JsLong.zero else JsLong(x ^ 0x8000000000000000L)
   }
 
-  def double()(implicit buffer: ByteBuffer): JsDouble = {
+  def double(buffer: ByteBuffer): JsDouble = {
     val x = buffer.getDouble
     if (x == 0.0) JsDouble.zero else JsDouble(x)
   }
 
-  def date()(implicit buffer: ByteBuffer): JsDate = {
+  def date(buffer: ByteBuffer): JsDate = {
     JsDate(buffer.getLong)
   }
 
-  def objectId()(implicit buffer: ByteBuffer): JsValue = {
+  def objectId(buffer: ByteBuffer): JsValue = {
     val id = new Array[Byte](BsonObjectId.size)
     buffer.get(id)
     JsObjectId(BsonObjectId(id))
   }
 
-  def string()(implicit buffer: ByteBuffer): JsString = {
+  def string(buffer: ByteBuffer): JsString = {
     val length = buffer.getInt
     val dst = new Array[Byte](length)
     buffer.get(dst)
     JsString(new String(dst, charset))
   }
 
-  def binary()(implicit buffer: ByteBuffer): JsValue = {
+  def binary(buffer: ByteBuffer): JsValue = {
     val length = buffer.getInt
     val subtype = buffer.get
     if (subtype == BINARY_SUBTYPE_UUID) {
