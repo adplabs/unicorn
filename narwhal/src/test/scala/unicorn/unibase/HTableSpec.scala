@@ -239,9 +239,9 @@ class HTableSpec extends Specification with BeforeAfterAll {
     }
     "find" in {
       val bucket = db(tableName)
-      bucket.upsert("""{"name":"Tom","age":30,"home_based":true}""".parseJsObject)
-      bucket.upsert("""{"name":"Mike","age":40,"home_based":false}""".parseJsObject)
-      bucket.upsert("""{"name":"Chris","age":30,"home_based":false}""".parseJsObject)
+      bucket.upsert("""{"name":"Tom","age":30,"state":"NY"}""".parseJsObject)
+      bucket.upsert("""{"name":"Mike","age":40,"state":"NJ"}""".parseJsObject)
+      bucket.upsert("""{"name":"Chris","age":30,"state":"NJ"}""".parseJsObject)
 
       val tom = bucket.find(JsObject("name" -> JsString("Tom")))
       tom.next.name === JsString("Tom")
@@ -252,16 +252,33 @@ class HTableSpec extends Specification with BeforeAfterAll {
       age.next.age === JsInt(30)
       age.hasNext === false
 
-      val and  = bucket.find(JsObject("age" -> 30, "home_based" -> true))
+      val and  = bucket.find(JsObject("age" -> 30, "state" -> "NJ"))
       and.next.age === JsInt(30)
       and.hasNext === false
 
-      val or  = bucket.find(JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("home_based" -> JsFalse))))
+      val or  = bucket.find(JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("state" -> JsString("NJ")))))
       val first = or.next
-      (first.age == JsInt(40) || first.home_based == JsFalse) === true
+      (first.age == JsInt(40) || first.state == JsString("NJ")) === true
       val second = or.next
-      (second.age == JsInt(40) || second.home_based == JsFalse) === true
+      (second.age == JsInt(40) || second.state == JsString("NJ")) === true
       or.hasNext === false
+    }
+    "multi-tenancy" in {
+      val bucket = db(tableName)
+      bucket.tenant = "IBM"
+      bucket.upsert("""{"name":"Tom","age":30,"state":"NY"}""".parseJsObject)
+
+      bucket.tenant = "ADP"
+      bucket.upsert("""{"name":"Mike","age":40,"state":"NJ"}""".parseJsObject)
+      bucket.upsert("""{"name":"Chris","age":30,"state":"NJ"}""".parseJsObject)
+
+      bucket.find(json"""{"state": "NY"}""").size === 0
+      bucket.tenant = "IBM"
+      bucket.find(json"""{"state": "NY"}""").size === 1
+
+      bucket.find(json"""{"state": "NJ"}""").size === 0
+      bucket.tenant = "ADP"
+      bucket.find(json"""{"state": "NJ"}""").size === 2
     }
   }
 }

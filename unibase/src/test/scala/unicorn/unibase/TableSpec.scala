@@ -178,6 +178,10 @@ class TableSpec extends Specification with BeforeAfterAll {
       val key = bucket.upsert(json)
       bucket.tenant = "ADP"
       bucket(key) === None
+      bucket.tenant = "IBM"
+      val doc = bucket(key).get
+      doc("_id") === key
+      doc("_tenant") === JsString("IBM")
     }
   }
 }
