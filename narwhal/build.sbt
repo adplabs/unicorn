@@ -1,4 +1,13 @@
 name := "unicorn-narwhal"
 
-libraryDependencies += "org.apache.spark" % "spark-core_2.11" % "1.6.1"
+libraryDependencies ++= {
+  val sparkV = "1.6.1"
+  Seq(
+    "org.apache.spark"  %%  "spark-core"    % sparkV,
+    "org.apache.spark"  %%  "spark-sql"     % sparkV,
+    "org.apache.spark"  %%  "spark-graphx"  % sparkV
+  )
+}
+
+
 
