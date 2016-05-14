@@ -30,7 +30,7 @@ val rdd = table.rdd(sc, json"""
                                 "age": {"$$gt": 30}
                               },
                               {
-                                "home_based": false
+                                "state": "NJ"
                               }
                             ]
                           }

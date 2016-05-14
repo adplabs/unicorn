@@ -29,6 +29,7 @@ class HTableSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
+
   val bigtable = HBase()
   val db = new Narwhal(bigtable)
   val tableName = "unicorn_unibase_test"
@@ -280,5 +281,34 @@ class HTableSpec extends Specification with BeforeAfterAll {
       bucket.tenant = "ADP"
       bucket.find(json"""{"state": "NJ"}""").size === 2
     }
+    "spark" in {
+      import org.apache.spark._
+
+      val conf = new SparkConf().setAppName("unicorn").setMaster("local[4]")
+      val sc = new SparkContext(conf)
+      val db = new Narwhal(HBase())
+
+      val table = db(tableName)
+      table.tenant = "ADP"
+      val rdd = table.rdd(sc)
+      rdd.count() === 2
+
+      val rdd30 = table.rdd(sc, json"""{"age": {"$$gt": 30}}""")
+      rdd30.count() === 1
+
+      val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+      import sqlContext.implicits._
+
+      val workers = rdd.map { js => Worker(js.name, js.age) }
+      val df = sqlContext.createDataFrame(workers)
+      df.show
+
+      df.registerTempTable("worker")
+      val sql = sqlContext.sql("SELECT * FROM worker WHERE age > 30")
+      sql.show
+      sql.count() === 1
+    }
   }
 }
+
+case class Worker(name: String, age: Int)
