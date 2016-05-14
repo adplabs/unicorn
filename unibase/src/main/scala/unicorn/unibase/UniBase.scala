@@ -59,27 +59,6 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     metaTable.put(name, MetaTableColumnFamily, columns: _*)
   }
 
-  /** Creates a document table with graph in a separate column family.
-    * @param name the name of table.
-    * @param families the column family that documents resident.
-    * @param locality a map of document fields to column families for storing of sets of fields in column families
-    *                 separately to allow clients to scan over fields that are frequently used together efficient
-    *                 and to avoid scanning over column families that are not requested.
-    */
-  def createTableWithGraph(name: String,
-                  families: Seq[String] = Seq(
-                    Unibase.DefaultIdColumnFamily,
-                    Unibase.DefaultDocumentColumnFamily,
-                    Unibase.DefaultGraphColumnFamily),
-                  locality: Map[String, String] = Map(
-                    Unibase.$id -> Unibase.DefaultIdColumnFamily,
-                    Unibase.$tenant -> Unibase.DefaultIdColumnFamily,
-                    Unibase.$graph -> Unibase.DefaultGraphColumnFamily
-                  ).withDefaultValue(Unibase.DefaultDocumentColumnFamily),
-                  appendOnly: Boolean = false): Unit = {
-    createTable(name, families, locality, appendOnly)
-  }
-
   /** Drops a document table. All column families in the table will be dropped. */
   def dropTable(name: String): Unit = {
     db.dropTable(name)
