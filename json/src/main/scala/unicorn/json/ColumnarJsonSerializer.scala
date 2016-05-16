@@ -107,7 +107,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     buffer
   }
 
-  def serialize(json: JsObject, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
+  private def serialize(json: JsObject, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
     buffer.clear
     buffer.put(TYPE_DOCUMENT)
     json.fields.foreach { case (field, _) => serialize(buffer, Some(field)) }
@@ -118,7 +118,7 @@ class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 
     }
   }
 
-  def serialize(json: JsArray, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
+  private def serialize(json: JsArray, root: String, map: collection.mutable.Map[String, Array[Byte]]): Unit = {
     buffer.clear
     buffer.put(TYPE_ARRAY)
     buffer.putInt(json.elements.size)
