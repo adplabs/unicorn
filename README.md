@@ -715,6 +715,10 @@ behavior, one may use `insert`, which checks if the
 document already exists and throws an exception
 if so.
 
+To make the code future proof, it is recommended to use
+`$id`, defined in `Unibase` package object, instead of
+`_id` in the code.
+
 Besides UUID, one may also `Int`, `Long`, `Date`, `String`,
 and BSON' `ObjectId` (12 bytes including 4 bytes timestamp,
 3 bytes machine id, 2 bytes process id, and 3 bytes incrementer)
@@ -756,7 +760,7 @@ To update a document, we use a MongoDB-like API:
 
 ```scala
 val update = JsObject(
-   "_id" -> key,
+   "$id" -> key,
    "$set" -> JsObject(
      "salary" -> 100000.0,
      "address.street" -> "5 ADP Blvd"
