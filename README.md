@@ -39,8 +39,12 @@ UNICORN
 Unicorn is a simple and flexible abstraction of BigTable-like database such as Cassandra,
 HBase, and Accumulo. Beyond a unified interface to various database systems,
 Unicorn provides easy-to-use document data model and MongoDB-like API.
-Moreover, a graph data model is implemented as a natural extension to document model.
+Moreover, Unicorn supports directed property multigraphs and
+documents can just be vertices in a graph.
+<!---
 Even more, full text search is provided with relevance ranking.
+-->
+
 Agility, flexibility and easy to use are our key design goals.
 With different storage engine, we can achieve different strategies on
 consistency, replication, etc.
@@ -66,11 +70,16 @@ To use Unicorn as a library, add the following to SBT build file.
 libraryDependencies += "com.github.haifengl" % "unicorn-unibase_2.11" % "2.0.0"
 ```
 
-If you need additional HBase-only features, use
+If you need additional HBase-only features, please link to the module `Narwhal`.
 
 ```scala
 libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
 ```
+
+With Narwhal, advanced features such as time travel, rollback, counters,
+server side filter, etc. are available. The user can also expose
+the data to Spark as `RDD` for large scale analytics. Graphs can be
+analyzed too with Spark GraphX.
 
 To use only JSON library,
 
@@ -893,8 +902,8 @@ family by default.
 
 ```scala
 db.createTable("worker",
-  families = Seq(Unibase.DefaultDocumentColumnFamily),
-  locality = Map().withDefaultValue(Unibase.DefaultDocumentColumnFamily))
+  families = Seq(Unibase.DocumentColumnFamily),
+  locality = Map().withDefaultValue(Unibase.DocumentColumnFamily))
 ```
 
 where the parameter `families` is the list of column families,
@@ -924,7 +933,7 @@ db.createTable("worker",
     Unibase.$id -> "id",
     "address" -> "address",
     "project" -> "project"
-  ).withDefaultValue(Unibase.DefaultDocumentColumnFamily))
+  ).withDefaultValue(Unibase.DocumentColumnFamily))
 ```
 
 For simplicity, Unicorn uses only the top level
@@ -1248,6 +1257,80 @@ For general purpose queries, secondary index should be built
 to accelerate frequent queries. We will discuss our secondary index
 design in the below.
 
+Spark
+-----
+
+For large scale analytics, Narwhal supports Spark. A table can be exposed
+to Spark as `RDD[JsObject]`.
+
+```scala
+import org.apache.spark._
+import org.apache.spark.rdd.RDD
+
+val conf = new SparkConf().setAppName("unicorn").setMaster("local[4]")
+val sc = new SparkContext(conf)
+
+val db = new Narwhal(HBase())
+val table = db("worker")
+table.tenant = "IBM"
+val rdd = table.rdd(sc)
+rdd.count()
+```
+
+In the above example, we first create a `SparkContext`. To expose a table
+to spark, simply pass the `SparkContext` object to the `rdd` method of a
+table object. In this example, we only expose the data of tenant `IBM`.
+
+Although Spark has filter functions on `RDDs`, it is better to use
+HBase's server side filter at beginning to reduce network transmission.
+The `rdd` method can take the second optional parameter for filtering,
+same syntax as in `find`.
+
+```scala
+val table = db("narwhal")
+val rdd = table.rdd(sc, json"""
+                          {
+                            "$$or": [
+                              {
+                                "age": {"$$gt": 30}
+                              },
+                              {
+                                "state": "NJ"
+                              }
+                            ]
+                          }
+                        """)
+rdd.count()
+```
+
+For analytics, `SQL` is still the best language. We can easily
+convert `RDD[JsObject]` to a strong-typed `DataFrame` to be
+analyzed in `SparkSQL`.
+
+```scala
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+import sqlContext.implicits._
+
+case class Worker(name: String, age: Int)
+val workers = rdd.map { js => Worker(js.name, js.age) }
+val df = sqlContext.createDataFrame(workers)
+df.cache
+df.show
+
+df.registerTempTable("worker")
+sqlContext.sql("SELECT * FROM worker WHERE age > 30").show
+```
+
+In the above example, we create a `SQLContext` on top of `SparkContext`
+to use SparkSQL features. Then we create a `DataFrame` of case class
+`Worker` with type information. Since we will use this `DataFrame`
+many times in analysis, we also `cache` it with an in-memory columnar format.
+To do SQL queries, we also register this `DataFrame` as a temporary table.
+<!--
+Note that in Spark 2.0, `DataFrame` will be just a special case of
+`Dataset` (`Dataset[Row]`). If you are using Spark 2.0, the above
+example will be slightly adjusted.
+-->
 
 HTTP API
 ========
@@ -1338,7 +1421,8 @@ between objects. A graph is made up of vertices (nodes) which are
 connected by edges (arcs or lines). A graph may be undirected,
 meaning that there is no distinction between the two vertices
 associated with each edge, or its edges may be directed from
-one vertex to another. Directed edges are also called arrows.
+one vertex to another. Directed graphs are also called digraphs
+and directed edges are also called arcs or arrows.
 
 A multigraph is a graph which is permitted to have multiple
 edges (also called parallel edges), that is, edges that have
@@ -1352,13 +1436,23 @@ to support user defined objects attached to each vertex and edge.
 The edges also have associated labels denoting the relationships,
 which are important in a multigraph.
 
-Unicorn supports directed property multigraphs as a natural
-extension to the document model.
-In Unicorn, each document can be a vertex in a multigraph. Each relationship/edge
-is defined as a tuple (source, target, tag, value), where
-source and target are documents, tag is the label of relationship,
-and value is any kind of JSON value associated with the relationship.
+Unicorn supports directed property multigraphs. Documents from different
+tables can be added as vertices to a multigraph. It is also okay to add
+vertices without corresponding to documents. Each relationship/edge
+has a label and optional data (any valid JsValue, default value JsInt(1)).
 
+Unicorn stores graphs in adjacency lists. That is, a graph
+is stored as a BigTable whose rows are vertices with their adjacency list.
+The adjacency list of a vertex contains all of the vertex’s incident edges
+(in and out edges are in different column families).
+
+Because large graphs are usually very sparse, an adjacency list is
+significantly more space-efficient than an adjacency matrix.
+Besides, the neighbors of each vertex may be listed efficiently with
+an adjacency list, which is important in graph traversals.
+With our design, it is also possible to
+test whether two vertices are adjacent to each other
+for a given relationship in constant time.
 
 ```scala
 val tom = json"""
