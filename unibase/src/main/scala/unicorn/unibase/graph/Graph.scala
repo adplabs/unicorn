@@ -16,12 +16,10 @@
 
 package unicorn.unibase.graph
 
-import unicorn.bigtable.{ColumnFamily, BigTable}
+import unicorn.bigtable.{BigTable, Column}
 import unicorn.unibase.Unibase
 import unicorn.json._
-import unicorn.unibase.Unibase._
 import unicorn.unibase.idgen.LongIdGenerator
-import unicorn.util.ByteArray
 
 /** Graphs are mathematical structures used to model pairwise relations
   * between objects. A graph is made up of vertices (nodes) which are
@@ -90,7 +88,7 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     val key = serializer.serialize(id)
     require(table.apply(key, GraphVertexColumnFamily, idColumnQualifier).isEmpty, s"Vertex $id already exists in graph ${table.name}")
 
-    val columns = serializer.serialize(data)
+    val columns = serializer.serializeVertex(data)
 
     table.put(key, GraphVertexColumnFamily, columns: _*)
   }
@@ -107,5 +105,19 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     val id = idgen.get.next
     addVertex(id, data)
     id
+  }
+
+  def addEdge(source: Long, label: String, target: Long, data: JsValue = JsInt(1)): Unit = {
+    val sourceKey = serializer.serialize(source)
+    require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
+
+    val targetKey = serializer.serialize(target)
+    require(table.apply(targetKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $target doesn't exist in graph ${table.name}")
+
+    val columnPrefix = serializer.toBytes(label)
+    val value = serializer.serializeEdge(data)
+
+    table.put(sourceKey, GraphOutEdgeColumnFamily, Column(serializer.serialize(columnPrefix, target), value))
+    table.put(targetKey, GraphInEdgeColumnFamily, Column(serializer.serialize(columnPrefix, source), value))
   }
 }
