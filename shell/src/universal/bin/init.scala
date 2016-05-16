@@ -20,6 +20,8 @@ import unicorn.bigtable.hbase.HBase
 import unicorn.bigtable.cassandra.Cassandra
 import unicorn.bigtable.accumulo.Accumulo
 import unicorn.unibase._
-import unicorn.unibase.Unibase.$id
+import unicorn.unibase.Unibase.{$id, $tenant}
+import unicorn.unibase.graph._
+import unicorn.unibase.idgen._
 import unicorn.narwhal._
 
