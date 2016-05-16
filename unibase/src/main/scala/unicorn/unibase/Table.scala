@@ -47,7 +47,7 @@ class Table(table: BigTable, meta: JsObject) {
   import Unibase.{$id, $tenant}
 
   /** Document serializer. */
-  val serializer = DocumentSerializer()
+  val serializer = new DocumentSerializer()
 
   /** The column qualifier of \$id field. */
   val idColumnQualifier = serializer.jsonPathBytes($id)

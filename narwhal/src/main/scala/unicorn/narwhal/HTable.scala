@@ -370,7 +370,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     )
 
     rdd.mapPartitions { it =>
-      val serializer = DocumentSerializer()
+      val serializer = new DocumentSerializer()
       it.map { tuple =>
         val result = tuple._2
         val row = HBaseTable.getRow(result)
