@@ -231,13 +231,13 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     val it = if (query.fields.isEmpty) {
       tenant match {
         case JsUndefined => table.scanAll(families)
-        case _ => table.scanPrefix(serializer.prefix(tenant), families)
+        case _ => table.scanPrefix(serializer.tenantRowKeyPrefix(tenant), families)
       }
     } else {
       val filter = queryFilter(query)
       tenant match {
         case JsUndefined => table.filterScanAll(filter, families)
-        case _ => table.filterScanPrefix(filter, serializer.prefix(tenant), families)
+        case _ => table.filterScanPrefix(filter, serializer.tenantRowKeyPrefix(tenant), families)
       }
     }
 
@@ -350,7 +350,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     val (startRow, stopRow) = if (tenant == JsUndefined) {
       (table.startRowKey, table.endRowKey)
     } else {
-      val prefix = serializer.prefix(tenant)
+      val prefix = serializer.tenantRowKeyPrefix(tenant)
       (ByteArray(prefix), ByteArray(table.nextRowKeyForPrefix(prefix)))
     }
 
