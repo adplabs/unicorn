@@ -50,7 +50,7 @@ class Snowflake(val worker: Long, var sequence: Long = 0L) extends LongIdGenerat
 
   private var lastTimestamp = -1L
 
-  // sanity check for workerId
+  // sanity check for worker id
   if (worker > maxWorkerId || worker < 0) {
     throw new IllegalArgumentException(s"worker Id can't be greater than $maxWorkerId or less than 0")
   }
