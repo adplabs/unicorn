@@ -107,6 +107,13 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     id
   }
 
+  /** Adds a directed edge. If the edge exists, the associated data will be overwritten.
+    *
+    * @param source source vertex id.
+    * @param label relationship label.
+    * @param target target vertex id.
+    * @param data optional data associated with the edge.
+    */
   def addEdge(source: Long, label: String, target: Long, data: JsValue = JsInt(1)): Unit = {
     val sourceKey = serializer.serialize(source)
     require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
