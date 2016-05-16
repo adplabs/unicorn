@@ -17,18 +17,20 @@
 package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
-
+import unicorn.bigtable.Column
+import unicorn.unibase.SerializerHelper
 import unicorn.json._
 import unicorn.util._
 
-/** Graph serializer. Edge label size is up to 256, vertex property size is up to 64KB, edge data size is up to 10MB.
+/** Graph serializer. By default, edge label size is up to 256,
+  * vertex property size is up to 64KB, overall data size of each edge is up to 10MB.
   *
   * @author Haifeng Li
   */
 class GraphSerializer(
   val buffer: ByteBuffer = ByteBuffer.allocate(265),
   val vertexSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(65536)),
-  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) {
+  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) extends SerializerHelper {
 
   /** Serialize vertex id. */
   def serialize(id: Long): Array[Byte] = {
@@ -37,4 +39,10 @@ class GraphSerializer(
     buffer
   }
 
+  /** serialize vertex property data. */
+  def serialize(json: JsObject): Seq[Column] = {
+    vertexSerializer.serialize(json).map { case (path, value) =>
+      Column(toBytes(path), value)
+    }.toSeq
+  }
 }

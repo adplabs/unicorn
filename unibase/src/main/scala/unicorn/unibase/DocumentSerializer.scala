@@ -21,21 +21,13 @@ import java.nio.ByteBuffer
 import unicorn.bigtable.{Column, ColumnFamily}
 import unicorn.json._
 
-/** Document serializer. Key size is up to 64KB, column size is up to 10MB.
+/** Document serializer. By default, document key size is up to 64KB, column size is up to 10MB.
   *
   * @author Haifeng Li
   */
 class DocumentSerializer(
   val keySerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(65536)),
-  val valueSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(10485760))) {
-
-  def toBytes(s: String) = s.getBytes(JsonSerializer.charset)
-
-  /** Returns the json path of a dot notation path as in MongoDB. */
-  def jsonPath(path: String) = s"${JsonSerializer.root}${JsonSerializer.pathDelimiter}$path"
-
-  /** Returns the byte array of json path */
-  def jsonPathBytes(path: String) = toBytes(jsonPath(path))
+  val valueSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(10485760))) extends SerializerHelper {
 
   /** Assembles the document from multi-column family data. */
   def deserialize(data: Seq[ColumnFamily]): Option[JsObject] = {
@@ -60,12 +52,12 @@ class DocumentSerializer(
     }
   }
 
+  /** Serialize document data. */
   def serialize(json: JsObject): Seq[Column] = {
     valueSerializer.serialize(json).map { case (path, value) =>
       Column(toBytes(path), value)
     }.toSeq
   }
-
 
   /** Serialize document id. */
   def serialize(tenant: JsValue, id: JsValue): Array[Byte] = {
@@ -75,6 +67,7 @@ class DocumentSerializer(
     keySerializer.toBytes
   }
 
+  /** Deserialize document key. */
   def deserialize(key: Array[Byte]): (JsValue, JsValue) = {
     val buffer = ByteBuffer.wrap(key)
     val tenant = keySerializer.deserialize(buffer)
@@ -82,7 +75,8 @@ class DocumentSerializer(
     (tenant, id)
   }
 
-  def prefix(tenant: JsValue): Array[Byte] = {
+  /** Return the row prefix of a tenant. */
+  def tenantRowKeyPrefix(tenant: JsValue): Array[Byte] = {
     keySerializer.clear
     keySerializer.put(tenant)
     keySerializer.toBytes
