@@ -16,9 +16,11 @@
 
 package unicorn.unibase.graph
 
-import unicorn.bigtable.BigTable
+import unicorn.bigtable.{ColumnFamily, BigTable}
 import unicorn.unibase.Unibase
 import unicorn.json._
+import unicorn.unibase.Unibase._
+import unicorn.unibase.idgen.LongIdGenerator
 import unicorn.util.ByteArray
 
 /** Graphs are mathematical structures used to model pairwise relations
@@ -58,18 +60,52 @@ import unicorn.util.ByteArray
   * test whether two vertices are adjacent to each other
   * for a given relationship in constant time.
   *
+  * @param table Graph adjacency list table.
+  * @param docVertexTable Document vertex lookup table for translate tuple (document table, tenant, document key) to vertex id.
+  * @param idgen 64-bit ID generator for vertex id.
+  *
   * @author Haifeng Li
   */
-class Graph(table: BigTable) {
+class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[LongIdGenerator]) {
   import Unibase.$id
+  import Unibase.{GraphVertexColumnFamily, GraphInEdgeColumnFamily, GraphOutEdgeColumnFamily}
 
   /** Document serializer. */
   val serializer = new GraphSerializer()
 
   /** The column qualifier of \$id field. */
-  //val idColumnQualifier = serializer.jsonPathBytes($id)
+  val idColumnQualifier = serializer.jsonPathBytes($id)
 
   /** The table name. */
   val name = table.name
 
+  /** Adds a vertex.
+    *
+    * @param id The unique vertex id. Throws exception if the vertex id exists.
+    * @param data Any vertex property data.
+    */
+  def addVertex(id: Long, data: JsObject): Unit = {
+    data($id) = id
+
+    val key = serializer.serialize(id)
+    require(table.apply(key, GraphVertexColumnFamily, idColumnQualifier).isEmpty, s"Vertex $id already exists in graph ${table.name}")
+
+    val columns = serializer.serialize(data)
+
+    table.put(key, GraphVertexColumnFamily, columns: _*)
+  }
+
+  /** Creates a new vertex with automatic generated ID.
+    * ID generator must be set up.
+    *
+    * @param data Any vertex property data.
+    * @return Vertex ID.
+    */
+  def addVertex(data: JsObject): Long = {
+    require(idgen.isDefined, "Vertex ID generator was not setup")
+
+    val id = idgen.get.next
+    addVertex(id, data)
+    id
+  }
 }
