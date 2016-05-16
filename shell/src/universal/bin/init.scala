@@ -20,7 +20,6 @@ import unicorn.bigtable.hbase.HBase
 import unicorn.bigtable.cassandra.Cassandra
 import unicorn.bigtable.accumulo.Accumulo
 import unicorn.unibase._
-import unicorn.unibase.Unibase.{$id, $graph}
+import unicorn.unibase.Unibase.$id
 import unicorn.narwhal._
-import unicorn.graph._
 import unicorn.sql.narwhalSQLContext

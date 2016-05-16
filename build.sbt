@@ -55,7 +55,7 @@ lazy val nonPubishSettings = commonSettings ++ Seq(
 )
 
 lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
-  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, shell, graph, rhino)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, shell, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -79,11 +79,11 @@ lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).depe
 
 lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
-lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase, accumulo % "test")
+//lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase, accumulo % "test")
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, graph, sql, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, sql, hbase, cassandra, accumulo)
 
-lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, graph, hbase, cassandra, accumulo)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, hbase, cassandra, accumulo)
 
