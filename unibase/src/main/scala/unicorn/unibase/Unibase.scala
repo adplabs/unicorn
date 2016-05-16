@@ -17,6 +17,7 @@
 package unicorn.unibase
 
 import unicorn.bigtable.{Column, BigTable, Database}
+import unicorn.unibase.graph.Graph
 import unicorn.json._
 import unicorn.util._
 
@@ -32,6 +33,13 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     new Table(db(name), TableMeta(db, name))
   }
 
+  /** Returns a graph table.
+    * @param name the name of table.
+    */
+  def graph(name: String): Graph = {
+    new Graph(db(name))
+  }
+
   /** Creates a document table.
     * @param name the name of table.
     * @param families the column family that documents resident.
@@ -40,8 +48,8 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     *                 and to avoid scanning over column families that are not requested.
     */
   def createTable(name: String,
-                  families: Seq[String] = Seq(Unibase.DefaultDocumentColumnFamily),
-                  locality: Map[String, String] = Map().withDefaultValue(Unibase.DefaultDocumentColumnFamily),
+                  families: Seq[String] = Seq(Unibase.DocumentColumnFamily),
+                  locality: Map[String, String] = Map().withDefaultValue(Unibase.DocumentColumnFamily),
                   appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
@@ -59,9 +67,20 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     metaTable.put(name, MetaTableColumnFamily, columns: _*)
   }
 
+  /** Creates a graph table.
+    * @param name the name of graph table.
+    */
+  def createGraph(name: String): Unit = {
+    db.createTable(name,
+      Unibase.GraphVertexColumnFamily,
+      Unibase.GraphInEdgeColumnFamily,
+      Unibase.GraphOutEdgeColumnFamily)
+  }
+
   /** Drops a document table. All column families in the table will be dropped. */
   def dropTable(name: String): Unit = {
     db.dropTable(name)
+    db(MetaTableName).delete(name)
   }
 
   /** Truncates a table
@@ -89,10 +108,11 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 object Unibase {
   val $id = "_id"
   val $tenant = "_tenant"
-  val $graph = "_graph"
-  val DefaultIdColumnFamily = "id"
-  val DefaultDocumentColumnFamily = "doc"
-  val DefaultGraphColumnFamily = "graph"
+  val DocumentColumnFamily = "doc"
+
+  val GraphVertexColumnFamily  = "vertex"
+  val GraphInEdgeColumnFamily  = "in"
+  val GraphOutEdgeColumnFamily = "out"
 
   def apply[T <: BigTable](db: Database[T]): Unibase[T] = {
     new Unibase[T](db)
