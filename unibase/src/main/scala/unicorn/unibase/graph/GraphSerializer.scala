@@ -32,17 +32,33 @@ class GraphSerializer(
   val vertexSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(65536)),
   val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) extends SerializerHelper {
 
-  /** Serialize vertex id. */
+  /** Serializes vertex id. */
   def serialize(id: Long): Array[Byte] = {
     buffer.clear
     buffer.putLong(id)
     buffer
   }
 
-  /** serialize vertex property data. */
-  def serialize(json: JsObject): Seq[Column] = {
+  /** Serializes vertex property data. */
+  def serializeVertex(json: JsObject): Seq[Column] = {
     vertexSerializer.serialize(json).map { case (path, value) =>
       Column(toBytes(path), value)
     }.toSeq
+  }
+
+  /** Serialize an edge column qualifier. */
+  def serialize(label: Array[Byte], vertex: Long): Array[Byte] = {
+    buffer.clear
+    buffer.put(label)
+    buffer.put(0.toByte)
+    buffer.putLong(vertex)
+    buffer
+  }
+
+  /** Serializes edge property data. */
+  def serializeEdge(json: JsValue): Array[Byte] = {
+    edgeSerializer.clear
+    edgeSerializer.put(json)
+    edgeSerializer.toBytes
   }
 }
