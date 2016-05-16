@@ -19,6 +19,7 @@ package unicorn.unibase
 import unicorn.bigtable.{Column, BigTable, Database}
 import unicorn.unibase.graph.Graph
 import unicorn.json._
+import unicorn.unibase.idgen.{LongIdGenerator, Snowflake}
 import unicorn.util._
 
 /** A Unibase is a database of documents. A collection of documents are called table.
@@ -36,8 +37,13 @@ class Unibase[+T <: BigTable](db: Database[T]) {
   /** Returns a graph table.
     * @param name the name of table.
     */
-  def graph(name: String): Graph = {
-    new Graph(db(name))
+  def graph(name: String, idgen: Option[LongIdGenerator] = None): Graph = {
+    val table = db(name)
+
+    val docVertexTableName = name + Unibase.GraphDocumentVertexTableSuffix
+    val docVertexTable = if (tableExists(docVertexTableName)) Some(db(docVertexTableName)) else None
+
+    new Graph(table, docVertexTable, idgen)
   }
 
   /** Creates a document table.
@@ -69,18 +75,33 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 
   /** Creates a graph table.
     * @param name the name of graph table.
+    * @param createDocVertexTable Creates the document-vertex lookup table if it is true.
+    *                             If documents in other tables be the vertices in this graph,
+    *                             this flag should be true.
     */
-  def createGraph(name: String): Unit = {
+  def createGraph(name: String, createDocVertexTable: Boolean = false): Unit = {
     db.createTable(name,
       Unibase.GraphVertexColumnFamily,
       Unibase.GraphInEdgeColumnFamily,
       Unibase.GraphOutEdgeColumnFamily)
+
+    if (createDocVertexTable)
+      db.createTable(name + Unibase.GraphDocumentVertexTableSuffix, Unibase.GraphVertexColumnFamily)
   }
 
   /** Drops a document table. All column families in the table will be dropped. */
   def dropTable(name: String): Unit = {
     db.dropTable(name)
     db(MetaTableName).delete(name)
+  }
+
+  /** Drops a graph. All tables related to the graph will be dropped. */
+  def dropGraph(name: String): Unit = {
+    db.dropTable(name)
+
+    val docVertexTable = name + Unibase.GraphDocumentVertexTableSuffix
+    if (tableExists(docVertexTable))
+      db.dropTable(docVertexTable)
   }
 
   /** Truncates a table
@@ -109,6 +130,8 @@ object Unibase {
   val $id = "_id"
   val $tenant = "_tenant"
   val DocumentColumnFamily = "doc"
+
+  val GraphDocumentVertexTableSuffix = "_doc_vertex"
 
   val GraphVertexColumnFamily  = "vertex"
   val GraphInEdgeColumnFamily  = "in"
