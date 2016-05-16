@@ -55,6 +55,11 @@ without overhead. Unicorn also provides a shell for quick access of database.
 The code snippets in this document can be directly run in the Shell.
 A REST API, in the module Rhino, is also provided to non-Scala users.
 
+For analytics, Unicorn data can be exposed as RDDs in Spark.
+These RDDs can also converted to DataFrames or Datasets, which
+support SQL queries. Unicorn graphs can by analyzed by Spark
+GraphX too.
+
 To use Unicorn as a library, add the following to SBT build file.
 
 ```scala
@@ -65,12 +70,6 @@ If you need additional HBase-only features, use
 
 ```scala
 libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
-```
-
-Unicorn also has primarily SQL support (simple SELECT only).
-
-```scala
-libraryDependencies += "com.github.haifengl" % "unicorn-sql_2.11" % "2.0.0"
 ```
 
 To use only JSON library,
@@ -889,17 +888,8 @@ on the access of multi-tenant tables.
 Locality
 --------
 
-When Unicorn creates a document table, it creates multiple column
-families. By default, one column family for document id,
-the second for document fields, and the third for graph data
-(to be discussed in the next section).
-Such a design is efficient when you need only either the document
-data or the graph data because the storage engine needs scan only
-the necessary column family. It also limits the network data transmission.
-
-This schema can be customized. For example, if you do not have
-graph data, you may want to use only one column family
-for both document id and data.
+When Unicorn creates a document table, it creates only one column
+family by default.
 
 ```scala
 db.createTable("worker",
@@ -913,19 +903,25 @@ map the data to different column families. Because we have
 only one column families here, we simply set the default
 value of map is the only column family.
 
-When documents in a table have a lot of fields
+This schema can be customized. When documents in a table have a lot of fields
 and only a few fields are needed in many situations,
 it is a good idea to organize them into different
 column families based on business logic and access patterns.
+Such a design is more efficient because the storage engine needs scan only
+the necessary column family. It also limits the network data transmission.
+
+For example, if you do not have
+graph data, you may want to use only one column family
+for both document id and data.
 
 ```scala
 db.createTable("worker",
   families = Seq(
-    Unibase.DefaultIdColumnFamily,
+    "id",
     "address",
     "project"),
   locality = Map(
-    Unibase.$id -> Unibase.DefaultIdColumnFamily,
+    Unibase.$id -> "id",
     "address" -> "address",
     "project" -> "project"
   ).withDefaultValue(Unibase.DefaultDocumentColumnFamily))
@@ -951,7 +947,7 @@ val joe = JsObject(
 val key = workers.upsert(joe)
 ```
 
-we can retrieve partial documents as following, which
+We can retrieve partial documents as following, which
 is known as "projection" in relational database and MongoDB.
 
 ```scala
@@ -1206,9 +1202,9 @@ query documents with method `find` by filtering field values.
 The `find` method returns an iterator to the documents that match the query criteria.
 
 ```scala
-bucket.upsert(json"""{"name":"Tom","age":30,"home_based":true}""")
-bucket.upsert(json"""{"name":"Mike","age":40,"home_based":false}""")
-bucket.upsert(json"""{"name":"Chris","age":30,"home_based":false}""")
+bucket.upsert(json"""{"name":"Tom","age":30,"state":"NY"}""")
+bucket.upsert(json"""{"name":"Mike","age":40,"state":"NJ"}""")
+bucket.upsert(json"""{"name":"Chris","age":30,"state":"NJ"}""")
 
 val it = bucket.find(json"""{"name": "Tom"}""")
 it.foreach(println(_))
@@ -1232,7 +1228,7 @@ bucket.find(json"""
         "age": {"$$gt": 30}
       },
       {
-        "home_based": false
+        "state": "NY"
       }
     ]
   }
