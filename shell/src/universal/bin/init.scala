@@ -22,4 +22,4 @@ import unicorn.bigtable.accumulo.Accumulo
 import unicorn.unibase._
 import unicorn.unibase.Unibase.$id
 import unicorn.narwhal._
-import unicorn.sql.narwhalSQLContext
+

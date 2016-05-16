@@ -71,19 +71,19 @@ lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).de
 
 lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
-lazy val index = project.in(file("index")).settings(nonPubishSettings: _*).dependsOn(bigtable, json, hbase % "test")
+//lazy val index = project.in(file("index")).settings(nonPubishSettings: _*).dependsOn(bigtable, json, hbase % "test")
 
 lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, accumulo % "test")
 
 lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).dependsOn(unibase, hbase)
 
-lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
+//lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
 //lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase, accumulo % "test")
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, sql, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, hbase, cassandra, accumulo)
 
 lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, hbase, cassandra, accumulo)
 
