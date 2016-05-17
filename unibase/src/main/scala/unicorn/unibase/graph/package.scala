@@ -14,14 +14,14 @@
  * limitations under the License.
  *******************************************************************************/
 
-import java.util.{Date, UUID}
-import unicorn.util._, unicorn.oid._, unicorn.json._
-import unicorn.bigtable.hbase.HBase
-import unicorn.bigtable.cassandra.Cassandra
-import unicorn.bigtable.accumulo.Accumulo
-import unicorn.unibase._
-import unicorn.unibase.{$id, $tenant}
-import unicorn.unibase.graph._
-import unicorn.unibase.idgen._
-import unicorn.narwhal._
+package unicorn.unibase
 
+/**
+ * @author Haifeng Li
+ */
+package object graph {
+  private[unibase] val GraphDocumentVertexTableSuffix = "_doc_vertex"
+  private[unibase] val GraphVertexColumnFamily  = "vertex"
+  private[unibase] val GraphInEdgeColumnFamily  = "in"
+  private[unibase] val GraphOutEdgeColumnFamily = "out"
+}

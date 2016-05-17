@@ -35,7 +35,7 @@ import org.apache.spark.rdd.RDD
 /** Unibase table specialized for HBase with additional functions such
   * as \$inc, \$rollback, find, etc. */
 class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
-  import Unibase.{$id, $tenant}
+  import unicorn.unibase.{$id, $tenant}
 
   /** Visibility expression which can be associated with a cell.
     * When it is set with a Mutation, all the cells in that mutation will get associated with this expression.

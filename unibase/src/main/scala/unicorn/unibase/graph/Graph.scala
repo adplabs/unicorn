@@ -65,8 +65,7 @@ import unicorn.unibase.idgen.LongIdGenerator
   * @author Haifeng Li
   */
 class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[LongIdGenerator]) {
-  import Unibase.$id
-  import Unibase.{GraphVertexColumnFamily, GraphInEdgeColumnFamily, GraphOutEdgeColumnFamily}
+  import unicorn.unibase.$id
 
   /** Document serializer. */
   val serializer = new GraphSerializer()

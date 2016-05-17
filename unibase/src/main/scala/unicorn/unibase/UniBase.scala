@@ -19,7 +19,7 @@ package unicorn.unibase
 import unicorn.bigtable.{Column, BigTable, Database}
 import unicorn.unibase.graph.Graph
 import unicorn.json._
-import unicorn.unibase.idgen.{LongIdGenerator, Snowflake}
+import unicorn.unibase.idgen.LongIdGenerator
 import unicorn.util._
 
 /** A Unibase is a database of documents. A collection of documents are called table.
@@ -27,6 +27,11 @@ import unicorn.util._
   * @author Haifeng Li
   */
 class Unibase[+T <: BigTable](db: Database[T]) {
+  import unicorn.unibase.graph.GraphDocumentVertexTableSuffix
+  import unicorn.unibase.graph.GraphVertexColumnFamily
+  import unicorn.unibase.graph.GraphInEdgeColumnFamily
+  import unicorn.unibase.graph.GraphOutEdgeColumnFamily
+
   /** Returns a document table.
     * @param name the name of table.
     */
@@ -36,11 +41,12 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 
   /** Returns a graph table.
     * @param name the name of table.
+    * @param idgen Vertex ID generator.
     */
   def graph(name: String, idgen: Option[LongIdGenerator] = None): Graph = {
     val table = db(name)
 
-    val docVertexTableName = name + Unibase.GraphDocumentVertexTableSuffix
+    val docVertexTableName = name + GraphDocumentVertexTableSuffix
     val docVertexTable = if (tableExists(docVertexTableName)) Some(db(docVertexTableName)) else None
 
     new Graph(table, docVertexTable, idgen)
@@ -54,8 +60,8 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     *                 and to avoid scanning over column families that are not requested.
     */
   def createTable(name: String,
-                  families: Seq[String] = Seq(Unibase.DocumentColumnFamily),
-                  locality: Map[String, String] = Map().withDefaultValue(Unibase.DocumentColumnFamily),
+                  families: Seq[String] = Seq(DocumentColumnFamily),
+                  locality: Map[String, String] = Map().withDefaultValue(DocumentColumnFamily),
                   appendOnly: Boolean = false): Unit = {
     db.createTable(name, families: _*)
 
@@ -75,18 +81,18 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 
   /** Creates a graph table.
     * @param name the name of graph table.
-    * @param createDocVertexTable Creates the document-vertex lookup table if it is true.
-    *                             If documents in other tables be the vertices in this graph,
-    *                             this flag should be true.
+    * @param docVertexTable Creates the document-vertex lookup table if it is true.
+    *                       If documents in other tables be the vertices in this graph,
+    *                       this flag should be true.
     */
-  def createGraph(name: String, createDocVertexTable: Boolean = false): Unit = {
+  def createGraph(name: String, docVertexTable: Boolean = false): Unit = {
     db.createTable(name,
-      Unibase.GraphVertexColumnFamily,
-      Unibase.GraphInEdgeColumnFamily,
-      Unibase.GraphOutEdgeColumnFamily)
+      GraphVertexColumnFamily,
+      GraphInEdgeColumnFamily,
+      GraphOutEdgeColumnFamily)
 
-    if (createDocVertexTable)
-      db.createTable(name + Unibase.GraphDocumentVertexTableSuffix, Unibase.GraphVertexColumnFamily)
+    if (docVertexTable)
+      db.createTable(name + GraphDocumentVertexTableSuffix, GraphVertexColumnFamily)
   }
 
   /** Drops a document table. All column families in the table will be dropped. */
@@ -99,7 +105,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
   def dropGraph(name: String): Unit = {
     db.dropTable(name)
 
-    val docVertexTable = name + Unibase.GraphDocumentVertexTableSuffix
+    val docVertexTable = name + unicorn.unibase.graph.GraphDocumentVertexTableSuffix
     if (tableExists(docVertexTable))
       db.dropTable(docVertexTable)
   }
@@ -127,16 +133,6 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 }
 
 object Unibase {
-  val $id = "_id"
-  val $tenant = "_tenant"
-  val DocumentColumnFamily = "doc"
-
-  val GraphDocumentVertexTableSuffix = "_doc_vertex"
-
-  val GraphVertexColumnFamily  = "vertex"
-  val GraphInEdgeColumnFamily  = "in"
-  val GraphOutEdgeColumnFamily = "out"
-
   def apply[T <: BigTable](db: Database[T]): Unibase[T] = {
     new Unibase[T](db)
   }

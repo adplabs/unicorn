@@ -21,7 +21,7 @@ import unicorn.unibase.{Table, Unibase}, Unibase.{$id, $graph}
 import unicorn.util.Logging
 
 /** Simple Unibase graph visitor. The default implementation of edges returns
-  * an adjacency list by checking $.graph in the document.  The field $.graph
+  * an adjacency list by checking $._graph in the document.  The field $._graph
   * is an object (usually stored in a separate column family)
   * of which fields are relationships and values are target node IDs.
   * Each target node can have any data associate with.
@@ -29,7 +29,7 @@ import unicorn.util.Logging
   *
   * {{{
   *   {
-  *     "graph": {
+  *     "_graph": {
   *       "work with": {
   *         "Tom": {  // The field name is the string representation of _id.
   *           "_id": "Tom",

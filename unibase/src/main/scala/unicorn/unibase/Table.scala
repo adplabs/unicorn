@@ -44,8 +44,6 @@ import unicorn.util.ByteArray
   * @author Haifeng Li
   */
 class Table(table: BigTable, meta: JsObject) {
-  import Unibase.{$id, $tenant}
-
   /** Document serializer. */
   val serializer = new DocumentSerializer()
 
