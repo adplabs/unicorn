@@ -49,3 +49,10 @@ gods.addEdge(pluto, "lives", tartarus, json"""{"reason": "no fear of death"}""")
 gods.addEdge(pluto, "pet", cerberus)
 
 gods.addEdge(cerberus, "lives", tartarus)
+
+gods(hydra)
+gods(hydra).in("battled")
+gods(hydra).out("battled")
+gods(neptune, "lives", sea)
+gods(neptune, "lives", jupiter)
+gods(neptune, "brother", jupiter)
