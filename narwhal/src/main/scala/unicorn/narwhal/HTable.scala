@@ -21,7 +21,7 @@ import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
 //import unicorn.index._, IndexType._, IndexSortOrder._
 import unicorn.oid.BsonObjectId
-import unicorn.unibase.{DocumentSerializer, Table, Unibase}
+import unicorn.unibase.{DocumentSerializer, Table}
 import unicorn.util._
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Result, Scan}
