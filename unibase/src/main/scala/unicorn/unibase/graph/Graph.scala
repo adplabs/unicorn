@@ -16,6 +16,8 @@
 
 package unicorn.unibase.graph
 
+import java.nio.ByteBuffer
+
 import unicorn.bigtable.{BigTable, Column}
 import unicorn.json._
 import unicorn.unibase.idgen.LongIdGenerator
@@ -64,7 +66,7 @@ import unicorn.util.Logging
   *
   * @author Haifeng Li
   */
-class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[LongIdGenerator]) extends Logging {
+class Graph(table: BigTable, docVertexTable: BigTable, idgen: LongIdGenerator) extends Logging {
   import unicorn.unibase.{$id, $tenant}
 
   /** Document serializer. */
@@ -76,6 +78,7 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
   /** The table name. */
   val name = table.name
 
+  /** Returns the vertex properties and its adjacency list. */
   def apply(id: Long): Vertex = {
     val key = serializer.serialize(id)
     val families = table.get(key)
@@ -109,6 +112,15 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     Vertex(id, properties.get, in, out)
   }
 
+  /** Returns the vertex of a document. */
+  def apply(table: String, key: JsValue, tenant: JsValue = JsUndefined): Vertex = {
+    val id = docVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, idColumnQualifier)
+    require(id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
+
+    apply(ByteBuffer.wrap(id.get).getLong)
+  }
+
+  /** Returns the edge between source and target with given label. */
   def apply(source: Long, label: String, target: Long): Option[Edge] = {
     val sourceKey = serializer.serialize(source)
     require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
@@ -122,6 +134,18 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     value.map { bytes =>
       Edge(source, target, label, serializer.deserializeEdge(bytes))
     }
+  }
+
+  /** Shortcut to addVertex. Returns the vertex properties object. */
+  def update(id: Long, properties: JsObject): JsObject = {
+    addVertex(id, properties)
+    properties
+  }
+
+  /** Shortcut to addEdge. Returns the edge properties value. */
+  def update(source: Long, label: String, target: Long, properties: JsValue): JsValue = {
+    addEdge(source, label, target, properties)
+    properties
   }
 
   /** Adds a vertex.
@@ -147,9 +171,7 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     * @return Vertex ID.
     */
   def addVertex(properties: JsObject): Long = {
-    require(idgen.isDefined, "Vertex ID generator was not setup")
-
-    val id = idgen.get.next
+    val id = idgen.next
     addVertex(id, properties)
     id
   }
@@ -164,9 +186,7 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     * @return Vertex ID.
     */
   def addVertex(table: String, key: JsValue, tenant: JsValue = JsUndefined, properties: JsObject = JsObject()): Long = {
-    require(idgen.isDefined, "Vertex ID generator was not setup")
-
-    val id = idgen.get.next
+    val id = idgen.next
 
     properties($doc) = JsObject(
       $table -> table,
@@ -175,7 +195,28 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     )
 
     addVertex(id, properties)
+    docVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, idColumnQualifier) = serializer.serialize(id)
+
     id
+  }
+
+  /** Deletes a vertex and all associated edges. */
+  def deleteVertex(id: Long): Unit = {
+    val vertex = apply(id)
+
+    val doc = vertex.properties($doc)
+    if (doc != JsUndefined) {
+      docVertexTable.delete(serializer.serialize(doc($table), doc($tenant), doc($id)))
+    }
+
+    vertex.in.foreach { case (label, edges) =>
+      edges.foreach { edge =>
+        deleteEdge(edge.source, edge.label, edge.target)
+      }
+    }
+
+    val key = serializer.serialize(id)
+    table.delete(key)
   }
 
   /** Adds a directed edge. If the edge exists, the associated data will be overwritten.
@@ -197,5 +238,24 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
 
     table.put(sourceKey, GraphOutEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, target), value))
     table.put(targetKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, source), value))
+  }
+
+  /** Deletes a directed edge.
+    *
+    * @param source source vertex id.
+    * @param label relationship label.
+    * @param target target vertex id.
+    */
+  def deleteEdge(source: Long, label: String, target: Long): Unit = {
+    val sourceKey = serializer.serialize(source)
+    require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
+
+    val targetKey = serializer.serialize(target)
+    require(table.apply(targetKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $target doesn't exist in graph ${table.name}")
+
+    val columnPrefix = serializer.toBytes(label)
+
+    table.delete(sourceKey, GraphOutEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, target))
+    table.delete(targetKey, GraphInEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, source))
   }
 }

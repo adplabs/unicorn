@@ -39,6 +39,15 @@ class GraphSerializer(
     buffer
   }
 
+  /** Serializes the document vertex lookup table row key. */
+  def serialize(table: String, tenant: JsValue, key: JsValue): Array[Byte] = {
+    buffer.clear
+    edgeSerializer.serialize(buffer, table)
+    edgeSerializer.serialize(buffer, tenant)
+    edgeSerializer.serialize(buffer, key)
+    buffer
+  }
+
   /** Serializes vertex property data. */
   def serializeVertex(json: JsObject): Seq[Column] = {
     vertexSerializer.serialize(json).map { case (path, value) =>

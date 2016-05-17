@@ -72,9 +72,13 @@ trait JsonSerializerHelper {
 
   def serialize(buffer: ByteBuffer, string: Option[String]): Unit = {
     if (string.isDefined) {
-      buffer.put(string.get.getBytes(charset))
-      buffer.put(END_OF_STRING)
+      serialize(buffer, string.get)
     }
+  }
+
+  def serialize(buffer: ByteBuffer, string: String): Unit = {
+    buffer.put(string.getBytes(charset))
+    buffer.put(END_OF_STRING)
   }
 
   def serialize(buffer: ByteBuffer, json: JsBoolean, ename: Option[String]): Unit = {

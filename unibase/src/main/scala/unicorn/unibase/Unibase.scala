@@ -19,7 +19,7 @@ package unicorn.unibase
 import unicorn.bigtable.{Column, BigTable, Database}
 import unicorn.unibase.graph.Graph
 import unicorn.json._
-import unicorn.unibase.idgen.LongIdGenerator
+import unicorn.unibase.idgen.{LongIdGenerator, Snowflake}
 import unicorn.util._
 
 /** A Unibase is a database of documents. A collection of documents are called table.
@@ -43,11 +43,11 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     * @param name the name of table.
     * @param idgen Vertex ID generator.
     */
-  def graph(name: String, idgen: Option[LongIdGenerator] = None): Graph = {
+  def graph(name: String, idgen: LongIdGenerator = new Snowflake(0)): Graph = {
     val table = db(name)
 
     val docVertexTableName = name + GraphDocumentVertexTableSuffix
-    val docVertexTable = if (tableExists(docVertexTableName)) Some(db(docVertexTableName)) else None
+    val docVertexTable = db(docVertexTableName)
 
     new Graph(table, docVertexTable, idgen)
   }
