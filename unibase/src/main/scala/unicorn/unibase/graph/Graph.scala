@@ -17,9 +17,9 @@
 package unicorn.unibase.graph
 
 import unicorn.bigtable.{BigTable, Column}
-import unicorn.unibase.Unibase
 import unicorn.json._
 import unicorn.unibase.idgen.LongIdGenerator
+import unicorn.util.Logging
 
 /** Graphs are mathematical structures used to model pairwise relations
   * between objects. A graph is made up of vertices (nodes) which are
@@ -64,8 +64,8 @@ import unicorn.unibase.idgen.LongIdGenerator
   *
   * @author Haifeng Li
   */
-class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[LongIdGenerator]) {
-  import unicorn.unibase.$id
+class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[LongIdGenerator]) extends Logging {
+  import unicorn.unibase.{$id, $tenant}
 
   /** Document serializer. */
   val serializer = new GraphSerializer()
@@ -76,18 +76,66 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
   /** The table name. */
   val name = table.name
 
+  def apply(id: Long): Vertex = {
+    val key = serializer.serialize(id)
+    val families = table.get(key)
+    require(!families.isEmpty, s"Vertex $id doesn't exist in graph ${table.name}")
+
+    val properties = families.find(_.family == GraphVertexColumnFamily).map { family =>
+      serializer.deserializeVertex(family.columns)
+    }
+
+    if (properties.isEmpty)
+      log.error(s"Vertex $id missing vertex property columns")
+
+    val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
+      val edges = family.columns.map { column =>
+        val (label, source) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
+        val properities = serializer.deserializeEdge(column.value)
+        Edge(source, id, label, properities)
+      }
+      edges.groupBy(_.label)
+    }.getOrElse(Map.empty)
+
+    val out = families.find(_.family == GraphOutEdgeColumnFamily).map { family =>
+      val edges = family.columns.map { column =>
+        val (label, target) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
+        val properities = serializer.deserializeEdge(column.value)
+        Edge(id, target, label, properities)
+      }
+      edges.groupBy(_.label)
+    }.getOrElse(Map.empty)
+
+    Vertex(id, properties.get, in, out)
+  }
+
+  def apply(source: Long, label: String, target: Long): Option[Edge] = {
+    val sourceKey = serializer.serialize(source)
+    require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
+
+    val targetKey = serializer.serialize(target)
+    require(table.apply(targetKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $target doesn't exist in graph ${table.name}")
+
+    val columnPrefix = serializer.toBytes(label)
+    val value = table(sourceKey, GraphOutEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, target))
+
+    value.map { bytes =>
+      Edge(source, target, label, serializer.deserializeEdge(bytes))
+    }
+  }
+
   /** Adds a vertex.
     *
     * @param id The unique vertex id. Throws exception if the vertex id exists.
-    * @param data Any vertex property data.
+    * @param properties Any vertex property data.
     */
-  def addVertex(id: Long, data: JsObject): Unit = {
-    data($id) = id
+  def addVertex(id: Long, properties: JsObject): Unit = {
+    properties($id) = id
 
     val key = serializer.serialize(id)
     require(table.apply(key, GraphVertexColumnFamily, idColumnQualifier).isEmpty, s"Vertex $id already exists in graph ${table.name}")
 
-    val columns = serializer.serializeVertex(data)
+    val columns = serializer.serializeVertex(properties)
 
     table.put(key, GraphVertexColumnFamily, columns: _*)
   }
@@ -95,14 +143,38 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
   /** Creates a new vertex with automatic generated ID.
     * ID generator must be set up.
     *
-    * @param data Any vertex property data.
+    * @param properties Any vertex property data.
     * @return Vertex ID.
     */
-  def addVertex(data: JsObject): Long = {
+  def addVertex(properties: JsObject): Long = {
     require(idgen.isDefined, "Vertex ID generator was not setup")
 
     val id = idgen.get.next
-    addVertex(id, data)
+    addVertex(id, properties)
+    id
+  }
+
+  /** Creates a new vertex corresponding to a document in aother table with automatic generated ID.
+    * ID generator must be set up.
+    *
+    * @param table The table of name of document.
+    * @param key The document id.
+    * @param tenant The tenant id of document if the table is multi-tenanted.
+    * @param properties Any vertex property data.
+    * @return Vertex ID.
+    */
+  def addVertex(table: String, key: JsValue, tenant: JsValue = JsUndefined, properties: JsObject = JsObject()): Long = {
+    require(idgen.isDefined, "Vertex ID generator was not setup")
+
+    val id = idgen.get.next
+
+    properties($doc) = JsObject(
+      $table -> table,
+      $id -> key,
+      $tenant -> tenant
+    )
+
+    addVertex(id, properties)
     id
   }
 
@@ -111,9 +183,9 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     * @param source source vertex id.
     * @param label relationship label.
     * @param target target vertex id.
-    * @param data optional data associated with the edge.
+    * @param properties optional data associated with the edge.
     */
-  def addEdge(source: Long, label: String, target: Long, data: JsValue = JsInt(1)): Unit = {
+  def addEdge(source: Long, label: String, target: Long, properties: JsValue = JsInt(1)): Unit = {
     val sourceKey = serializer.serialize(source)
     require(table.apply(sourceKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $source doesn't exist in graph ${table.name}")
 
@@ -121,9 +193,9 @@ class Graph(table: BigTable, docVertexTable: Option[BigTable], idgen: Option[Lon
     require(table.apply(targetKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $target doesn't exist in graph ${table.name}")
 
     val columnPrefix = serializer.toBytes(label)
-    val value = serializer.serializeEdge(data)
+    val value = serializer.serializeEdge(properties)
 
-    table.put(sourceKey, GraphOutEdgeColumnFamily, Column(serializer.serialize(columnPrefix, target), value))
-    table.put(targetKey, GraphInEdgeColumnFamily, Column(serializer.serialize(columnPrefix, source), value))
+    table.put(sourceKey, GraphOutEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, target), value))
+    table.put(targetKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, source), value))
   }
 }

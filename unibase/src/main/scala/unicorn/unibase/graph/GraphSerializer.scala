@@ -46,8 +46,16 @@ class GraphSerializer(
     }.toSeq
   }
 
-  /** Serialize an edge column qualifier. */
-  def serialize(label: Array[Byte], vertex: Long): Array[Byte] = {
+  /** Deserializes vertex property data. */
+  def deserializeVertex(columns: Seq[Column]): JsObject = {
+    val map = columns.map { case Column(qualifier, value, _) =>
+      (new String(qualifier, JsonSerializer.charset), value.bytes)
+    }.toMap
+    vertexSerializer.deserialize(map).asInstanceOf[JsObject]
+  }
+
+  /** Serializes an edge column qualifier. */
+  def serializeEdgeColumnQualifier(label: Array[Byte], vertex: Long): Array[Byte] = {
     buffer.clear
     buffer.put(label)
     buffer.put(0.toByte)
@@ -55,10 +63,23 @@ class GraphSerializer(
     buffer
   }
 
+  /** Deserializes an edge column qualifier. */
+  def deserializeEdgeColumnQualifier(bytes: Array[Byte]): (String, Long) = {
+    val buffer = ByteBuffer.wrap(bytes)
+    val label = edgeSerializer.cstring(buffer)
+    val vertex = buffer.getLong
+    (label, vertex)
+  }
+
   /** Serializes edge property data. */
   def serializeEdge(json: JsValue): Array[Byte] = {
     edgeSerializer.clear
     edgeSerializer.put(json)
     edgeSerializer.toBytes
+  }
+
+  /** Deserializes edge property data. */
+  def deserializeEdge(bytes: Array[Byte]): JsValue = {
+    edgeSerializer.deserialize(bytes)
   }
 }
