@@ -104,6 +104,11 @@ class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024))
     deserialize(buffer)
   }
 
+  def deserialize(bytes: Array[Byte]): JsValue = {
+    val buffer = ByteBuffer.wrap(bytes)
+    deserialize(buffer)
+  }
+
   def deserialize(buffer: ByteBuffer, json: JsObject): JsObject = {
     val start = buffer.position
     val size = buffer.getInt // document size
