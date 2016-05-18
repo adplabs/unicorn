@@ -14,6 +14,11 @@ packageDescription := "Unicorn REST API"
 
 executableScriptName := "rhino"
 
+mappings in Universal ++= Seq(
+  file("src/main/resources/application.conf") -> "conf/rhino.conf",
+  file("src/main/resources/log4j.properties") -> "conf/log4j.properties"
+)
+
 bashScriptConfigLocation := Some("${app_home}/../conf/rhino.ini")
 
 bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/rhino.conf""""
