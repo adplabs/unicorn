@@ -16,6 +16,7 @@
 
 package unicorn.json
 
+import java.nio.charset.Charset
 import java.nio.{ByteBuffer, ByteOrder}
 import unicorn.util._
 
@@ -31,12 +32,18 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class ColumnarJsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper {
+class ColumnarJsonSerializer(
+  buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024),
+  val charset: Charset = utf8,
+  val root: String = "$",
+  val pathDelimiter: String = "."
+) extends JsonSerializer with JsonSerializerHelper {
+
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
-  private def jsonPath(parent: String, field: String) = s"%s${JsonSerializer.pathDelimiter}%s".format(parent, field)
+  private def jsonPath(parent: String, field: String) = s"%s${pathDelimiter}%s".format(parent, field)
 
-  private def jsonPath(parent: String, index: Int) = s"%s${JsonSerializer.pathDelimiter}%d".format(parent, index)
+  private def jsonPath(parent: String, index: Int) = s"%s${pathDelimiter}%d".format(parent, index)
 
   /** Serialize a string to C null-terminated string. */
   def serialize(string: String): Array[Byte] = {

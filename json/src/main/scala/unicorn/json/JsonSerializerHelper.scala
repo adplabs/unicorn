@@ -20,10 +20,10 @@ import java.nio.charset.Charset
 import java.nio.ByteBuffer
 import unicorn.oid.BsonObjectId
 
-/**
- * @author Haifeng Li
- */
-trait JsonSerializerHelper {
+/** Json serializer helper functions.
+  * @author Haifeng Li
+  */
+trait JsonSerializerHelper extends JsonSerializer {
   /** End of document */
   val END_OF_DOCUMENT             : Byte = 0x00
 
@@ -69,6 +69,15 @@ trait JsonSerializerHelper {
   /** Encoding of "undefined" */
   val undefined = Array(TYPE_UNDEFINED)
   val `null` = Array(TYPE_NULL)
+
+  /** Serialize a string to bytes. */
+  def str2Bytes(s: String) = s.getBytes(charset)
+
+  /** Returns the json path of a dot notation path as in MongoDB. */
+  def str2Path(path: String) = s"${root}${pathDelimiter}$path"
+
+  /** Returns the byte array of json path */
+  def str2PathBytes(path: String) = str2Bytes(str2Path(path))
 
   def serialize(buffer: ByteBuffer, string: Option[String]): Unit = {
     if (string.isDefined) {

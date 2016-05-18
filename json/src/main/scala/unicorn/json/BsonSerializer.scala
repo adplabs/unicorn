@@ -17,6 +17,7 @@
 package unicorn.json
 
 import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.charset.Charset
 import unicorn.util._
 
 /**
@@ -33,7 +34,13 @@ import unicorn.util._
  *
  * @author Haifeng Li
  */
-class BsonSerializer(buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024)) extends JsonSerializer with JsonSerializerHelper with Logging {
+class BsonSerializer(
+  buffer: ByteBuffer = ByteBuffer.allocate(16 * 1024 * 1024),
+  val charset: Charset = utf8,
+  val root: String = "$",
+  val pathDelimiter: String = "."
+) extends JsonSerializer with JsonSerializerHelper with Logging {
+
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
   override def serialize(json: JsValue, rootJsonPath: String): Map[String, Array[Byte]] = {

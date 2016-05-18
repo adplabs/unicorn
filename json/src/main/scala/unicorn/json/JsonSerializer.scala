@@ -23,32 +23,25 @@ import java.nio.charset.Charset
  */
 trait JsonSerializer {
   /** string encoder/decoder */
-  val charset = JsonSerializer.charset
+  val charset: Charset
 
   /** The path to the root of a JsValue. */
-  val root = JsonSerializer.root
+  val root: String
 
   /** The delimiter in the path to an embedded object or in an array.
-    * We follow the dot notation as in MongoDB (even for array elements).
+    * In general, we follow the dot notation as in MongoDB (even for array elements).
     */
-  val pathDelimiter = JsonSerializer.pathDelimiter
+  val pathDelimiter: String
+
+  /** Byte array of undefined. */
+  val undefined: Array[Byte]
+
+  /** Byte array of null. */
+  val `null`: Array[Byte]
 
   /** Serializes a JSON value to a list of key/value pairs, where key is the JSONPath of element. */
   def serialize(value: JsValue, rootJsonPath: String = root): Map[String, Array[Byte]]
 
   /** Deserialize a JSON value from the given root JSONPath. */
   def deserialize(values: Map[String, Array[Byte]], rootJsonPath: String = root): JsValue
-}
-
-object JsonSerializer {
-  /** string encoder/decoder */
-  val charset = Charset.forName("UTF-8")
-
-  /** The path to the root of a JsValue. */
-  val root = "$"
-
-  /** The delimiter in the path to an embedded object or in an array.
-    * We follow the dot notation as in MongoDB (even for array elements).
-    */
-  val pathDelimiter = "."
 }

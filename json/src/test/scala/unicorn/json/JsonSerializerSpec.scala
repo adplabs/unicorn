@@ -71,7 +71,7 @@ class JsonSerializerSpec extends Specification {
       val json = JsonParser(jsonSource)
       val bson = serializer.serialize(json)
       bson.size === 1
-      bson.isDefinedAt(JsonSerializer.root) ==== true
+      bson.isDefinedAt(serializer.root) ==== true
       serializer.deserialize(bson) === json
     }
   }
