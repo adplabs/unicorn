@@ -37,7 +37,7 @@ class ColumnarJsonSerializer(
   val charset: Charset = utf8,
   val root: String = "$",
   val pathDelimiter: String = "."
-) extends JsonSerializer with JsonSerializerHelper {
+) extends BaseJsonSerializer {
 
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 

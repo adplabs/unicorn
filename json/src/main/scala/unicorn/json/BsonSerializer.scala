@@ -39,7 +39,7 @@ class BsonSerializer(
   val charset: Charset = utf8,
   val root: String = "$",
   val pathDelimiter: String = "."
-) extends JsonSerializer with JsonSerializerHelper with Logging {
+) extends BaseJsonSerializer with Logging {
 
   require(buffer.order == ByteOrder.BIG_ENDIAN)
 
