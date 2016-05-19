@@ -16,10 +16,18 @@
 
 package unicorn.unibase.graph
 
+import scala.language.dynamics
 import unicorn.json.JsValue
 
 /** Graph edge.
   *
   * @author Haifeng Li
   */
-case class Edge(val source: Long, val target: Long, val label: String, val properties: JsValue)
+case class Edge(val source: Long, val label: String, val target: Long, val properties: JsValue) extends Dynamic {
+
+  def apply(property: String): JsValue = properties.apply(property)
+
+  def applyDynamic(property: String): JsValue = apply(property)
+
+  def selectDynamic(property: String): JsValue = apply(property)
+}

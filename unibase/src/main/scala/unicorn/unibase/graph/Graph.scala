@@ -106,7 +106,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
       val edges = family.columns.map { column =>
         val (label, source) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
         val properities = serializer.deserializeEdge(column.value)
-        Edge(source, vertex, label, properities)
+        Edge(source, label, vertex, properities)
       }
       edges.groupBy(_.label)
     }.getOrElse(Map.empty)
@@ -115,7 +115,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
       val edges = family.columns.map { column =>
         val (label, target) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
         val properities = serializer.deserializeEdge(column.value)
-        Edge(vertex, target, label, properities)
+        Edge(vertex, label, target, properities)
       }
       edges.groupBy(_.label)
     }.getOrElse(Map.empty)

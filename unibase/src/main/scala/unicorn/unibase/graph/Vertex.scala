@@ -24,9 +24,10 @@ import unicorn.json._
   * @author Haifeng Li
   */
 case class Vertex(val id: Long, val properties: JsObject, in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]]) extends Dynamic {
-  def apply(key: String): JsValue = properties.apply(key)
 
-  def applyDynamic(key: String): JsValue = apply(key)
+  def apply(property: String): JsValue = properties.apply(property)
 
-  def selectDynamic(key: String): JsValue = apply(key)
+  def applyDynamic(property: String): JsValue = apply(property)
+
+  def selectDynamic(property: String): JsValue = apply(property)
 }
