@@ -20,7 +20,7 @@ package unicorn.unibase.graph
   *
   * @author Haifeng Li
   */
-trait Visitor[V, E] {
+trait Visitor {
   /** Visit a vertex during graph traversal.
     *
     * @param vertex the vertex on visiting.

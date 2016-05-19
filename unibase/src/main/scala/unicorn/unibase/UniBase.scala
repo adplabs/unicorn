@@ -45,11 +45,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     */
   def graph(name: String, idgen: LongIdGenerator = new Snowflake(0)): Graph = {
     val table = db(name)
-
-    val docVertexTableName = name + GraphDocumentVertexTableSuffix
-    val docVertexTable = db(docVertexTableName)
-
-    new Graph(table, docVertexTable, idgen)
+    new Graph(table, idgen)
   }
 
   /** Creates a document table.
@@ -81,18 +77,12 @@ class Unibase[+T <: BigTable](db: Database[T]) {
 
   /** Creates a graph table.
     * @param name the name of graph table.
-    * @param docVertexTable Creates the document-vertex lookup table if it is true.
-    *                       If documents in other tables be the vertices in this graph,
-    *                       this flag should be true.
     */
-  def createGraph(name: String, docVertexTable: Boolean = false): Unit = {
+  def createGraph(name: String): Unit = {
     db.createTable(name,
       GraphVertexColumnFamily,
       GraphInEdgeColumnFamily,
       GraphOutEdgeColumnFamily)
-
-    if (docVertexTable)
-      db.createTable(name + GraphDocumentVertexTableSuffix, GraphVertexColumnFamily)
   }
 
   /** Drops a document table. All column families in the table will be dropped. */
@@ -104,10 +94,6 @@ class Unibase[+T <: BigTable](db: Database[T]) {
   /** Drops a graph. All tables related to the graph will be dropped. */
   def dropGraph(name: String): Unit = {
     db.dropTable(name)
-
-    val docVertexTable = name + unicorn.unibase.graph.GraphDocumentVertexTableSuffix
-    if (tableExists(docVertexTable))
-      db.dropTable(docVertexTable)
   }
 
   /** Truncates a table

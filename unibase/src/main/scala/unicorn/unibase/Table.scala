@@ -17,7 +17,6 @@
 package unicorn.unibase
 
 import java.util.{Date, UUID}
-import scala.collection.mutable.ArrayBuffer
 import unicorn.json._
 import unicorn.bigtable._
 import unicorn.oid.BsonObjectId
@@ -43,12 +42,15 @@ import unicorn.util.ByteArray
   *
   * @author Haifeng Li
   */
-class Table(table: BigTable, meta: JsObject) {
+class Table(val table: BigTable, meta: JsObject) extends UpdateOps {
   /** Document serializer. */
   val serializer = new DocumentSerializer()
 
+  /** For UpdateOps. */
+  override val valueSerializer = serializer.valueSerializer
+
   /** The column qualifier of \$id field. */
-  val idColumnQualifier = serializer.jsonPathBytes($id)
+  val idColumnQualifier = valueSerializer.str2PathBytes($id)
 
   /** Column families storing document fields. There may be other column families in the table
     * for meta data or index.
@@ -70,8 +72,17 @@ class Table(table: BigTable, meta: JsObject) {
     map.withDefaultValue(default)
   }
 
-  private[unicorn] def rowkey(id: JsValue): Array[Byte] = {
+  override def key(id: JsValue): Array[Byte] = {
     serializer.serialize(tenant, id)
+  }
+
+  /** Returns the column family of a field. */
+  override def familyOf(field: String): String = {
+    val head = field.indexOf(valueSerializer.pathDelimiter) match {
+      case -1 => field
+      case end => field.substring(0, end)
+    }
+    locality(head)
   }
 
   /** True if the table is append only. */
@@ -120,7 +131,7 @@ class Table(table: BigTable, meta: JsObject) {
     require(!id.isInstanceOf[JsCounter], "Document ID cannot be a counter")
 
     if (fields.isEmpty) {
-      val data = table.get(rowkey(id), families)
+      val data = table.get(key(id), families)
       serializer.deserialize(data)
     } else {
       val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
@@ -130,7 +141,7 @@ class Table(table: BigTable, meta: JsObject) {
   }
 
   /** Returns the _id of a document. Throws exception if missing. */
-  private[unicorn] def getId(doc: JsObject): JsValue = {
+  private[unicorn] def _id(doc: JsObject): JsValue = {
     val id = doc($id)
 
     require(id != JsNull && id != JsUndefined, s"missing ${$id}")
@@ -157,10 +168,10 @@ class Table(table: BigTable, meta: JsObject) {
     * @return the projected document. The _id field will be always included.
     */
   def get(projection: JsObject): Option[JsObject] = {
-    val id = getId(projection)
+    val id = _id(projection)
     val families = project(projection)
 
-    val data = table.get(rowkey(id), families)
+    val data = table.get(key(id), families)
     val doc = serializer.deserialize(data)
     doc
   }
@@ -169,7 +180,7 @@ class Table(table: BigTable, meta: JsObject) {
   private[unicorn] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
 
     val groups = projection.fields.map(_._1).groupBy { field =>
-      getFamily(field)
+      familyOf(field)
     }
 
     // We need to get the whole column family.
@@ -204,7 +215,7 @@ class Table(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(rowkey(id), families)
+    table.put(key(id), families)
     id
   }
 
@@ -226,12 +237,12 @@ class Table(table: BigTable, meta: JsObject) {
     * @return true if the document is inserted, false if the document already existed.
     */
   def insert(doc: JsObject): Unit = {
-    val id = getId(doc)
+    val id = _id(doc)
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
     val checkFamily = locality($id)
-    val key = rowkey(id)
-    require(table.apply(key, checkFamily, idColumnQualifier).isEmpty, s"Document $id already exists")
+    val $key = key(id)
+    require(table.apply($key, checkFamily, idColumnQualifier).isEmpty, s"Document $id already exists")
 
     if (tenant != JsUndefined) {
       doc($tenant) = tenant
@@ -243,7 +254,7 @@ class Table(table: BigTable, meta: JsObject) {
       ColumnFamily(family, columns)
     }
 
-    table.put(key, families)
+    table.put($key, families)
   }
 
   /** Inserts an array of documents. The elements of JsArray must be JsObject.
@@ -266,7 +277,7 @@ class Table(table: BigTable, meta: JsObject) {
     if (appendOnly)
       throw new UnsupportedOperationException
     else
-      table.delete(rowkey(id))
+      table.delete(key(id))
   }
 
   /** Updates a document. The supported update operators include
@@ -279,157 +290,17 @@ class Table(table: BigTable, meta: JsObject) {
   def update(doc: JsObject): Unit = {
     if (appendOnly)
       throw new UnsupportedOperationException
-    else {
-      val id = getId(doc)
 
-      val $set = doc("$set")
-      if ($set.isInstanceOf[JsObject]) set(id, $set.asInstanceOf[JsObject])
+    val id = _id(doc)
 
-      val $unset = doc("$unset")
-      if ($unset.isInstanceOf[JsObject]) unset(id, $unset.asInstanceOf[JsObject])
-    }
-  }
+    val $set = doc("$set")
+    require($set == JsUndefined || $set.isInstanceOf[JsObject], "$set is not an object: " + $set)
 
-  /** Returns the column family of a field. */
-  private[unicorn] def getFamily(field: String): String = {
-    val head = field.indexOf(JsonSerializer.pathDelimiter) match {
-      case -1 => field
-      case end => field.substring(0, end)
-    }
-    locality(head)
-  }
+    val $unset = doc("$unset")
+    require($unset == JsUndefined || $unset.isInstanceOf[JsObject], "$unset is not an object: " + $unset)
 
-  /** The \$set operator replaces the values of fields.
-    *
-    * The document key _id should not be set.
-    *
-    * If the field does not exist, \$set will add a new field with the specified
-    * value, provided that the new field does not violate a type constraint.
-    *
-    * In MongoDB, \$set will create the embedded documents as needed to fulfill
-    * the dotted path to the field. For example, for a \$set {"a.b.c" : "abc"}, MongoDB
-    * will create the embedded object "a.b" if it doesn't exist.
-    * However, we don't support this behavior because of the performance considerations.
-    * We suggest the the alternative syntax {"a.b" : {"c" : "abc"}}, which has the
-    * equivalent effect.
-    *
-    * To set an element of an array by the zero-based index position,
-    * concatenate the array name with the dot (.) and zero-based index position.
-    *
-    * @param id the id of document.
-    * @param doc the fields to update.
-    */
-  def set(id: JsValue, doc: JsObject): Unit = {
-    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: set ${$id}")
-    require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: set ${$tenant}")
+    if ($set.isInstanceOf[JsObject]) set(id, $set.asInstanceOf[JsObject])
 
-    // Group field by locality
-    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
-
-    // Map from parent to the fields to update
-    import scala.collection.mutable.{Map, Set}
-    val children = Map[(String, String), Set[String]]().withDefaultValue(Set.empty)
-    val parents = groups.map { case (family, fields) =>
-      val columns = fields.map { case (field, _) =>
-        val (parent, name) = field.lastIndexOf(JsonSerializer.pathDelimiter) match {
-          case -1 => (JsonSerializer.root, field)
-          case end => (serializer.jsonPath(field.substring(0, end)), field.substring(end+1))
-        }
-
-        children((family, parent)).add(name)
-        parent
-      }.distinct.map { parent =>
-        ByteArray(serializer.toBytes(parent))
-      }
-
-      (family, columns)
-    }.toSeq
-
-    val key = rowkey(id)
-
-    // Get the update to parents which get new child fields.
-    val pathUpdates = table.get(key, parents).map { case ColumnFamily(family, parents) =>
-      val updates = parents.map { parent =>
-        val value = new ArrayBuffer[Byte]()
-        value ++= parent.value.bytes
-        val update = children((family, String.valueOf(parent))).foldLeft[Option[ArrayBuffer[Byte]]](None) { (parent, child) =>
-          // appending the null terminal
-          val bytes = serializer.valueSerializer.serialize(child)
-          if (isChild(value, bytes)) parent
-          else {
-            value ++= bytes
-            Some(value)
-          }
-        }
-
-        update.map { value => Column(parent.qualifier, value.toArray) }
-      }.filter(_.isDefined).map(_.get)
-      ColumnFamily(family, updates)
-    }.filter(!_.columns.isEmpty)
-
-    // Columns to update
-    val families = groups.map { case (family, fields) =>
-      val columns = fields.foldLeft(Seq[Column]()) { case (seq, (field, value)) =>
-        seq ++ serializer.valueSerializer.serialize(value, serializer.jsonPath(field)).map {
-          case (path, value) => Column(serializer.toBytes(path), value)
-        }.toSeq
-      }
-      ColumnFamily(family, columns)
-    }
-
-    table.put(key, pathUpdates ++ families)
-  }
-
-  /** Given the column value of an object (containing its children field names), return
-    * true if node is its child.
-    */
-  private[unicorn] def isChild(parent: ArrayBuffer[Byte], node: Array[Byte]): Boolean = {
-    def isChild(start: Int): Boolean = {
-      for (i <- 0 until node.size) {
-        if (parent(start + i) != node(i)) return false
-      }
-      true
-    }
-
-    var start = 1
-    while (start < parent.size) {
-      if (isChild(start)) return true
-      while (start < parent.size && parent(start) != 0) start = start + 1
-      start = start + 1
-    }
-    false
-  }
-
-  /** The \$unset operator deletes particular fields.
-    *
-    * The document key _id should not be unset.
-    *
-    * If the field does not exist, then \$unset does nothing (i.e. no operation).
-    *
-    * When deleting an array element, \$unset replaces the matching element
-    * with undefined rather than removing the matching element from the array.
-    * This behavior keeps consistent the array size and element positions.
-    *
-    * Note that we don't really delete the field but set it as JsUndefined
-    * so that we keep the history and be able to time travel back. Otherwise,
-    * we will lose the history after a major compaction.
-    *
-    * @param id the id of document.
-    * @param doc the fields to delete.
-    */
-  def unset(id: JsValue, doc: JsObject): Unit = {
-    require(!doc.fields.exists(_._1 == $id), s"Invalid operation: unset ${$id}")
-    require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: unset ${$tenant}")
-
-    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
-
-    val families = groups.toSeq.map { case (family, fields) =>
-      val columns = fields.map {
-        case (field, _) => Column(serializer.jsonPathBytes(field), serializer.valueSerializer.undefined)
-      }
-      ColumnFamily(family, columns)
-    }
-
-    table.put(serializer.serialize(tenant, id), families)
+    if ($unset.isInstanceOf[JsObject]) unset(id, $unset.asInstanceOf[JsObject])
   }
 }

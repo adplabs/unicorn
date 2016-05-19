@@ -18,7 +18,6 @@ package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
 import unicorn.bigtable.Column
-import unicorn.unibase.SerializerHelper
 import unicorn.json._
 import unicorn.util._
 
@@ -30,7 +29,7 @@ import unicorn.util._
 class GraphSerializer(
   val buffer: ByteBuffer = ByteBuffer.allocate(265),
   val vertexSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(65536)),
-  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) extends SerializerHelper {
+  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) {
 
   /** Serializes vertex id. */
   def serialize(id: Long): Array[Byte] = {
@@ -51,14 +50,14 @@ class GraphSerializer(
   /** Serializes vertex property data. */
   def serializeVertex(json: JsObject): Seq[Column] = {
     vertexSerializer.serialize(json).map { case (path, value) =>
-      Column(toBytes(path), value)
+      Column(vertexSerializer.str2Bytes(path), value)
     }.toSeq
   }
 
   /** Deserializes vertex property data. */
   def deserializeVertex(columns: Seq[Column]): JsObject = {
     val map = columns.map { case Column(qualifier, value, _) =>
-      (new String(qualifier, JsonSerializer.charset), value.bytes)
+      (new String(qualifier, vertexSerializer.charset), value.bytes)
     }.toMap
     vertexSerializer.deserialize(map).asInstanceOf[JsObject]
   }

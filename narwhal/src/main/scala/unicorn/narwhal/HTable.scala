@@ -34,7 +34,7 @@ import org.apache.spark.rdd.RDD
 
 /** Unibase table specialized for HBase with additional functions such
   * as \$inc, \$rollback, find, etc. */
-class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
+class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table, meta) {
   import unicorn.unibase.{$id, $tenant}
 
   /** Visibility expression which can be associated with a cell.
@@ -89,7 +89,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     */
   def apply(asOfDate: Date, id: JsValue, fields: String*): Option[JsObject] = {
     if (fields.isEmpty) {
-      val data = table.getAsOf(asOfDate, rowkey(id), families)
+      val data = table.getAsOf(asOfDate, key(id), families)
       serializer.deserialize(data)
     } else {
       val projection = JsObject(fields.map(_ -> JsInt(1)): _*)
@@ -117,9 +117,9 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     * @return the projected document. The _id field will be always included.
     */
   def get(asOfDate: Date, projection: JsObject): Option[JsObject] = {
-    val id = getId(projection)
+    val id = _id(projection)
     val families = project(projection)
-    val data = table.getAsOf(asOfDate, rowkey(id), families)
+    val data = table.getAsOf(asOfDate, key(id), families)
     val doc = serializer.deserialize(data)
     doc.map(_($id) = id)
     doc
@@ -135,14 +135,18 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     * @param doc the document update operators.
     */
   override def update(doc: JsObject): Unit = {
-    super.update(doc)
-
-    val id = getId(doc)
-
     val $inc = doc("$inc")
-    if ($inc.isInstanceOf[JsObject]) inc(id, $inc.asInstanceOf[JsObject])
+    require($inc == JsUndefined || $inc.isInstanceOf[JsObject], "$inc is not an object: " + $inc)
 
     val $rollback = doc("$rollback")
+    require($rollback == JsUndefined || $rollback.isInstanceOf[JsObject], "$rollback is not an object: " + $rollback)
+
+    super.update(doc)
+
+    val id = _id(doc)
+
+    if ($inc.isInstanceOf[JsObject]) inc(id, $inc.asInstanceOf[JsObject])
+
     if ($rollback.isInstanceOf[JsObject]) rollback(id, $rollback.asInstanceOf[JsObject])
   }
 
@@ -162,18 +166,18 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: inc ${$id}")
     require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: inc ${$tenant}")
 
-    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => familyOf(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
-        case (field, JsLong(value)) => (ByteArray(serializer.jsonPathBytes(field)), value)
-        case (field, JsInt(value)) => (ByteArray(serializer.jsonPathBytes(field)), value.toLong)
+        case (field, JsLong(value)) => (ByteArray(valueSerializer.str2PathBytes(field)), value)
+        case (field, JsInt(value)) => (ByteArray(valueSerializer.str2PathBytes(field)), value.toLong)
         case (_, value) => throw new IllegalArgumentException(s"Invalid value: $value")
       }
       (family, columns)
     }
 
-    table.addCounter(rowkey(id), families)
+    table.addCounter(key(id), families)
   }
 
   /** The \$rollover operator roll particular fields back to previous version.
@@ -189,21 +193,21 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     require(!doc.fields.exists(_._1 == $id), s"Invalid operation: rollover ${$id}")
     require(!doc.fields.exists(_._1 == $tenant), s"Invalid operation: rollover ${$tenant}")
 
-    val groups = doc.fields.toSeq.groupBy { case (field, _) => getFamily(field) }
+    val groups = doc.fields.toSeq.groupBy { case (field, _) => familyOf(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
       val columns = fields.map {
-        case (field, _) => ByteArray(serializer.jsonPathBytes(field))
+        case (field, _) => ByteArray(valueSerializer.str2PathBytes(field))
       }
       (family, columns)
     }
 
-    table.rollback(rowkey(id), families)
+    table.rollback(key(id), families)
   }
 
   /** Use checkAndPut for insert. */
   override def insert(doc: JsObject): Unit = {
-    val id = getId(doc)
+    val id = _id(doc)
     val groups = doc.fields.toSeq.groupBy { case (field, _) => locality(field) }
 
     val families = groups.toSeq.map { case (family, fields) =>
@@ -213,7 +217,17 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
     }
 
     val checkFamily = locality($id)
-    require(table.checkAndPut(rowkey(id), checkFamily, idColumnQualifier, families), s"Document $id already exists")
+    require(table.checkAndPut(key(id), checkFamily, idColumnQualifier, families), s"Document $id already exists")
+  }
+
+  /** Returns one document that satisfies the specified query criteria.
+    * If multiple documents satisfy the query, this method returns the
+    * first document according to the document key order.
+    * If no document satisfies the query, the method returns None.
+    */
+  def findOne(query: JsObject = JsObject(), projection: JsObject = JsObject()): Option[JsObject] = {
+    val it = find(query, projection)
+    if (it.hasNext) Some(it.next) else None
   }
 
   /** Searches the table.
@@ -319,7 +333,7 @@ class HTable(table: HBaseTable, meta: JsObject) extends Table(table, meta) {
       case _ => throw new IllegalArgumentException(s"Unsupported predict: $field $op $value")
     }
 
-    ScanFilter.BasicExpression(op, getFamily(field), ByteArray(serializer.jsonPathBytes(field)), bytes, filterIfMissing)
+    ScanFilter.BasicExpression(op, familyOf(field), ByteArray(valueSerializer.str2PathBytes(field)), bytes, filterIfMissing)
   }
 
   /** Writes the given scan into a Base64 encoded string.

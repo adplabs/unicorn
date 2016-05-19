@@ -39,6 +39,16 @@ trait JsonSerializer {
   /** Byte array of null. */
   val `null`: Array[Byte]
 
+  /** Serialize a string to bytes. */
+  def str2Bytes(s: String) = s.getBytes(charset)
+
+  /** Returns the json path of a dot notation path as in MongoDB. */
+  def str2Path(path: String) = s"${root}${pathDelimiter}$path"
+
+  /** Returns the byte array of json path */
+  def str2PathBytes(path: String) = str2Bytes(str2Path(path))
+
+
   /** Serializes a JSON value to a list of key/value pairs, where key is the JSONPath of element. */
   def serialize(value: JsValue, rootJsonPath: String = root): Map[String, Array[Byte]]
 

@@ -13,7 +13,7 @@ import unicorn.unibase.graph._
 
 val db = Unibase(HBase())
 db.createGraph("gods")
-val gods = db.graph("gods", Some(new Snowflake(0)))
+val gods = db.graph("gods", new Snowflake(0))
 
 val saturn = gods.addVertex(json"""{"label": "titan", "name": "saturn", "age": 10000}""")
 val sky = gods.addVertex(json"""{"label": "location", "name": "sky"}""")

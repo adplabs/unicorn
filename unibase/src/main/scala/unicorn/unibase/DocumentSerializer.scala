@@ -27,13 +27,43 @@ import unicorn.json._
   */
 class DocumentSerializer(
   val keySerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(65536)),
-  val valueSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(10485760))) extends SerializerHelper {
+  val valueSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(10485760))) {
+
+  /** Serialize document data. */
+  def serialize(json: JsObject): Seq[Column] = {
+    valueSerializer.serialize(json).map { case (path, value) =>
+      Column(valueSerializer.str2Bytes(path), value)
+    }.toSeq
+  }
+
+  /** Serialize document id. */
+  def serialize(tenant: JsValue, id: JsValue): Array[Byte] = {
+    keySerializer.clear
+    keySerializer.put(tenant)
+    keySerializer.put(id)
+    keySerializer.toBytes
+  }
+
+  /** Return the row prefix of a tenant. */
+  def tenantRowKeyPrefix(tenant: JsValue): Array[Byte] = {
+    keySerializer.clear
+    keySerializer.put(tenant)
+    keySerializer.toBytes
+  }
+
+  /** Deserialize document key. */
+  def deserialize(key: Array[Byte]): (JsValue, JsValue) = {
+    val buffer = ByteBuffer.wrap(key)
+    val tenant = keySerializer.deserialize(buffer)
+    val id = keySerializer.deserialize(buffer)
+    (tenant, id)
+  }
 
   /** Assembles the document from multi-column family data. */
   def deserialize(data: Seq[ColumnFamily]): Option[JsObject] = {
     val objects = data.map { case ColumnFamily(family, columns) =>
       val map = columns.map { case Column(qualifier, value, _) =>
-        (new String(qualifier, JsonSerializer.charset), value.bytes)
+        (new String(qualifier, valueSerializer.charset), value.bytes)
       }.toMap
       val json = valueSerializer.deserialize(map)
       json.asInstanceOf[JsObject]
@@ -50,35 +80,5 @@ class DocumentSerializer(
       }
       Some(fold)
     }
-  }
-
-  /** Serialize document data. */
-  def serialize(json: JsObject): Seq[Column] = {
-    valueSerializer.serialize(json).map { case (path, value) =>
-      Column(toBytes(path), value)
-    }.toSeq
-  }
-
-  /** Serialize document id. */
-  def serialize(tenant: JsValue, id: JsValue): Array[Byte] = {
-    keySerializer.clear
-    keySerializer.put(tenant)
-    keySerializer.put(id)
-    keySerializer.toBytes
-  }
-
-  /** Deserialize document key. */
-  def deserialize(key: Array[Byte]): (JsValue, JsValue) = {
-    val buffer = ByteBuffer.wrap(key)
-    val tenant = keySerializer.deserialize(buffer)
-    val id = keySerializer.deserialize(buffer)
-    (tenant, id)
-  }
-
-  /** Return the row prefix of a tenant. */
-  def tenantRowKeyPrefix(tenant: JsValue): Array[Byte] = {
-    keySerializer.clear
-    keySerializer.put(tenant)
-    keySerializer.toBytes
   }
 }
