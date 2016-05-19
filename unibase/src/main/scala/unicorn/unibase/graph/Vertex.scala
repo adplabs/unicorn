@@ -16,10 +16,17 @@
 
 package unicorn.unibase.graph
 
-import unicorn.json.JsObject
+import scala.language.dynamics
+import unicorn.json._
 
 /** Graph vertex.
   *
   * @author Haifeng Li
   */
-case class Vertex(val id: Long, val properties: JsObject, in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]])
+case class Vertex(val id: Long, val properties: JsObject, in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]]) extends Dynamic {
+  def apply(key: String): JsValue = properties.apply(key)
+
+  def applyDynamic(key: String): JsValue = apply(key)
+
+  def selectDynamic(key: String): JsValue = apply(key)
+}

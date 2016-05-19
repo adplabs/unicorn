@@ -6,12 +6,11 @@ import java.util._
 import unicorn.json._
 import unicorn.bigtable._
 import unicorn.bigtable.accumulo._
-import unicorn.bigtable.hbase._
 import unicorn.unibase._
 import unicorn.unibase.idgen._
 import unicorn.unibase.graph._
 
-val db = Unibase(HBase())
+val db = Unibase(Accumulo())
 db.createGraph("gods")
 val gods = db.graph("gods", new Snowflake(0))
 
@@ -56,3 +55,5 @@ gods(hydra).out("battled")
 gods(neptune, "lives", sea)
 gods(neptune, "lives", jupiter)
 gods(neptune, "brother", jupiter)
+
+gods(hydra).label
