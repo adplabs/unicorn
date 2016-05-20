@@ -157,5 +157,27 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
       }
       path.size === 0
     }
+    "a* search" in {
+      val gods = db.graph(graphName, new Snowflake(0))
+
+      val path = GraphOps.astar(jupiter, cerberus, new SimpleTraveler(gods) with AstarTraveler {
+        override  def h(v1: Long, v2: Long): Double = {
+          val node1 = v(v1)
+          val node2 = v(v2)
+
+          if (!node1.edges.filter(_.target == v2).isEmpty) return 1.0
+
+          6 - node1.properties.fields.keySet.intersect(node2.properties.fields.keySet).size
+        }
+      }).map { case (v, e) =>
+        (v, e.map(_.label).getOrElse(""))
+      }
+
+      path.size === 3
+      path(0) === (jupiter, "")
+      path(1) === (pluto, "brother")
+      path(2) === (cerberus, "pet")
+
+    }
   }
 }
