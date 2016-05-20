@@ -26,7 +26,7 @@ import unicorn.json._
 /**
  * @author Haifeng Li
  */
-class GraphSpec extends Specification with BeforeAfterAll {
+class GraphOpsSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
@@ -93,74 +93,69 @@ class GraphSpec extends Specification with BeforeAfterAll {
   }
 
   "Graph" should {
-    "get vertex" in {
+    "bfs" in {
       val gods = db.graph(graphName, new Snowflake(0))
-      val vertex = gods(alcmene)
-      vertex.id === alcmene
-      vertex.properties === json"""{"_id": $alcmene, "label": "human", "name": "alcmene", "age": 45}"""
-      vertex.in("mother") === Seq(Edge(hercules, "mother", alcmene, JsInt(1)))
-      vertex.in.size === 1
-      vertex.out.isEmpty === true
-    }
-    "update vertex" in {
-      val gods = db.graph(graphName, new Snowflake(0))
-      val update = json"""
-                          {
-                            "_id": $alcmene,
-                            "$$set": {
-                              "gender": "female"
-                            },
-                            "$$unset": {
-                              "age": 1
-                            }
-                          }
-                       """
-      gods.update(update)
+      val queue = collection.mutable.Queue[(Long, String, Int)]()
 
-      val vertex = gods(alcmene)
-      vertex.properties === json"""{"_id": $alcmene, "label": "human", "name": "alcmene", "gender": "female"}"""
+      GraphOps.bfs(jupiter, new SimpleTraveler(gods) {
+        override def apply(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
+          queue.enqueue((vertex.id, edge.map(_.label).getOrElse(""), hops))
+        }
+      })
+      queue.dequeue === (jupiter, "", 0)
+      queue.dequeue === (neptune, "brother", 1)
+      queue.dequeue === (pluto, "brother", 1)
+      queue.dequeue === (saturn, "father", 1)
+      queue.dequeue === (sky, "lives", 1)
+      queue.dequeue === (sea, "lives", 2)
+      queue.dequeue === (tartarus, "lives", 2)
+      queue.dequeue === (cerberus, "pet", 2)
+      queue.isEmpty === true
     }
-    "delete vertex" in {
+    "dfs" in {
       val gods = db.graph(graphName, new Snowflake(0))
-      gods.deleteVertex(alcmene)
-      gods(alcmene) should throwA[IllegalArgumentException]
+      val queue = collection.mutable.Queue[(Long, String, Int)]()
 
-      val vertex = gods(hercules)
-      vertex.id === hercules
-      vertex.out("mother") should throwA[NoSuchElementException]
-    }
-    "add document" in {
-      val gods = db.graph(graphName, new Snowflake(0))
-      db.createTable("doc_vertex_test")
-      val table = db("doc_vertex_test")
-      val key = table.upsert(json"""{"name": "Tao"}""")
-      val docv = gods.addVertex("doc_vertex_test", key)
-      val vertex = gods(docv)
-      vertex.id === docv
-      vertex.properties === json"""{"_id": $docv, "_doc": {"_table": "doc_vertex_test", "_id": "$key"}}"""
-      vertex.in.isEmpty === true
-      vertex.out.isEmpty === true
-    }
-    "delete document" in {
-      val gods = db.graph(graphName, new Snowflake(0))
-      val table = db("doc_vertex_test")
-      val key = table.upsert(json"""{"name": "Tao"}""")
-      val docv = gods.addVertex("doc_vertex_test", key)
-      gods.deleteVertex("doc_vertex_test", key)
+      GraphOps.dfs(jupiter, new SimpleTraveler(gods) {
+        override def apply(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
+          queue.enqueue((vertex.id, edge.map(_.label).getOrElse(""), hops))
+        }
+      })
 
-      gods(docv) should throwA[IllegalArgumentException]
-      gods("doc_vertex_test", key) should throwA[IllegalArgumentException]
+      queue.dequeue === (jupiter, "", 0)
+      queue.dequeue === (neptune, "brother", 1)
+      queue.dequeue === (pluto, "brother", 2)
+      queue.dequeue === (tartarus, "lives", 3)
+      queue.dequeue === (cerberus, "pet", 3)
+      queue.dequeue === (sea, "lives", 2)
+      queue.dequeue === (saturn, "father", 1)
+      queue.dequeue === (sky, "lives", 1)
+      queue.isEmpty === true
     }
-    "get edge" in {
+    "dijkstra" in {
       val gods = db.graph(graphName, new Snowflake(0))
-      gods(neptune, "lives", sea) === Some(json"""{"reason": "loves waves"}""")
-      gods(neptune, "lives", jupiter) === None
-      gods(neptune, "brother", jupiter) === Some(JsInt(1))
-    }
-    "delete edge" in {
-      val gods = db.graph(graphName, new Snowflake(0))
-      gods.deleteEdge(neptune, "lives", sea)
-      gods(neptune, "lives", sea) === None
+
+      var path = GraphOps.dijkstra(jupiter, cerberus, new SimpleTraveler(gods)).map { case (v, e) =>
+        (v, e.map(_.label).getOrElse(""))
+      }
+      path.size === 3
+      path(0) === (jupiter, "")
+      path(1) === (pluto, "brother")
+      path(2) === (cerberus, "pet")
+
+      path = GraphOps.dijkstra(hercules, tartarus, new SimpleTraveler(gods)).map { case (v, e) =>
+        (v, e.map(_.label).getOrElse(""))
+      }
+      path.size === 4
+      path(0) === (hercules, "")
+      path(1) === (jupiter, "father")
+      path(2) === (pluto, "brother")
+      path(3) === (tartarus, "lives")
+
+      path = GraphOps.dijkstra(saturn, sky, new SimpleTraveler(gods)).map { case (v, e) =>
+        (v, e.map(_.label).getOrElse(""))
+      }
+      path.size === 0
     }
   }
 }

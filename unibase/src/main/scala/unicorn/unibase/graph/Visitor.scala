@@ -34,13 +34,23 @@ object VertexColor extends Enumeration {
   val Black = Value
 }
 
-/** Graph traversal visitor.
+import VertexColor._
+
+/** Graph traveler is a proxy to the graph during the
+  * graph traversal. Beyond the visitor design pattern
+  * that process a vertex during the traversal,
+  * the traveler also provides the method to access
+  * graph vertices, the neighbors of a vertex to explore,
+  * and the weight of an edge.
   *
   * @author Haifeng Li
   */
-trait Visitor {
+trait Traveler {
   /** Returns the vertex of given ID. */
   def v(vertex: Long): Vertex
+
+  /** The color mark if a vertex was already visited. */
+  def color(vertex: Long): VertexColor
 
   /** Visit a vertex during graph traversal.
     *
@@ -65,4 +75,13 @@ trait Visitor {
     case JsLong(x) => x
     case _ => 1.0
   }
+}
+
+/** Traveler for A* searcher. */
+trait AstarTraveler extends Traveler {
+  /** The future path-cost function, which is an admissible
+    * "heuristic estimate" of the distance from the current vertex to the goal.
+    * Note that the heuristic function must be monotonic.
+    */
+  def h(v1: Long, v2: Long): Double
 }
