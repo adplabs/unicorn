@@ -1336,87 +1336,6 @@ Note that in Spark 2.0, `DataFrame` will be just a special case of
 example will be slightly adjusted.
 -->
 
-HTTP API
-========
-
-So far we access Unicorn through its Scala APIs. For other programming
-language users, we can manipulate documents with the HTTP API, which
-is provided by the Rhino module.
-
-In the configuration file `conf/rhino.conf`, the underlying BigTable database
-engine should be configured in the section `uncorn.rhino`. The configuration
-file is in the format of [Typesafe Config](https://github.com/typesafehub/config).
-For example,
-
-```
-unicorn.rhino {
-  bigtable = "hbase"
-  accumulo {
-    instance = "local-poc"
-    zookeeper = "127.0.0.1:2181"
-    user = "root"
-    password = "secret"
-  }
-  cassandra {
-    host = "127.0.0.1"
-    port = 9160
-  }
-}
-```
-
-In this example, we use HBase as the BigTable engine. Note that the configuration
-of HBase is in its own configuration files, which should be in the `CLASSPATH` of
-Rhino. Sample configurations of Accumulo and Cassandra are provided in the
-example for demonstration.
-
-Currently, Rhino provides only data manipulation operations.
-Other operations such as table creation/drop should be done in the
-Unicorn Shell.
-
-| Method   | URL          | Operation |
-| -------- | ------------ | --------- |
-| PUT      | /table       | Insert    |
-| POST     | /table       | Upsert    |
-| PATCH    | /table       | Update    |
-| DELETE   | /table       | Delete    |
-| DELETE   | /table/key   | Delete    |
-| GET      | /table       | Get       |
-| GET      | /table/key   | Get       |
-
-The API is simple and easy to use. To insert a document,
-use the `PUT` method with the JSON object as entity-body.
-
-```bash
-curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
-```
-
-To read it back, simply use `GET` method. If the key is a string,
-the key can be part of the URI. Otherwise, the key should be
-set in the entity-body. The same rule applies to the `DELETE` method.
-
-```bash
-curl -X GET http://localhost:8080/unicorn_rhino_test/dude
-```
-
-To update a document, use the `PATCH` method.
-
-```bash
-curl -X PATCH -H "Content-Type: application/json" -d '{"_id":"dude","$set":{"password":"abc"}}' http://localhost:8080/rhino_test_table
-```
-
-In case of multi-tenancy, the tenant id should be set in
-the header.
-
-```bash
-curl -X PUT -H "Content-Type: application/json" --header 'tenant: "IBM"' -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/rhino_test_table
-
-curl -X GET --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
-
-curl -X GET --header 'tenant: "MSFT"' http://localhost:8080/rhino_test_table/dude
-
-curl -X DELETE --header 'tenant: "IBM"' http://localhost:8080/rhino_test_table/dude
-```
-
 Graph
 =====
 
@@ -1525,4 +1444,84 @@ nodes or edges multiple times. Unicorn provides DFS and BFS
 to create in-memory sub-graphs stored in DocumentGraph objects
 that is more suitable for things like network flow, assignment, coloring, etc.
 
+HTTP API
+========
+
+So far we access Unicorn through its Scala APIs. For other programming
+language users, we can manipulate documents with the HTTP API, which
+is provided by the Rhino module.
+
+In the configuration file `conf/rhino.conf`, the underlying BigTable database
+engine should be configured in the section `uncorn.rhino`. The configuration
+file is in the format of [Typesafe Config](https://github.com/typesafehub/config).
+For example,
+
+```
+unicorn.rhino {
+  bigtable = "hbase"
+  accumulo {
+    instance = "local-poc"
+    zookeeper = "127.0.0.1:2181"
+    user = "root"
+    password = "secret"
+  }
+  cassandra {
+    host = "127.0.0.1"
+    port = 9160
+  }
+}
+```
+
+In this example, we use HBase as the BigTable engine. Note that the configuration
+of HBase is in its own configuration files, which should be in the `CLASSPATH` of
+Rhino. Sample configurations of Accumulo and Cassandra are provided in the
+example for demonstration.
+
+Currently, Rhino provides only data manipulation operations.
+Other operations such as table creation/drop should be done in the
+Unicorn Shell.
+
+| Method   | URL                       | Operation |
+| -------- | ------------------------- | --------- |
+| PUT      | /table/[table name]       | Insert    |
+| POST     | /table/[table name]       | Upsert    |
+| PATCH    | /table/[table name]       | Update    |
+| DELETE   | /table/[table name]       | Delete    |
+| DELETE   | /table/[table name]/key   | Delete    |
+| GET      | /table/[table name]       | Get       |
+| GET      | /table/[table name]/key   | Get       |
+
+The API is simple and easy to use. To insert a document,
+use the `PUT` method with the JSON object as entity-body.
+
+```bash
+curl -X PUT -H "Content-Type: application/json" -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/table/rhino_test_table
+```
+
+To read it back, simply use `GET` method. If the key is a string,
+the key can be part of the URI. Otherwise, the key should be
+set in the entity-body. The same rule applies to the `DELETE` method.
+
+```bash
+curl -X GET http://localhost:8080/table/unicorn_rhino_test/dude
+```
+
+To update a document, use the `PATCH` method.
+
+```bash
+curl -X PATCH -H "Content-Type: application/json" -d '{"_id":"dude","$set":{"password":"abc"}}' http://localhost:8080/table/rhino_test_table
+```
+
+In case of multi-tenancy, the tenant id should be set in
+the header.
+
+```bash
+curl -X PUT -H "Content-Type: application/json" --header 'tenant: "IBM"' -d '{"_id":"dude","username":"xyz","password":"xyz"}' http://localhost:8080/table/rhino_test_table
+
+curl -X GET --header 'tenant: "IBM"' http://localhost:8080/table/rhino_test_table/dude
+
+curl -X GET --header 'tenant: "MSFT"' http://localhost:8080/table/rhino_test_table/dude
+
+curl -X DELETE --header 'tenant: "IBM"' http://localhost:8080/table/rhino_test_table/dude
+```
 
