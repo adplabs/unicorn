@@ -14,10 +14,15 @@ packageDescription := "Unicorn REST API"
 
 executableScriptName := "rhino"
 
-mappings in Universal ++= Seq(
-  file("src/main/resources/application.conf") -> "conf/rhino.conf",
-  file("src/main/resources/log4j.properties") -> "conf/log4j.properties"
-)
+mappings in Universal += {
+  val conf = (resourceDirectory in Compile).value / "application.conf"
+  conf -> "conf/rhino.conf"
+}
+
+mappings in Universal += {
+  val conf = (resourceDirectory in Compile).value / "log4j.properties"
+  conf -> "conf/log4j.properties"
+}
 
 bashScriptConfigLocation := Some("${app_home}/../conf/rhino.ini")
 
