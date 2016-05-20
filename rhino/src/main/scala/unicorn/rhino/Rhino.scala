@@ -88,7 +88,7 @@ trait Rhino extends HttpService with Logging {
   val apiRoute = {
     ohv("tenant") { tenantId =>
       implicit val tenant = tenantId.map(_.parseJson)
-      path(Segment / Segment) { (table, id) =>
+      path("table" / Segment / Segment) { (table, id) =>
         get {
           _get(table, JsString(id))
         } ~
@@ -96,7 +96,7 @@ trait Rhino extends HttpService with Logging {
           remove(table, JsString(id))
         }
       } ~
-      path(Segment) { table =>
+      path("table" / Segment) { table =>
         rawJson { doc =>
           get {
             _get(table, doc.parseJson)
