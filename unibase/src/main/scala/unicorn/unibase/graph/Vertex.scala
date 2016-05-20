@@ -23,7 +23,9 @@ import unicorn.json._
   *
   * @author Haifeng Li
   */
-case class Vertex(val id: Long, val properties: JsObject, in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]]) extends Dynamic {
+case class Vertex(val id: Long, val properties: JsObject, edges: Seq[Edge], in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]]) extends Dynamic {
+
+  override def toString = s"Vertex[$id] = ${properties.prettyPrint}"
 
   def apply(property: String): JsValue = properties.apply(property)
 

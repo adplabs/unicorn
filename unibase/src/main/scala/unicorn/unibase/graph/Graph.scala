@@ -102,25 +102,31 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
     if (properties.isEmpty)
       log.error(s"Vertex $vertex missing vertex property columns")
 
+    val edges = scala.collection.mutable.ArrayBuffer[Edge]()
+
     val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
-      val edges = family.columns.map { column =>
+      val in = family.columns.map { column =>
         val (label, source) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
         val properities = serializer.deserializeEdge(column.value)
         Edge(source, label, vertex, properities)
       }
-      edges.groupBy(_.label)
+
+      if (!in.isEmpty) edges ++= in
+      in.groupBy(_.label)
     }.getOrElse(Map.empty)
 
     val out = families.find(_.family == GraphOutEdgeColumnFamily).map { family =>
-      val edges = family.columns.map { column =>
+      val out = family.columns.map { column =>
         val (label, target) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
         val properities = serializer.deserializeEdge(column.value)
         Edge(vertex, label, target, properities)
       }
-      edges.groupBy(_.label)
+
+      if (!out.isEmpty) edges ++= out
+      out.groupBy(_.label)
     }.getOrElse(Map.empty)
 
-    Vertex(vertex, properties.get, in, out)
+    Vertex(vertex, properties.get, edges, in, out)
   }
 
   /** Decodes vertex ID. */
