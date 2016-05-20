@@ -50,7 +50,7 @@ class RhinoActor extends HttpServiceActor with Rhino {
   // this actor only runs our route, but you could add
   // other things here, like request stream processing
   // or timeout handling
-  def receive = runRoute(apiRoute ~ staticRoute)
+  def receive = runRoute(staticRoute ~ apiRoute)
 }
 
 // this trait defines our service behavior independently from the service actor
