@@ -129,7 +129,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
       vertex.id === hercules
       vertex.out("mother") should throwA[NoSuchElementException]
     }
-    "add document" in {
+    "add document vertex" in {
       val gods = db.graph(graphName, new Snowflake(0))
       db.createTable("doc_vertex_test")
       val table = db("doc_vertex_test")
@@ -141,7 +141,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
       vertex.in.isEmpty === true
       vertex.out.isEmpty === true
     }
-    "delete document" in {
+    "delete document vertex" in {
       val gods = db.graph(graphName, new Snowflake(0))
       val table = db("doc_vertex_test")
       val key = table.upsert(json"""{"name": "Tao"}""")
