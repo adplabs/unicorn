@@ -18,8 +18,9 @@ package unicorn.unibase.graph
 
 import VertexColor._
 
-/** Simple graph visitor. The user should create a sub class overriding
-  * the `process` method, which is nop by default.
+/** Simple graph visitor with cache management.
+  * In DFS and BFS, the user should create a sub class overriding
+  * the `apply` method, which is nop by default.
   *
   * @param graph The graph to visit.
   * @param relationships Relationship of interest. Only neighbors with given
@@ -28,18 +29,15 @@ import VertexColor._
   * @param maxHops Maximum number of hops during graph traversal.
   * @param outgoing If true, traverse the graph with outgoing edges
   *                 at each vertex. Otherwise, follow the incoming edges.
-  * @param once If true, a vertex will be visited only once. For DFS or BFS,
-  *             this should be true. For shortest path search (e.g. Dijkstra
-  *             or A*), this should be false.
   *
   * @author Haifeng Li
   */
-class SimpleVisitor(val graph: Graph, val relationships: Set[String], val maxHops: Int = 3, val outgoing: Boolean = true, val once: Boolean = true) extends Visitor {
-  /** The mark if a vertex was already visited. */
-  val mark = collection.mutable.Map[Long, VertexColor]().withDefaultValue(White)
+class SimpleTraveler(val graph: Graph, val relationships: Set[String] = Set.empty, val maxHops: Int = 3, val outgoing: Boolean = true) extends Traveler {
+  /** The color mark if a vertex was already visited. */
+  private val mark = collection.mutable.Map[Long, VertexColor]().withDefaultValue(White)
 
   /** The cache of vertices. */
-  val cache = collection.mutable.Map[Long, Vertex]()
+  private val cache = collection.mutable.Map[Long, Vertex]()
 
   /** User defined vertex visit function. The default implementation is nop.
     * The user should create a sub class overriding this method.
@@ -48,16 +46,30 @@ class SimpleVisitor(val graph: Graph, val relationships: Set[String], val maxHop
     * @param edge the incoming arc (None for starting vertex).
     * @param hops the number of hops from the starting vertex to this vertex.
     */
-  def process(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
+  def apply(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
 
   }
 
-  override def v(vertex: Long): Vertex = graph(vertex)
+  /** Resets the vertex color to unvisited and clean up the cache. */
+  def reset: Unit = {
+    mark.clear
+    cache.clear
+  }
+
+  override def v(vertex: Long): Vertex = {
+    cache.get(vertex) match {
+      case Some(node) => node
+      case None =>
+        val node = graph(vertex)
+        cache(vertex) = node
+        node
+    }
+  }
+
+  override def color(vertex: Long): VertexColor = mark(vertex)
 
   override def visit(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
-    process(vertex, edge, hops)
-
-    cache(vertex.id) = vertex
+    apply(vertex, edge, hops)
 
     val black = (if (outgoing) vertex.out else vertex.in).forall { case (_, edges) =>
       edges.forall { edge =>
@@ -77,10 +89,8 @@ class SimpleVisitor(val graph: Graph, val relationships: Set[String], val maxHop
     vertex.edges.filter { edge =>
       if (outgoing && edge.target == vertex.id) false
       else if (!outgoing && edge.source == vertex.id) false
-      else if (once && mark(vertex.id) != White) false
       else if (relationships.isEmpty) true
-      else if (relationships.contains(edge.label)) true
-      else false
+      else relationships.contains(edge.label)
     }.map { edge =>
       val neighbor = if (outgoing) edge.target else edge.source
       (neighbor, edge)
