@@ -46,6 +46,10 @@ class Cassandra(transport: TFramedTransport) extends Database[CassandraTable] wi
     new CassandraTable(this, name, consistency)
   }
 
+  override def tables: Set[String] = {
+    client.describe_keyspaces.map(_.getName).toSet
+  }
+
   /** Create a table with default NetworkTopologyStrategy placement strategy. */
   override def createTable(name: String, families: String*): CassandraTable = {
     val props = new Properties

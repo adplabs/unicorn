@@ -37,6 +37,10 @@ class Accumulo(val connector: Connector) extends Database[AccumuloTable] {
     new AccumuloTable(this, name)
   }
 
+  override def tables: Set[String] = {
+    connector.tableOperations.list.toSet
+  }
+
   override def createTable(name: String, props: Properties, families: String*): AccumuloTable = {
     if (connector.tableOperations.exists(name))
       throw new IllegalStateException(s"Creates Table $name, which already exists")

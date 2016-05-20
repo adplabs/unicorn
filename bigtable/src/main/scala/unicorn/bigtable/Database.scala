@@ -27,6 +27,10 @@ trait Database[+T <: BigTable] extends AutoCloseable {
     * @param name the name of table.
     */
   def apply(name: String): T
+
+  /** Returns the list of tables. */
+  def tables: Set[String]
+
   /** Creates a table.
     * @param name the name of table.
     * @param families the column families in the table. A column family name

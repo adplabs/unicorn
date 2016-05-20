@@ -45,6 +45,11 @@ class HBase(config: Configuration) extends Database[HBaseTable] {
     new HBaseTable(this, name) with Indexing
   }
 */
+
+  override def tables: Set[String] = {
+    admin.listTableNames.filter(!_.isSystemTable).map(_.getNameAsString).toSet
+  }
+
   override def createTable(name: String, props: Properties, families: String*): HBaseTable = {
     if (admin.tableExists(TableName.valueOf(name)))
       throw new IllegalStateException(s"Creates Table $name, which already exists")
