@@ -20,9 +20,10 @@ import java.util.{Arrays, Date, UUID}
 import java.nio.ByteBuffer
 import unicorn.util._
 
-/**
- * Abstract Object Id type.
- */
+/** Abstract Object Id type.
+  *
+  * @author Haifeng Li
+  */
 class ObjectId(val id: Array[Byte]) extends Comparable[ObjectId] {
   override def equals(that: Any): Boolean = {
     that.isInstanceOf[ObjectId] && Arrays.equals(id, that.asInstanceOf[ObjectId].id)
