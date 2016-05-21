@@ -16,7 +16,6 @@
 
 package unicorn.unibase.graph
 
-import unicorn.json.JsObject
 import VertexColor._
 
 /** Advanced graph operations.
@@ -26,41 +25,41 @@ import VertexColor._
 object GraphOps {
   
     /** Depth-first search of graph.
-      * @param vertex the current vertex to visit
+      * @param current the current vertex to visit
       * @param edge optional incoming edge
       * @param traveler the graph traveler proxy.
       * @param hops the number of hops to reach this vertex from the starting vertex.
       */
-    private def dfs(vertex: Long, edge: Option[Edge], traveler: Traveler, hops: Int) {
-      val node = traveler.v(vertex)
-      traveler.visit(node, edge, hops)
-      traveler.neighbors(node, hops).foreach { case (neighbor, edge) =>
+    private def dfs(current: Long, edge: Option[Edge], traveler: Traveler, hops: Int) {
+      val vertex = traveler.vertex(current)
+      traveler.visit(vertex, edge, hops)
+      traveler.neighbors(vertex, hops).foreach { case (neighbor, edge) =>
         if (traveler.color(neighbor) == White)
           dfs(neighbor, Some(edge), traveler, hops + 1)
       }
     }
 
     /** Depth-first search of graph.
-      * @param vertex the starting vertex
+      * @param start the starting vertex
       * @param traveler the graph traveler proxy.
       */
-    def dfs(vertex: Long, traveler: Traveler) {
-      dfs(vertex, None, traveler, 0)
+    def dfs(start: Long, traveler: Traveler) {
+      dfs(start, None, traveler, 0)
     }
 
     /** Breadth-first search of graph.
-      * @param vertex the current vertex to visit
+      * @param start the start vertex to visit
       * @param traveler the graph traveler proxy.
       */
-    def bfs(vertex: Long, traveler: Traveler) {
+    def bfs(start: Long, traveler: Traveler) {
       val queue = collection.mutable.Queue[(Long, Option[Edge], Int)]()
 
-      queue.enqueue((vertex, None, 0))
+      queue.enqueue((start, None, 0))
 
       while (!queue.isEmpty) {
         val (vertex, edge, hops) = queue.dequeue
         if (traveler.color(vertex) == White) {
-          val node = traveler.v(vertex)
+          val node = traveler.vertex(vertex)
           traveler.visit(node, edge, hops)
           traveler.neighbors(node, hops).foreach { case (neighbor, edge) =>
             queue.enqueue((neighbor, Some(edge), hops + 1))
@@ -100,7 +99,7 @@ object GraphOps {
         if (current == goal)
           return reconstructPath(cameFrom, goal, traveler).reverse
 
-        val node = traveler.v(current)
+        val node = traveler.vertex(current)
         traveler.neighbors(node, hops).foreach { case (neighbor, edge) =>
           val alt = distance + traveler.weight(edge)
           if (alt < dist(neighbor)) {
@@ -157,7 +156,7 @@ object GraphOps {
         openSet.remove(current)
         closedSet.add(current)
 
-        val node = traveler.v(current)
+        val node = traveler.vertex(current)
         traveler.neighbors(node, hops).foreach {
           case (neighbor, _) if (closedSet.contains(neighbor)) => ()
           case (neighbor, edge) =>

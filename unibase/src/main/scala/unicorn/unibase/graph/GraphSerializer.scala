@@ -66,31 +66,28 @@ class GraphSerializer(
       log.error(s"Vertex $vertex missing vertex property columns")
     }
 
-    val edges = scala.collection.mutable.ArrayBuffer[Edge]()
-
     val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
-      val in = family.columns.map { column =>
+      family.columns.map { column =>
         val (label, source) = deserializeEdgeColumnQualifier(column.qualifier)
         val properties = deserializeEdgeProperties(column.value)
         Edge(source, label, vertex, properties)
       }
-
-      if (!in.isEmpty) edges ++= in
-      in.groupBy(_.label)
-    }.getOrElse(Map.empty)
+    }.getOrElse(Seq.empty)
 
     val out = families.find(_.family == GraphOutEdgeColumnFamily).map { family =>
-      val out = family.columns.map { column =>
+      family.columns.map { column =>
         val (label, target) = deserializeEdgeColumnQualifier(column.qualifier)
         val properties = deserializeEdgeProperties(column.value)
         Edge(vertex, label, target, properties)
       }
+    }.getOrElse(Seq.empty)
 
-      if (!out.isEmpty) edges ++= out
-      out.groupBy(_.label)
-    }.getOrElse(Map.empty)
-
-    Vertex(vertex, properties.get, edges, in, out)
+    val edges = (in.size, out.size) match {
+      case (0, _) => out
+      case (_, 0) => in
+      case _ => out ++ in
+    }
+    Vertex(vertex, properties.get, edges)
   }
 
   /** Deserializes vertex property data. */

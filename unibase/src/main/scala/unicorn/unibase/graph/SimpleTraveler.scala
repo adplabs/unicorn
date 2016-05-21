@@ -56,17 +56,17 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
     cache.clear
   }
 
-  override def v(vertex: Long): Vertex = {
-    cache.get(vertex) match {
+  override def vertex(id: Long): Vertex = {
+    cache.get(id) match {
       case Some(node) => node
       case None =>
-        val node = graph(vertex)
-        cache(vertex) = node
+        val node = graph(id)
+        cache(id) = node
         node
     }
   }
 
-  override def color(vertex: Long): VertexColor = mark(vertex)
+  override def color(id: Long): VertexColor = mark(id)
 
   override def visit(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
     apply(vertex, edge, hops)

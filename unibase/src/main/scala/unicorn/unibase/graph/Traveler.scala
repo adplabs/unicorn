@@ -47,10 +47,10 @@ import VertexColor._
   */
 trait Traveler {
   /** Returns the vertex of given ID. */
-  def v(vertex: Long): Vertex
+  def vertex(id: Long): Vertex
 
   /** The color mark if a vertex was already visited. */
-  def color(vertex: Long): VertexColor
+  def color(id: Long): VertexColor
 
   /** Visit a vertex during graph traversal.
     *
