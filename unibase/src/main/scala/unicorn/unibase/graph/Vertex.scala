@@ -23,7 +23,17 @@ import unicorn.json._
   *
   * @author Haifeng Li
   */
-case class Vertex(val id: Long, val properties: JsObject, edges: Seq[Edge], in: Map[String, Seq[Edge]], out: Map[String, Seq[Edge]]) extends Dynamic {
+case class Vertex(val id: Long, val properties: JsObject, val edges: Seq[Edge]) extends Dynamic {
+
+  /** Incoming arcs. */
+  @transient lazy val in: Map[String, Seq[Edge]] = {
+    edges.filter(_.target == id).groupBy(_.label)
+  }
+
+  /** Outgoing arcs. */
+  @transient lazy val out: Map[String, Seq[Edge]] = {
+    edges.filter(_.source == id).groupBy(_.label)
+  }
 
   override def toString = s"Vertex[$id] = ${properties.prettyPrint}"
 
