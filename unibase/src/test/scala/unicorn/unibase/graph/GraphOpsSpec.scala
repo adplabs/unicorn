@@ -94,7 +94,7 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
 
   "Graph" should {
     "bfs" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
       val queue = collection.mutable.Queue[(Long, String, Int)]()
 
       GraphOps.bfs(jupiter, new SimpleTraveler(gods) {
@@ -113,7 +113,7 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
       queue.isEmpty === true
     }
     "dfs" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
       val queue = collection.mutable.Queue[(Long, String, Int)]()
 
       GraphOps.dfs(jupiter, new SimpleTraveler(gods) {
@@ -133,7 +133,7 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
       queue.isEmpty === true
     }
     "dijkstra" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
 
       var path = GraphOps.dijkstra(jupiter, cerberus, new SimpleTraveler(gods)).map { case (v, e) =>
         (v, e.map(_.label).getOrElse(""))
@@ -158,7 +158,7 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
       path.size === 0
     }
     "a* search" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
 
       val path = GraphOps.astar(jupiter, cerberus, new SimpleTraveler(gods) with AstarTraveler {
         override  def h(v1: Long, v2: Long): Double = {

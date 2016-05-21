@@ -24,11 +24,10 @@ import org.apache.spark.SparkContext
 
 import unicorn.bigtable.hbase.HBaseTable
 import unicorn.json._
-import unicorn.oid.LongIdGenerator
-import unicorn.unibase.graph.{Graph, GraphSerializer}
+import unicorn.unibase.graph.{ReadOnlyGraph, GraphSerializer}
 
 /** Unibase graph specialized for HBase with Spark GraphX supports. */
-class GraphX(override val table: HBaseTable, idgen: LongIdGenerator) extends Graph(table, idgen) {
+class GraphX(override val table: HBaseTable) extends ReadOnlyGraph(table) {
   /** Returns a Spark GraphX object.
     *
     * @param sc Spark context object.

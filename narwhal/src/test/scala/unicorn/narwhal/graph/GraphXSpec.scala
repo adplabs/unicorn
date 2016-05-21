@@ -16,7 +16,6 @@
 
 package unicorn.narwhal.graph
 
-import java.util.Date
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.hbase.HBase
@@ -51,7 +50,7 @@ class GraphXSpec extends Specification with BeforeAfterAll {
   override def beforeAll = {
     db.createGraph(graphName)
 
-    val gods = db.graph(graphName)
+    val gods = db.graph(graphName, db.zookeeper)
 
     saturn = gods.addVertex(json"""{"label": "titan", "name": "saturn", "age": 10000}""")
     sky = gods.addVertex(json"""{"label": "location", "name": "sky"}""")
@@ -94,171 +93,6 @@ class GraphXSpec extends Specification with BeforeAfterAll {
   }
 
   "GraphX" should {
-    /*
-    "inc" in {
-      val bucket = db(tableName)
-      val key = bucket.upsert(json)
-
-      val update = JsonParser(
-        """
-          | {
-          |   "$inc": {
-          |     "store.books": 10
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      update("_id") = key
-      bucket.update(update)
-
-      val doc = bucket(key).get
-      doc.store.books === JsCounter(20)
-
-      val subtraction = JsonParser(
-        """
-          | {
-          |   "$inc": {
-          |     "store.books": -30
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      subtraction("_id") = key
-      bucket.update(subtraction)
-
-      val doc2 = bucket(key).get
-      doc2.store.books === JsCounter(-10)
-    }
-    "rollback set" in {
-      val bucket = db(tableName)
-      val key = bucket.upsert(json)
-
-      val update = JsonParser(
-        """
-          | {
-          |   "$set": {
-          |     "owner": "Poor",
-          |     "gender": "M",
-          |     "store.book.0.price": 9.95
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      update("_id") = key
-      bucket.update(update)
-
-      val doc = bucket(key, "owner", "store.book.0").get
-      doc.owner === JsString("Poor")
-      doc.gender === JsString("M")
-      doc.store.book(0).price === JsDouble(9.95)
-
-      val rollback = JsonParser(
-        """
-          | {
-          |   "$rollback": {
-          |     "owner": 1,
-          |     "gender": 1,
-          |     "store.book.0.price": 1
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      rollback("_id") = key
-      bucket.update(rollback)
-
-      val old = bucket(key, "owner", "store.book.0").get
-      old.owner === JsString("Rich")
-      old.gender === JsUndefined
-      old.store.book(0).price === JsDouble(8.95)
-    }
-    "rollback unset" in {
-      val bucket = db(tableName)
-      val key = bucket.upsert(json)
-
-      val update = JsonParser(
-        """
-          | {
-          |   "$unset": {
-          |     "owner": 1,
-          |     "address": 1,
-          |     "store.book.0": 1
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      update("_id") = key
-      bucket.update(update)
-
-      val doc = bucket(key, "owner", "store.book.0").get
-      doc.owner === JsUndefined
-      doc.address === JsUndefined
-      doc.store.book(0) === JsUndefined
-
-      val rollback = JsonParser(
-        """
-          | {
-          |   "$rollback": {
-          |     "owner": 1,
-          |     "address": 1,
-          |     "store.book.0": 1
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      rollback("_id") = key
-      bucket.update(rollback)
-
-      val old = bucket(key, "owner", "store.book.0").get
-      old.owner === JsString("Rich")
-      old.address === json.address
-      old.store.book(0).price === JsDouble(8.95)
-    }
-    "time travel" in {
-      val bucket = db(tableName)
-      val key = bucket.upsert(json)
-
-      val asOfDate = new Date
-
-      val update = JsonParser(
-        """
-          | {
-          |   "$set": {
-          |     "owner": "Poor",
-          |     "gender": "M",
-          |     "store.book.0.price": 9.95
-          |   }
-          | }
-        """.stripMargin).asInstanceOf[JsObject]
-      update("_id") = key
-      bucket.update(update)
-
-      val old = bucket(asOfDate, key)
-      old.get.owner === JsString("Rich")
-
-      val now = bucket(key)
-      now.get.owner === JsString("Poor")
-    }
-    "find" in {
-      val bucket = db(tableName)
-      bucket.upsert("""{"name":"Tom","age":30,"state":"NY"}""".parseJsObject)
-      bucket.upsert("""{"name":"Mike","age":40,"state":"NJ"}""".parseJsObject)
-      bucket.upsert("""{"name":"Chris","age":30,"state":"NJ"}""".parseJsObject)
-
-      val tom = bucket.find(JsObject("name" -> JsString("Tom")))
-      tom.next.name === JsString("Tom")
-      tom.hasNext === false
-
-      val age = bucket.find(JsObject("age" -> JsInt(30)))
-      age.next.age === JsInt(30)
-      age.next.age === JsInt(30)
-      age.hasNext === false
-
-      val and  = bucket.find(JsObject("age" -> 30, "state" -> "NJ"))
-      and.next.age === JsInt(30)
-      and.hasNext === false
-
-      val or  = bucket.find(JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("state" -> JsString("NJ")))))
-      val first = or.next
-      (first.age == JsInt(40) || first.state == JsString("NJ")) === true
-      val second = or.next
-      (second.age == JsInt(40) || second.state == JsString("NJ")) === true
-      or.hasNext === false
-    }
-    */
     "spark" in {
       import org.apache.spark._
 
@@ -277,5 +111,3 @@ class GraphXSpec extends Specification with BeforeAfterAll {
     }
   }
 }
-
-case class Worker(name: String, age: Int)

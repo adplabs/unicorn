@@ -17,8 +17,6 @@
 package unicorn.narwhal
 
 import unicorn.bigtable.hbase.HBase
-import unicorn.oid.{Snowflake, LongIdGenerator}
-import unicorn.unibase.graph.Graph
 import unicorn.unibase.{TableMeta, Unibase}
 import unicorn.narwhal.graph.GraphX
 
@@ -31,41 +29,12 @@ class Narwhal(hbase: HBase) extends Unibase(hbase) {
     new HTable(hbase(name), TableMeta(hbase, name))
   }
 
-  /** Returns a graph table with Snowflake ID generator.
-    * The Snowflake worker id is coordinated by the
-    * ZooKeeper instance used by HBase.
-    *
-    * @param name the name of table.
-    */
-  def graph(name: String): GraphX = {
-    val zookeeper = hbase.connection.getConfiguration.get("hbase.zookeeper.quorum")
-    graph(name, zookeeper)
-  }
+  /** The connection string of ZooKeeper instance used by this HBase. */
+  val zookeeper = hbase.connection.getConfiguration.get("hbase.zookeeper.quorum")
 
-  /** Returns a graph table with Snowflake ID generator.
-    * The Snowflake worker id is coordinated by zookeeper.
-    *
-    * @param name The name of graph table.
-    * @param zookeeper ZooKeeper connection string.
-    */
-  override def graph(name: String, zookeeper: String): GraphX = {
-    graph(name, zookeeper, s"/unicorn/snowflake/graph/$name")
-  }
-
-  /** Returns a graph table with Snowflake ID generator.
-    * The Snowflake worker id is coordinated by zookeeper.
-    *
-    * @param name The name of graph table.
-    * @param zookeeper ZooKeeper connection string.
-    * @param group The ZooKeeper group node of Snowflake workers.
-    */
-  override def graph(name: String, zookeeper: String, group: String): GraphX = {
-    graph(name, Snowflake(zookeeper, group))
-  }
-
-  override def graph(name: String, idgen: LongIdGenerator): GraphX = {
+  override def graph(name: String): GraphX = {
     val table = hbase(name)
-    new GraphX(table, idgen)
+    new GraphX(table)
   }
 
 /*
