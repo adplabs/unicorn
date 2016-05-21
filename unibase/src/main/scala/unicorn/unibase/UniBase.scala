@@ -17,7 +17,7 @@
 package unicorn.unibase
 
 import unicorn.bigtable.{Column, BigTable, Database}
-import unicorn.unibase.graph.Graph
+import unicorn.unibase.graph.{Graph, ReadOnlyGraph}
 import unicorn.json._
 import unicorn.oid.{LongIdGenerator, Snowflake}
 import unicorn.util._
@@ -38,7 +38,17 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     new Table(db(name), TableMeta(db, name))
   }
 
-  /** Returns a graph table with Snowflake ID generator.
+  /** Returns a read only graph, which doesn't need an ID
+    * generator. This is sufficient for graph traversal and analytics.
+    *
+    * @param name The name of graph table.
+    */
+  def graph(name: String): ReadOnlyGraph = {
+    val table = db(name)
+    new ReadOnlyGraph(table)
+  }
+
+  /** Returns a graph with Snowflake ID generator.
     * The Snowflake worker id is coordinated by zookeeper.
     *
     * @param name The name of graph table.
@@ -48,7 +58,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     graph(name, zookeeper, s"/unicorn/snowflake/graph/$name")
   }
 
-  /** Returns a graph table with Snowflake ID generator.
+  /** Returns a graph with Snowflake ID generator.
     * The Snowflake worker id is coordinated by zookeeper.
     *
     * @param name The name of graph table.
@@ -59,7 +69,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     graph(name, Snowflake(zookeeper, group))
   }
 
-  /** Returns a graph table.
+  /** Returns a graph.
     * @param name The name of graph table.
     * @param idgen Vertex ID generator.
     */

@@ -32,7 +32,7 @@ import VertexColor._
   *
   * @author Haifeng Li
   */
-class SimpleTraveler(val graph: Graph, val relationships: Set[String] = Set.empty, val maxHops: Int = 3, val outgoing: Boolean = true) extends Traveler {
+class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = Set.empty, val maxHops: Int = 3, val outgoing: Boolean = true) extends Traveler {
   /** The color mark if a vertex was already visited. */
   private val mark = collection.mutable.Map[Long, VertexColor]().withDefaultValue(White)
 

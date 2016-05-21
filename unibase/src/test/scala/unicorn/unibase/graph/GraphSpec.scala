@@ -94,7 +94,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
 
   "Graph" should {
     "get vertex" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
       val vertex = gods(alcmene)
       vertex.id === alcmene
       vertex.properties === json"""{"_id": $alcmene, "label": "human", "name": "alcmene", "age": 45}"""
@@ -152,7 +152,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
       gods("doc_vertex_test", key) should throwA[IllegalArgumentException]
     }
     "get edge" in {
-      val gods = db.graph(graphName, new Snowflake(0))
+      val gods = db.graph(graphName)
       gods(neptune, "lives", sea) === Some(json"""{"reason": "loves waves"}""")
       gods(neptune, "lives", jupiter) === None
       gods(neptune, "brother", jupiter) === Some(JsInt(1))

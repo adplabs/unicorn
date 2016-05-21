@@ -62,32 +62,21 @@ import unicorn.util.Logging
   * for a given relationship in constant time.
   *
   * @param table Graph adjacency list table.
-  * @param idgen 64-bit ID generator for vertex id.
   *
   * @author Haifeng Li
   */
-class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with Logging {
-  import unicorn.unibase.{$id, $tenant}
+class ReadOnlyGraph(val table: BigTable) {
+
+  import unicorn.unibase.$id
 
   /** Graph serializer. */
   val serializer = new GraphSerializer()
 
-  /** For UpdateOps. */
-  override val valueSerializer = serializer.vertexSerializer
-
   /** The column qualifier of \$id field. */
-  val idColumnQualifier = valueSerializer.str2PathBytes($id)
+  val idColumnQualifier = serializer.vertexSerializer.str2PathBytes($id)
 
   /** The graph name. */
   val name = table.name
-
-  override def key(id: JsValue): Array[Byte] = {
-    require(id.isInstanceOf[JsLong], "Graph vertex id must be 64-bit JsLong")
-    serializer.serialize(id.asInstanceOf[JsLong].value)
-  }
-
-  /** Returns the column family of a property. */
-  override def familyOf(field: String): String = GraphVertexColumnFamily
 
   /** Returns the vertex properties and its adjacency list. */
   def apply(vertex: Long): Vertex = {
@@ -99,7 +88,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
   }
 
   /** Decodes vertex ID. */
-  private def vertex(id: Array[Byte]): Long = {
+  private[unicorn] def vertex(id: Array[Byte]): Long = {
     ByteBuffer.wrap(id).getLong
   }
 
@@ -125,6 +114,25 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
     value.map { bytes =>
       serializer.deserializeEdgeProperties(bytes)
     }
+  }
+}
+
+/** Graph with update operators.
+  *
+  * @param idgen 64-bit ID generator for vertex id.
+  */
+class Graph(override val table: BigTable, idgen: LongIdGenerator) extends ReadOnlyGraph(table) with UpdateOps with Logging {
+  import unicorn.unibase.{$id, $tenant}
+
+  /** For UpdateOps. */
+  override val valueSerializer = serializer.vertexSerializer
+
+  /** Returns the column family of a property. */
+  override def familyOf(field: String): String = GraphVertexColumnFamily
+
+  override def key(id: JsValue): Array[Byte] = {
+    require(id.isInstanceOf[JsLong], "Graph vertex id must be 64-bit JsLong")
+    serializer.serialize(id.asInstanceOf[JsLong].value)
   }
 
   /** Shortcut to addVertex. Returns the vertex properties object. */
