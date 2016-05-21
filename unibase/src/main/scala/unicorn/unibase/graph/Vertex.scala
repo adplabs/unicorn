@@ -35,6 +35,13 @@ case class Vertex(val id: Long, val properties: JsObject, val edges: Seq[Edge]) 
     edges.filter(_.source == id).groupBy(_.label)
   }
 
+  /* Neighbor vertices. */
+  @transient lazy val neighbors: Seq[Long] = {
+    edges.map { case Edge(from, _, to, _) =>
+        if (from == id) to else from
+    }
+  }
+
   override def toString = s"Vertex[$id] = ${properties.prettyPrint}"
 
   def apply(property: String): JsValue = properties.apply(property)

@@ -87,12 +87,12 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
     if (hops >= maxHops) return Seq.empty.iterator
 
     vertex.edges.filter { edge =>
-      if (outgoing && edge.target == vertex.id) false
-      else if (!outgoing && edge.source == vertex.id) false
+      if (outgoing && edge.to == vertex.id) false
+      else if (!outgoing && edge.from == vertex.id) false
       else if (relationships.isEmpty) true
       else relationships.contains(edge.label)
     }.map { edge =>
-      val neighbor = if (outgoing) edge.target else edge.source
+      val neighbor = if (outgoing) edge.to else edge.from
       (neighbor, edge)
     }.iterator
   }

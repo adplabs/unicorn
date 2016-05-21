@@ -23,9 +23,9 @@ import unicorn.json.JsValue
   *
   * @author Haifeng Li
   */
-case class Edge(val source: Long, val label: String, val target: Long, val properties: JsValue) extends Dynamic {
+case class Edge(val from: Long, val label: String, val to: Long, val properties: JsValue) extends Dynamic {
 
-  override def toString = s"($source - [:$label] -> $target) = ${properties.prettyPrint}"
+  override def toString = s"($from - [:$label] -> $to) = ${properties.prettyPrint}"
 
   def apply(property: String): JsValue = properties.apply(property)
 
