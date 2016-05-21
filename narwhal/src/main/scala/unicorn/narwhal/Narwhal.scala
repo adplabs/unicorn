@@ -17,7 +17,9 @@
 package unicorn.narwhal
 
 import unicorn.bigtable.hbase.HBase
+import unicorn.unibase.idgen.{Snowflake, LongIdGenerator}
 import unicorn.unibase.{TableMeta, Unibase}
+import unicorn.narwhal.graph.GraphX
 
 /** Unibase specialized for HBase. */
 class Narwhal(hbase: HBase) extends Unibase(hbase) {
@@ -26,6 +28,11 @@ class Narwhal(hbase: HBase) extends Unibase(hbase) {
     */
   override def apply(name: String): HTable = {
     new HTable(hbase(name), TableMeta(hbase, name))
+  }
+
+  override def graph(name: String, idgen: LongIdGenerator = new Snowflake(0)): GraphX = {
+    val table = hbase(name)
+    new GraphX(table, idgen)
   }
 
 /*

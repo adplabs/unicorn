@@ -20,7 +20,7 @@ import java.util.Date
 import unicorn.util._
 
 /** Key of Cell */
-case class Key(row: ByteArray, family: String, qualifier: ByteArray, timestamp: Long)
+case class CellKey(row: ByteArray, family: String, qualifier: ByteArray, timestamp: Long)
 /** Cell in wide columnar table */
 case class Cell(row: ByteArray, family: String, qualifier: ByteArray, value: ByteArray, timestamp: Long = 0)
 /** A column of a column family */
@@ -28,7 +28,7 @@ case class Column(qualifier: ByteArray, value: ByteArray, timestamp: Long = 0)
 /** A column family */
 case class ColumnFamily(family: String, columns: Seq[Column])
 /** A Row */
-case class Row(row: ByteArray, families: Seq[ColumnFamily])
+case class Row(key: ByteArray, families: Seq[ColumnFamily])
 
 /** Abstraction of wide columnar data table.
   *

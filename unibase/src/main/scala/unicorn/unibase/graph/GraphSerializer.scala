@@ -17,7 +17,7 @@
 package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
-import unicorn.bigtable.Column
+import unicorn.bigtable.{Column, Row}
 import unicorn.json._
 import unicorn.util._
 
@@ -29,7 +29,7 @@ import unicorn.util._
 class GraphSerializer(
   val buffer: ByteBuffer = ByteBuffer.allocate(265),
   val vertexSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(65536)),
-  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) {
+  val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) extends Logging {
 
   /** Serializes vertex id. */
   def serialize(id: Long): Array[Byte] = {
@@ -54,8 +54,47 @@ class GraphSerializer(
     }.toSeq
   }
 
+  def deserializeVertex(row: Row): Vertex = {
+    val vertex = deserializeVertexId(row.key)
+    val families = row.families
+
+    val properties = families.find(_.family == GraphVertexColumnFamily).map { family =>
+      deserializeVertexProperties(family.columns)
+    }
+
+    if (properties.isEmpty) {
+      log.error(s"Vertex $vertex missing vertex property columns")
+    }
+
+    val edges = scala.collection.mutable.ArrayBuffer[Edge]()
+
+    val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
+      val in = family.columns.map { column =>
+        val (label, source) = deserializeEdgeColumnQualifier(column.qualifier)
+        val properties = deserializeEdgeProperties(column.value)
+        Edge(source, label, vertex, properties)
+      }
+
+      if (!in.isEmpty) edges ++= in
+      in.groupBy(_.label)
+    }.getOrElse(Map.empty)
+
+    val out = families.find(_.family == GraphOutEdgeColumnFamily).map { family =>
+      val out = family.columns.map { column =>
+        val (label, target) = deserializeEdgeColumnQualifier(column.qualifier)
+        val properties = deserializeEdgeProperties(column.value)
+        Edge(vertex, label, target, properties)
+      }
+
+      if (!out.isEmpty) edges ++= out
+      out.groupBy(_.label)
+    }.getOrElse(Map.empty)
+
+    Vertex(vertex, properties.get, edges, in, out)
+  }
+
   /** Deserializes vertex property data. */
-  def deserializeVertex(columns: Seq[Column]): JsObject = {
+  def deserializeVertexProperties(columns: Seq[Column]): JsObject = {
     val map = columns.map { case Column(qualifier, value, _) =>
       (new String(qualifier, vertexSerializer.charset), value.bytes)
     }.toMap
@@ -86,8 +125,14 @@ class GraphSerializer(
     edgeSerializer.toBytes
   }
 
+  /** Deserializes vertex id. */
+  def deserializeVertexId(bytes: Array[Byte]): Long = {
+    require(bytes.length == 8, s"vertex id bytes size is not 8: ${bytes.length}")
+    ByteBuffer.wrap(bytes).getLong
+  }
+
   /** Deserializes edge property data. */
-  def deserializeEdge(bytes: Array[Byte]): JsValue = {
+  def deserializeEdgeProperties(bytes: Array[Byte]): JsValue = {
     edgeSerializer.deserialize(bytes)
   }
 }

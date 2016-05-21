@@ -14,93 +14,88 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.narwhal
+package unicorn.narwhal.graph
 
 import java.util.Date
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.hbase.HBase
 import unicorn.json._
+import unicorn.narwhal._
+import unicorn.unibase.idgen.Snowflake
 
 /**
  * @author Haifeng Li
  */
-class HTableSpec extends Specification with BeforeAfterAll {
+class GraphXSpec extends Specification with BeforeAfterAll {
   // Make sure running examples one by one.
   // Otherwise, test cases on same columns will fail due to concurrency
   sequential
 
   val bigtable = HBase()
   val db = new Narwhal(bigtable)
-  val tableName = "unicorn_unibase_test"
-  val json = JsonParser(
-    """
-      |{
-      |  "owner": "Rich",
-      |  "phone": "123-456-7890",
-      |  "address": {
-      |    "street": "1 ADP Blvd.",
-      |    "city": "Roseland",
-      |    "state": "NJ"
-      |  },
-      |  "store": {
-      |    "books": 10C,
-      |    "book": [
-      |      {
-      |        "category": "reference",
-      |        "author": "Nigel Rees",
-      |        "title": "Sayings of the Century",
-      |        "price": 8.95
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "Evelyn Waugh",
-      |        "title": "Sword of Honour",
-      |        "price": 12.99
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "Herman Melville",
-      |        "title": "Moby Dick",
-      |        "isbn": "0-553-21311-3",
-      |        "price": 8.99
-      |      },
-      |      {
-      |        "category": "fiction",
-      |        "author": "J. R. R. Tolkien",
-      |        "title": "The Lord of the Rings",
-      |        "isbn": "0-395-19395-8",
-      |        "price": 22.99
-      |      }
-      |    ],
-      |    "bicycle": {
-      |      "color": "red",
-      |      "price": 19.95
-      |    }
-      |  }
-      |}
-    """.stripMargin).asInstanceOf[JsObject]
+  val graphName = "unicorn_unibase_graph_test"
+
+  var saturn = 0L
+  var sky = 0L
+  var sea = 0L
+  var jupiter = 0L
+  var neptune = 0L
+  var hercules = 0L
+  var alcmene = 0L
+  var pluto = 0L
+  var nemean = 0L
+  var hydra = 0L
+  var cerberus = 0L
+  var tartarus = 0L
 
   override def beforeAll = {
-    db.createTable(tableName)
+    db.createGraph(graphName)
+
+    val gods = db.graph(graphName, new Snowflake(0))
+
+    saturn = gods.addVertex(json"""{"label": "titan", "name": "saturn", "age": 10000}""")
+    sky = gods.addVertex(json"""{"label": "location", "name": "sky"}""")
+    sea = gods.addVertex(json"""{"label": "location", "name": "sea"}""")
+    jupiter = gods.addVertex(json"""{"label": "god", "name": "jupiter", "age": 5000}""")
+    neptune = gods.addVertex(json"""{"label": "god", "name": "neptune", "age": 4500}""")
+    hercules = gods.addVertex(json"""{"label": "demigod", "name": "hercules", "age": 30}""")
+    alcmene = gods.addVertex(json"""{"label": "human", "name": "alcmene", "age": 45}""")
+    pluto = gods.addVertex(json"""{"label": "god", "name": "pluto", "age": 4000}""")
+    nemean = gods.addVertex(json"""{"label": "monster", "name": "nemean"}""")
+    hydra = gods.addVertex(json"""{"label": "monster", "name": "hydra"}""")
+    cerberus = gods.addVertex(json"""{"label": "monster", "name": "cerberus"}""")
+    tartarus = gods.addVertex(json"""{"label": "location", "name": "tartarus"}""")
+
+    gods.addEdge(jupiter, "father", saturn)
+    gods.addEdge(jupiter, "lives", sky, json"""{"reason": "loves fresh breezes"}""")
+    gods.addEdge(jupiter, "brother", neptune)
+    gods.addEdge(jupiter, "brother", pluto)
+
+    gods.addEdge(neptune, "lives", sea, json"""{"reason": "loves waves"}""")
+    gods.addEdge(neptune, "brother", jupiter)
+    gods.addEdge(neptune, "brother", pluto)
+
+    gods.addEdge(hercules, "father", jupiter)
+    gods.addEdge(hercules, "mother", alcmene)
+    gods.addEdge(hercules, "battled", nemean, json"""{"time": 1, "place": {"latitude": 38.1, "longitude": 23.7}}""")
+    gods.addEdge(hercules, "battled", hydra, json"""{"time": 2, "place": {"latitude": 37.7, "longitude": 23.9}}""")
+    gods.addEdge(hercules, "battled", cerberus, json"""{"time": 12, "place": {"latitude": 39.0, "longitude": 22.0}}""")
+
+    gods.addEdge(pluto, "brother", jupiter)
+    gods.addEdge(pluto, "brother", neptune)
+    gods.addEdge(pluto, "lives", tartarus, json"""{"reason": "no fear of death"}""")
+    gods.addEdge(pluto, "pet", cerberus)
+
+    gods.addEdge(cerberus, "lives", tartarus)
   }
 
   override def afterAll = {
-    db.dropTable(tableName)
+    db.dropGraph(graphName)
   }
 
-  "HTable" should {
-    "insert" in {
-      val bucket = db(tableName)
-      val key = bucket.upsert(json)
-      key === json("_id")
-      val obj = bucket(key)
-      obj.get === json
-
-      bucket.insert(json) must throwA[IllegalArgumentException]
-      bucket.delete(key)
-      bucket(key) === None
-    }
+  "GraphX" should {
+    /*
     "inc" in {
       val bucket = db(tableName)
       val key = bucket.upsert(json)
@@ -264,49 +259,23 @@ class HTableSpec extends Specification with BeforeAfterAll {
       (second.age == JsInt(40) || second.state == JsString("NJ")) === true
       or.hasNext === false
     }
-    "multi-tenancy" in {
-      val bucket = db(tableName)
-      bucket.tenant = "IBM"
-      bucket.upsert("""{"name":"Tom","age":30,"state":"NY"}""".parseJsObject)
-
-      bucket.tenant = "ADP"
-      bucket.upsert("""{"name":"Mike","age":40,"state":"NJ"}""".parseJsObject)
-      bucket.upsert("""{"name":"Chris","age":30,"state":"NJ"}""".parseJsObject)
-
-      bucket.find(json"""{"state": "NY"}""").size === 0
-      bucket.tenant = "IBM"
-      bucket.find(json"""{"state": "NY"}""").size === 1
-
-      bucket.find(json"""{"state": "NJ"}""").size === 0
-      bucket.tenant = "ADP"
-      bucket.find(json"""{"state": "NJ"}""").size === 2
-    }
+    */
     "spark" in {
       import org.apache.spark._
 
       val conf = new SparkConf().setAppName("unicorn").setMaster("local[4]")
       val sc = new SparkContext(conf)
+
       val db = new Narwhal(HBase())
+      val graph = db.graph(graphName)
+      val rdd = graph.graphx(sc)
 
-      val table = db(tableName)
-      table.tenant = "ADP"
-      val rdd = table.rdd(sc)
-      rdd.count() === 2
+      rdd.numVertices === 12
+      rdd.numEdges === 17
 
-      val rdd30 = table.rdd(sc, json"""{"age": {"$$gt": 30}}""")
-      rdd30.count() === 1
-
-      val sqlContext = new org.apache.spark.sql.SQLContext(sc)
-      import sqlContext.implicits._
-
-      val workers = rdd.map { js => Worker(js.name, js.age) }
-      val df = sqlContext.createDataFrame(workers)
-      df.show
-
-      df.registerTempTable("worker")
-      val sql = sqlContext.sql("SELECT * FROM worker WHERE age > 30")
-      sql.show
-      sql.count() === 1
+      sc.stop
+      // hacking the return value of `in`
+      1 === 1
     }
   }
 }

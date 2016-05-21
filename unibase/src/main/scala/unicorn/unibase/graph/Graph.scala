@@ -18,7 +18,7 @@ package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
 
-import unicorn.bigtable.{BigTable, Column}
+import unicorn.bigtable.{BigTable, Column, Row}
 import unicorn.json._
 import unicorn.unibase.UpdateOps
 import unicorn.unibase.idgen.LongIdGenerator
@@ -95,38 +95,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
     val families = table.get(key)
     require(!families.isEmpty, s"Vertex $vertex doesn't exist in graph ${table.name}")
 
-    val properties = families.find(_.family == GraphVertexColumnFamily).map { family =>
-      serializer.deserializeVertex(family.columns)
-    }
-
-    if (properties.isEmpty)
-      log.error(s"Vertex $vertex missing vertex property columns")
-
-    val edges = scala.collection.mutable.ArrayBuffer[Edge]()
-
-    val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
-      val in = family.columns.map { column =>
-        val (label, source) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
-        val properities = serializer.deserializeEdge(column.value)
-        Edge(source, label, vertex, properities)
-      }
-
-      if (!in.isEmpty) edges ++= in
-      in.groupBy(_.label)
-    }.getOrElse(Map.empty)
-
-    val out = families.find(_.family == GraphOutEdgeColumnFamily).map { family =>
-      val out = family.columns.map { column =>
-        val (label, target) = serializer.deserializeEdgeColumnQualifier(column.qualifier)
-        val properities = serializer.deserializeEdge(column.value)
-        Edge(vertex, label, target, properities)
-      }
-
-      if (!out.isEmpty) edges ++= out
-      out.groupBy(_.label)
-    }.getOrElse(Map.empty)
-
-    Vertex(vertex, properties.get, edges, in, out)
+    serializer.deserializeVertex(Row(key, families))
   }
 
   /** Decodes vertex ID. */
@@ -154,7 +123,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
     val value = table(sourceKey, GraphOutEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, target))
 
     value.map { bytes =>
-      serializer.deserializeEdge(bytes)
+      serializer.deserializeEdgeProperties(bytes)
     }
   }
 

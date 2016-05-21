@@ -17,12 +17,7 @@
 package unicorn.narwhal
 
 import java.util.{UUID, Date}
-import unicorn.json._
-import unicorn.bigtable._, hbase.HBaseTable
-//import unicorn.index._, IndexType._, IndexSortOrder._
-import unicorn.oid.BsonObjectId
-import unicorn.unibase.{DocumentSerializer, Table}
-import unicorn.util._
+
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{Result, Scan}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
@@ -31,6 +26,13 @@ import org.apache.hadoop.hbase.protobuf.ProtobufUtil
 import org.apache.hadoop.hbase.util.Base64
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+
+import unicorn.json._
+import unicorn.bigtable._, hbase.HBaseTable
+//import unicorn.index._, IndexType._, IndexSortOrder._
+import unicorn.oid.BsonObjectId
+import unicorn.unibase.{DocumentSerializer, Table}
+import unicorn.util._
 
 /** Unibase table specialized for HBase with additional functions such
   * as \$inc, \$rollback, find, etc. */
