@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase.idgen
+package unicorn.oid
 
 /** 64-bit ID generator.
   * 

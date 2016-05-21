@@ -19,7 +19,7 @@ package unicorn.unibase
 import unicorn.bigtable.{Column, BigTable, Database}
 import unicorn.unibase.graph.Graph
 import unicorn.json._
-import unicorn.unibase.idgen.{LongIdGenerator, Snowflake}
+import unicorn.oid.{LongIdGenerator, Snowflake}
 import unicorn.util._
 
 /** A Unibase is a database of documents. A collection of documents are called table.
@@ -27,23 +27,43 @@ import unicorn.util._
   * @author Haifeng Li
   */
 class Unibase[+T <: BigTable](db: Database[T]) {
-  import unicorn.unibase.graph.GraphDocumentVertexTableSuffix
   import unicorn.unibase.graph.GraphVertexColumnFamily
   import unicorn.unibase.graph.GraphInEdgeColumnFamily
   import unicorn.unibase.graph.GraphOutEdgeColumnFamily
 
   /** Returns a document table.
-    * @param name the name of table.
+    * @param name The name of table.
     */
   def apply(name: String): Table = {
     new Table(db(name), TableMeta(db, name))
   }
 
+  /** Returns a graph table with Snowflake ID generator.
+    * The Snowflake worker id is coordinated by zookeeper.
+    *
+    * @param name The name of graph table.
+    * @param zookeeper ZooKeeper connection string.
+    */
+  def graph(name: String, zookeeper: String): Graph = {
+    graph(name, zookeeper, s"/unicorn/snowflake/graph/$name")
+  }
+
+  /** Returns a graph table with Snowflake ID generator.
+    * The Snowflake worker id is coordinated by zookeeper.
+    *
+    * @param name The name of graph table.
+    * @param zookeeper ZooKeeper connection string.
+    * @param group The ZooKeeper group node of Snowflake workers.
+    */
+  def graph(name: String, zookeeper: String, group: String): Graph = {
+    graph(name, Snowflake(zookeeper, group))
+  }
+
   /** Returns a graph table.
-    * @param name the name of table.
+    * @param name The name of graph table.
     * @param idgen Vertex ID generator.
     */
-  def graph(name: String, idgen: LongIdGenerator = new Snowflake(0)): Graph = {
+  def graph(name: String, idgen: LongIdGenerator): Graph = {
     val table = db(name)
     new Graph(table, idgen)
   }

@@ -19,9 +19,9 @@ package unicorn.unibase.graph
 import org.specs2.mutable._
 import org.specs2.specification.BeforeAfterAll
 import unicorn.bigtable.accumulo.Accumulo
-import unicorn.unibase._
-import unicorn.unibase.idgen.Snowflake
 import unicorn.json._
+import unicorn.oid.Snowflake
+import unicorn.unibase._
 
 /**
  * @author Haifeng Li

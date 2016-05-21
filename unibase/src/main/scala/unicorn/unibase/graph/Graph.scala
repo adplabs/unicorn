@@ -20,8 +20,8 @@ import java.nio.ByteBuffer
 
 import unicorn.bigtable.{BigTable, Column, Row}
 import unicorn.json._
+import unicorn.oid.LongIdGenerator
 import unicorn.unibase.UpdateOps
-import unicorn.unibase.idgen.LongIdGenerator
 import unicorn.util.Logging
 
 /** Graphs are mathematical structures used to model pairwise relations
@@ -69,7 +69,7 @@ import unicorn.util.Logging
 class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with Logging {
   import unicorn.unibase.{$id, $tenant}
 
-  /** Document serializer. */
+  /** Graph serializer. */
   val serializer = new GraphSerializer()
 
   /** For UpdateOps. */
@@ -78,7 +78,7 @@ class Graph(val table: BigTable, idgen: LongIdGenerator) extends UpdateOps with 
   /** The column qualifier of \$id field. */
   val idColumnQualifier = valueSerializer.str2PathBytes($id)
 
-  /** The table name. */
+  /** The graph name. */
   val name = table.name
 
   override def key(id: JsValue): Array[Byte] = {

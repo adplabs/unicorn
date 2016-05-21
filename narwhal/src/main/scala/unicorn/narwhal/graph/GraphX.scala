@@ -24,7 +24,7 @@ import org.apache.spark.SparkContext
 
 import unicorn.bigtable.hbase.HBaseTable
 import unicorn.json._
-import unicorn.unibase.idgen.LongIdGenerator
+import unicorn.oid.LongIdGenerator
 import unicorn.unibase.graph.{Graph, GraphSerializer}
 
 /** Unibase graph specialized for HBase with Spark GraphX supports. */

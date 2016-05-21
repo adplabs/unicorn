@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase.idgen
+package unicorn.oid
 
 import unicorn.util.Logging
 
@@ -38,14 +38,10 @@ import unicorn.util.Logging
   * @author Haifeng Li
   */
 class Snowflake(val worker: Long, var sequence: Long = 0L) extends LongIdGenerator with Logging {
-  val epoch = 1463322997653L
-
-  private val workerIdBits = 10L
-  private val maxWorkerId = -1L ^ (-1L << workerIdBits)
-  private val sequenceBits = 12L
+  import Snowflake.{epoch, workerIdBits, maxWorkerId, sequenceBits}
 
   private val workerIdShift = sequenceBits
-  private val timestampLeftShift = sequenceBits + workerIdBits
+  private val timestampLeftShift = Snowflake.sequenceBits + workerIdBits
   private val sequenceMask = -1L ^ (-1L << sequenceBits)
 
   private var lastTimestamp = -1L
@@ -86,5 +82,59 @@ class Snowflake(val worker: Long, var sequence: Long = 0L) extends LongIdGenerat
       timestamp = System.currentTimeMillis
     }
     timestamp
+  }
+}
+
+object Snowflake extends Logging {
+  val epoch = 1463322997653L
+
+  val workerIdBits = 10L
+  val maxWorkerId = -1L ^ (-1L << workerIdBits)
+  val sequenceBits = 12L
+
+  /** Creates a Snowflake with worker id coordinated by zookeeper.
+    *
+    * @param zookeeper ZooKeeper connection string.
+    * @param group ZooKeeper group node path.
+    * @param sequence The start sequence number.
+    * @return A Snowflake worker.
+    */
+  def apply(zookeeper: String, group: String, sequence: Long = 0L): Snowflake = {
+
+    import java.util.concurrent.CountDownLatch
+    import org.apache.zookeeper._, KeeperException.NodeExistsException
+
+    log.debug(s"Create Snowflake worker with ZooKeeper $zookeeper")
+
+    val connectedSignal = new CountDownLatch(1)
+    val zk = new ZooKeeper(zookeeper, 5000, new Watcher {
+      override def process(event: WatchedEvent): Unit = {
+        if (event.getState == Watcher.Event.KeeperState.SyncConnected) {
+          connectedSignal.countDown
+        }
+      }
+    })
+    connectedSignal.await
+
+    val path = group.split('/')
+    for (i <- 2 to path.length) {
+      val parent = path.slice(1, i).mkString("/", "/", "")
+      if (zk.exists(parent, false) == null) {
+        log.info(s"ZooKeeper group $parent doesn't exist. Create it.")
+        zk.create(parent, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+      }
+    }
+
+    for (worker <- 0L to maxWorkerId) {
+      try {
+        zk.create(s"$group/$worker", null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+        return new Snowflake(worker, sequence)
+      } catch {
+        case e: NodeExistsException =>
+          log.debug(s"ZooKeeper node $group/$worker already exists.")
+      }
+    }
+
+    throw new RuntimeException(s"Snowflake group $group reaches maximum number of workers")
   }
 }
