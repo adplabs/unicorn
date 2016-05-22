@@ -18,8 +18,11 @@ package unicorn.unibase
 
 import java.util.Date
 import java.time.Instant
+import unicorn.bigtable.ScanFilter
+import unicorn.json._
+
 import scala.util.parsing.combinator.JavaTokenParsers
-import unicorn.util.Logging
+import unicorn.util.{ByteArray, Logging}
 
 sealed trait Literal
 case class StringLiteral(x: String) extends Literal
@@ -36,6 +39,7 @@ case class Gt(left: String, right: Literal) extends FilterExpression
 case class Ge(left: String, right: Literal) extends FilterExpression
 case class Lt(left: String, right: Literal) extends FilterExpression
 case class Le(left: String, right: Literal) extends FilterExpression
+case class IsNull(left: String, right: Boolean) extends FilterExpression
 
 /** The where clause used for scan and index. Currently we support = (equal), <> or != (not equal),
   * > (greater than), >= (greater than or equal), < (less than), and <= (less than or equal).
@@ -80,6 +84,10 @@ class FilterExpressionParser extends JavaTokenParsers with Logging {
     jsFieldPath ~ "<=" ~ filterLiteral ^^ { case left ~ _ ~ right => Le(left, right) } |
     filterLiteral ~ ">=" ~ jsFieldPath ^^ { case left ~ _ ~ right => Le(right, left) }
 
+  def isNullExpression: Parser[FilterExpression] =
+    jsFieldPath ~ "IS NULL" ^^ { case left ~ _ => IsNull(left, true) } |
+    jsFieldPath ~ "IS NOT NULL" ^^ { case left ~ _ => IsNull(left, false) }
+
   def andOp: Parser[String] = """(?i)(and)|(&&)""".r
 
   def orOp: Parser[String] = """(?i)(or)|(\|\|)""".r
@@ -91,7 +99,7 @@ class FilterExpressionParser extends JavaTokenParsers with Logging {
     andExpression * (orOp ^^^ { (left: FilterExpression, right: FilterExpression) => Or(left, right) })
 
   def simpleExpression: Parser[FilterExpression] =
-    eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression | "(" ~> expression <~ ")"
+    eqExpression | neExpression | gtExpression | geExpression | ltExpression | leExpression | isNullExpression | "(" ~> expression <~ ")"
 
   def expression: Parser[FilterExpression] =
     orExpression | andExpression | simpleExpression
