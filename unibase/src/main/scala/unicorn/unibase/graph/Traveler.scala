@@ -18,10 +18,11 @@ package unicorn.unibase.graph
 
 import unicorn.json._
 
+/** Vertex color mark in a graph graversal. */
 object VertexColor extends Enumeration {
   type VertexColor = Value
 
-  /** White marks vertices that have yet to be discovered, */
+  /** White marks vertices that have yet to be discovered. */
   val White = Value
 
   /** Gray marks a vertex that is discovered but still
@@ -32,6 +33,20 @@ object VertexColor extends Enumeration {
     * adjacent to any white vertices.
     */
   val Black = Value
+}
+
+/** The edges to follow in a graph traversal. */
+object Direction extends Enumeration {
+  type Direction = Value
+
+  /** Outgoing edges. */
+  val Outgoing = Value
+
+  /** Incoming edges. */
+  val Incoming = Value
+
+  /** Both directions. */
+  val Both = Value
 }
 
 import VertexColor._

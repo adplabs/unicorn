@@ -17,6 +17,7 @@
 package unicorn.unibase.graph
 
 import VertexColor._
+import Direction._
 
 /** Simple graph visitor with cache management.
   * In DFS and BFS, the user should create a sub class overriding
@@ -27,12 +28,11 @@ import VertexColor._
   *                      relationship will be visited. Empty set means all
   *                      relationships.
   * @param maxHops Maximum number of hops during graph traversal.
-  * @param outgoing If true, traverse the graph with outgoing edges
-  *                 at each vertex. Otherwise, follow the incoming edges.
+  * @param direction Edges to follow in the traversal.
   *
   * @author Haifeng Li
   */
-class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = Set.empty, val maxHops: Int = 3, val outgoing: Boolean = true) extends Traveler {
+class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = Set.empty, val maxHops: Int = 3, val direction: Direction = Outgoing) extends Traveler {
   /** The color mark if a vertex was already visited. */
   private val mark = collection.mutable.Map[Long, VertexColor]().withDefaultValue(White)
 
@@ -60,7 +60,7 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
     cache.get(id) match {
       case Some(node) => node
       case None =>
-        val node = graph(id)
+        val node = graph(id, direction)
         cache(id) = node
         node
     }
@@ -71,13 +71,8 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
   override def visit(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {
     apply(vertex, edge, hops)
 
-    val black = (if (outgoing) vertex.out else vertex.in).forall { case (_, edges) =>
-      edges.forall { edge =>
-        if (outgoing)
-          mark.contains(edge.target)
-        else
-          mark.contains(edge.source)
-      }
+    val black = vertex.neighbors.forall { neighbor =>
+      mark.contains(neighbor)
     }
 
     mark(vertex.id) = if (black) Black else Gray
@@ -86,13 +81,13 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
   override def neighbors(vertex: Vertex, hops: Int): Iterator[(Long, Edge)] = {
     if (hops >= maxHops) return Seq.empty.iterator
 
-    vertex.edges.filter { edge =>
-      if (outgoing && edge.to == vertex.id) false
-      else if (!outgoing && edge.from == vertex.id) false
-      else if (relationships.isEmpty) true
-      else relationships.contains(edge.label)
-    }.map { edge =>
-      val neighbor = if (outgoing) edge.to else edge.from
+    val edges = if (relationships.isEmpty) vertex.edges
+    else vertex.edges.filter { edge =>
+      relationships.contains(edge.label)
+    }
+
+    edges.map { edge =>
+      val neighbor = if (edge.to != vertex.id) edge.to else edge.from
       (neighbor, edge)
     }.iterator
   }

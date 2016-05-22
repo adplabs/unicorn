@@ -49,9 +49,7 @@ class GraphX(override val table: HBaseTable) extends ReadOnlyGraph(table) {
     val rows = rdd.mapPartitions { it =>
       val serializer = new GraphSerializer()
       it.map { tuple =>
-        val result = tuple._2
-        val row = HBaseTable.getRow(result)
-        val id = row.key
+        val row = HBaseTable.getRow(tuple._2)
         serializer.deserializeVertex(row)
       }
     }
@@ -63,7 +61,7 @@ class GraphX(override val table: HBaseTable) extends ReadOnlyGraph(table) {
     val edges = rows.flatMap { vertex =>
       vertex.out.valuesIterator.flatMap { edges =>
         edges.map { edge =>
-          org.apache.spark.graphx.Edge(edge.source, edge.target, (edge.label, edge.properties))
+          org.apache.spark.graphx.Edge(edge.from, edge.to, (edge.label, edge.properties))
         }
       }
     }

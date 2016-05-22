@@ -135,49 +135,42 @@ class GraphOpsSpec extends Specification with BeforeAfterAll {
     "dijkstra" in {
       val gods = db.graph(graphName)
 
-      var path = GraphOps.dijkstra(jupiter, cerberus, new SimpleTraveler(gods)).map { case (v, e) =>
-        (v, e.map(_.label).getOrElse(""))
+      val jupiter2cerberus = GraphOps.dijkstra(jupiter, cerberus, new SimpleTraveler(gods)).map { edge =>
+        (edge.from, edge.label, edge.to)
       }
-      path.size === 3
-      path(0) === (jupiter, "")
-      path(1) === (pluto, "brother")
-      path(2) === (cerberus, "pet")
+      jupiter2cerberus.size === 2
+      jupiter2cerberus(0) === (jupiter, "brother", pluto)
+      jupiter2cerberus(1) === (pluto, "pet", cerberus)
 
-      path = GraphOps.dijkstra(hercules, tartarus, new SimpleTraveler(gods)).map { case (v, e) =>
-        (v, e.map(_.label).getOrElse(""))
+      val hercules2tartarus = GraphOps.dijkstra(hercules, tartarus, new SimpleTraveler(gods)).map { edge =>
+        (edge.from, edge.label, edge.to)
       }
-      path.size === 4
-      path(0) === (hercules, "")
-      path(1) === (jupiter, "father")
-      path(2) === (pluto, "brother")
-      path(3) === (tartarus, "lives")
+      hercules2tartarus.size === 3
+      hercules2tartarus(0) === (hercules, "father", jupiter)
+      hercules2tartarus(1) === (jupiter, "brother", pluto)
+      hercules2tartarus(2) === (pluto, "lives", tartarus)
 
-      path = GraphOps.dijkstra(saturn, sky, new SimpleTraveler(gods)).map { case (v, e) =>
-        (v, e.map(_.label).getOrElse(""))
-      }
-      path.size === 0
+      GraphOps.dijkstra(saturn, sky, new SimpleTraveler(gods)) === List.empty
     }
     "a* search" in {
       val gods = db.graph(graphName)
 
       val path = GraphOps.astar(jupiter, cerberus, new SimpleTraveler(gods) with AstarTraveler {
         override  def h(v1: Long, v2: Long): Double = {
-          val node1 = v(v1)
-          val node2 = v(v2)
+          val node1 = vertex(v1)
+          val node2 = vertex(v2)
 
-          if (!node1.edges.filter(_.target == v2).isEmpty) return 1.0
+          if (!node1.edges.filter(_.to == v2).isEmpty) return 1.0
 
           6 - node1.properties.fields.keySet.intersect(node2.properties.fields.keySet).size
         }
-      }).map { case (v, e) =>
-        (v, e.map(_.label).getOrElse(""))
+      }).map { edge =>
+        (edge.from, edge.label, edge.to)
       }
 
-      path.size === 3
-      path(0) === (jupiter, "")
-      path(1) === (pluto, "brother")
-      path(2) === (cerberus, "pet")
-
+      path.size === 2
+      path(0) === (jupiter, "brother", pluto)
+      path(1) === (pluto, "pet", cerberus)
     }
   }
 }
