@@ -24,20 +24,23 @@ import org.apache.spark.SparkContext
 
 import unicorn.bigtable.hbase.HBaseTable
 import unicorn.json._
-import unicorn.unibase.graph.{ReadOnlyGraph, GraphSerializer}
+import unicorn.unibase.graph.{ReadOnlyGraph, GraphSerializer, GraphVertexColumnFamily, GraphOutEdgeColumnFamily}
 
 /** Unibase graph specialized for HBase with Spark GraphX supports. */
-class GraphX(override val table: HBaseTable) extends ReadOnlyGraph(table) {
+class GraphX(override val table: HBaseTable, documentVertexTable: HBaseTable) extends ReadOnlyGraph(table, documentVertexTable) {
+
   /** Returns a Spark GraphX object.
     *
     * @param sc Spark context object.
     * @return a Spark GraphX Graph.
     */
   def graphx(sc: SparkContext): org.apache.spark.graphx.Graph[JsObject, (String, JsValue)] = {
+
     val conf = HBaseConfiguration.create()
     conf.set(TableInputFormat.INPUT_TABLE, name)
     conf.setInt(TableInputFormat.SCAN_CACHEDROWS, 500)
     conf.setBoolean(TableInputFormat.SCAN_CACHEBLOCKS, false)
+    conf.set(TableInputFormat.SCAN_COLUMNS, s"$GraphVertexColumnFamily $GraphOutEdgeColumnFamily")
 
     val rdd = sc.newAPIHadoopRDD(
       conf,

@@ -33,8 +33,7 @@ class Narwhal(hbase: HBase) extends Unibase(hbase) {
   val zookeeper = hbase.connection.getConfiguration.get("hbase.zookeeper.quorum")
 
   override def graph(name: String): GraphX = {
-    val table = hbase(name)
-    new GraphX(table)
+    new GraphX(hbase(name), hbase(unicorn.unibase.graph.GraphDocumentVertexTable))
   }
 
 /*

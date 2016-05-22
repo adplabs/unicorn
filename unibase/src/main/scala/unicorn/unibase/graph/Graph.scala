@@ -66,7 +66,7 @@ import unicorn.util.Logging
   *
   * @author Haifeng Li
   */
-class ReadOnlyGraph(val table: BigTable) {
+class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
 
   import unicorn.unibase.$id
 
@@ -109,7 +109,7 @@ class ReadOnlyGraph(val table: BigTable) {
 
   /** Returns the vertex of a document. */
   def apply(table: String, key: JsValue, tenant: JsValue = JsUndefined, direction: Direction = Both): Vertex = {
-    val id = this.table(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, idColumnQualifier)
+    val id = documentVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
     require(id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
 
     apply(vertex(id.get))
@@ -136,7 +136,7 @@ class ReadOnlyGraph(val table: BigTable) {
   *
   * @param idgen 64-bit ID generator for vertex id.
   */
-class Graph(override val table: BigTable, idgen: LongIdGenerator) extends ReadOnlyGraph(table) with UpdateOps with Logging {
+class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: LongIdGenerator) extends ReadOnlyGraph(table, documentVertexTable) with UpdateOps with Logging {
   import unicorn.unibase.{$id, $tenant}
 
   /** For UpdateOps. */
@@ -233,7 +233,7 @@ class Graph(override val table: BigTable, idgen: LongIdGenerator) extends ReadOn
     )
 
     addVertex(id, properties)
-    this.table(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, idColumnQualifier) = serializer.serialize(id)
+    documentVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name) = serializer.serialize(id)
 
     id
   }
@@ -244,7 +244,7 @@ class Graph(override val table: BigTable, idgen: LongIdGenerator) extends ReadOn
 
     val doc = vertex.properties($doc)
     if (doc != JsUndefined) {
-      table.delete(serializer.serialize(doc($table), doc($tenant), doc($id)))
+      documentVertexTable.delete(serializer.serialize(doc($table), doc($tenant), doc($id)), GraphVertexColumnFamily, name)
     }
 
     vertex.in.foreach { case (label, edges) =>
@@ -259,7 +259,7 @@ class Graph(override val table: BigTable, idgen: LongIdGenerator) extends ReadOn
 
   def deleteVertex(table: String, key: JsValue, tenant: JsValue = JsUndefined): Unit = {
     val row = serializer.serialize(table, tenant, key)
-    val id = this.table(row, GraphVertexColumnFamily, idColumnQualifier)
+    val id = documentVertexTable(row, GraphVertexColumnFamily, name)
     require(id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
 
     deleteVertex(vertex(id.get))

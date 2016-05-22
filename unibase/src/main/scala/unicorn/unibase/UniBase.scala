@@ -27,6 +27,7 @@ import unicorn.util._
   * @author Haifeng Li
   */
 class Unibase[+T <: BigTable](db: Database[T]) {
+  import unicorn.unibase.graph.GraphDocumentVertexTable
   import unicorn.unibase.graph.GraphVertexColumnFamily
   import unicorn.unibase.graph.GraphInEdgeColumnFamily
   import unicorn.unibase.graph.GraphOutEdgeColumnFamily
@@ -44,8 +45,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     * @param name The name of graph table.
     */
   def graph(name: String): ReadOnlyGraph = {
-    val table = db(name)
-    new ReadOnlyGraph(table)
+    new ReadOnlyGraph(db(name), db(GraphDocumentVertexTable))
   }
 
   /** Returns a graph with Snowflake ID generator.
@@ -74,8 +74,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     * @param idgen Vertex ID generator.
     */
   def graph(name: String, idgen: LongIdGenerator): Graph = {
-    val table = db(name)
-    new Graph(table, idgen)
+    new Graph(db(name), db(GraphDocumentVertexTable), idgen)
   }
 
   /** Creates a document table.
@@ -113,6 +112,9 @@ class Unibase[+T <: BigTable](db: Database[T]) {
       GraphVertexColumnFamily,
       GraphInEdgeColumnFamily,
       GraphOutEdgeColumnFamily)
+
+    if (!db.tableExists(GraphDocumentVertexTable))
+      db.createTable(GraphDocumentVertexTable, GraphVertexColumnFamily)
   }
 
   /** Drops a document table. All column families in the table will be dropped. */

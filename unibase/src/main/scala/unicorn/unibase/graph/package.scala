@@ -23,8 +23,8 @@ package object graph {
   val $doc = "_doc"
   val $table = "_table"
 
-  private[unibase] val GraphDocumentVertexTableSuffix = "_doc_vertex"
-  private[unibase] val GraphVertexColumnFamily  = "vertex"
-  private[unibase] val GraphInEdgeColumnFamily  = "in"
-  private[unibase] val GraphOutEdgeColumnFamily = "out"
+  private[unicorn] val GraphDocumentVertexTable = "unicorn_graph_doc_vertex"
+  private[unicorn] val GraphVertexColumnFamily  = "vertex"
+  private[unicorn] val GraphInEdgeColumnFamily  = "in"
+  private[unicorn] val GraphOutEdgeColumnFamily = "out"
 }
