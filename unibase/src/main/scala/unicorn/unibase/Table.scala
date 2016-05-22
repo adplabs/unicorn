@@ -176,7 +176,7 @@ class Table(val table: BigTable, meta: JsObject) extends UpdateOps {
     doc
   }
 
-  /** Maps a  projection to the seq of column families to fetch. */
+  /** Maps a projection to the seq of column families to fetch. */
   private[unicorn] def project(projection: JsObject): Seq[(String, Seq[ByteArray])] = {
 
     val groups = projection.fields.map(_._1).groupBy { field =>

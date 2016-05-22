@@ -253,11 +253,42 @@ class HTableSpec extends Specification with BeforeAfterAll {
       age.next.age === JsInt(30)
       age.hasNext === false
 
-      val and  = bucket.find(JsObject("age" -> 30, "state" -> "NJ"))
+      val and = bucket.find(JsObject("age" -> 30, "state" -> "NJ"))
       and.next.age === JsInt(30)
       and.hasNext === false
 
-      val or  = bucket.find(JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("state" -> JsString("NJ")))))
+      val or = bucket.find(JsObject("$or" -> JsArray(JsObject("age" -> JsObject("$gt" -> JsInt(30))), JsObject("state" -> JsString("NJ")))))
+      val first = or.next
+      (first.age == JsInt(40) || first.state == JsString("NJ")) === true
+      val second = or.next
+      (second.age == JsInt(40) || second.state == JsString("NJ")) === true
+      or.hasNext === false
+    }
+    "find SQL" in {
+      val bucket = db(tableName)
+
+      val tom = bucket.find("""name = "Tom"""")
+      tom.next.name === JsString("Tom")
+      tom.hasNext === false
+
+      val age = bucket.find("age = 30")
+      age.next.age === JsInt(30)
+      age.next.age === JsInt(30)
+      age.hasNext === false
+
+      val isNull = bucket.find("age is null")
+      isNull.next.owner === JsString("Poor")
+      isNull.foreach(println(_))
+      isNull.hasNext === false
+
+      val isNotNull = bucket.find("age is not null")
+      isNotNull.forall(_.owner != "Poor") === true
+
+      val and = bucket.find("""age = 30 and state = "NJ"""")
+      and.next.age === JsInt(30)
+      and.hasNext === false
+
+      val or = bucket.find("""age > 30 or state = "NJ"""")
       val first = or.next
       (first.age == JsInt(40) || first.state == JsString("NJ")) === true
       val second = or.next

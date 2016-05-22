@@ -31,7 +31,7 @@ import unicorn.json._
 import unicorn.bigtable._, hbase.HBaseTable
 //import unicorn.index._, IndexType._, IndexSortOrder._
 import unicorn.oid.BsonObjectId
-import unicorn.unibase.{DocumentSerializer, Table}
+import unicorn.unibase._
 import unicorn.util._
 
 /** Unibase table specialized for HBase with additional functions such
@@ -250,11 +250,32 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
         case _ => table.scanPrefix(serializer.tenantRowKeyPrefix(tenant), families)
       }
     } else {
-      val filter = queryFilter(query)
+      val filter = scanFilter(query)
       tenant match {
         case JsUndefined => table.filterScanAll(filter, families)
         case _ => table.filterScanPrefix(filter, serializer.tenantRowKeyPrefix(tenant), families)
       }
+    }
+
+    it.map { data =>
+      serializer.deserialize(data.families).get
+    }
+  }
+
+  /** Searches the table with SQL like where clause.
+    * @param where SQL where clause like expression.
+    * @param fields The list of fields to return.
+    * @return an iterator of matched document.
+    */
+  def find(where: String, fields: String*): Iterator[JsObject] = {
+
+    val query = FilterExpression(where)
+    val families = if (fields.isEmpty) Seq.empty else project(fields)
+
+    val filter = scanFilter(query)
+    val it = tenant match {
+      case JsUndefined => table.filterScanAll(filter, families)
+      case _ => table.filterScanPrefix(filter, serializer.tenantRowKeyPrefix(tenant), families)
     }
 
     it.map { data =>
@@ -267,7 +288,7 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     * @param query query predict object.
     * @return scan filter.
     */
-  private def queryFilter(query: JsObject): ScanFilter.Expression = {
+  private def scanFilter(query: JsObject): ScanFilter.Expression = {
 
     val filters = query.fields.map {
       case ("$or", condition) =>
@@ -275,7 +296,7 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
 
         val filters = condition.asInstanceOf[JsArray].elements.map { e =>
           require(e.isInstanceOf[JsObject], s"or predict element $e is not an object")
-          queryFilter(e.asInstanceOf[JsObject])
+          scanFilter(e.asInstanceOf[JsObject])
         }
 
         require(!filters.isEmpty, "find: empty $or array")
@@ -287,7 +308,7 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
 
         val filters = condition.asInstanceOf[JsArray].elements.map { e =>
           require(e.isInstanceOf[JsObject], s"and predict element $e is not an object")
-          queryFilter(e.asInstanceOf[JsObject])
+          scanFilter(e.asInstanceOf[JsObject])
         }
 
         require(!filters.isEmpty, "find: empty $and array")
@@ -338,6 +359,43 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     ScanFilter.BasicExpression(op, familyOf(field), ByteArray(valueSerializer.str2PathBytes(field)), bytes, filterIfMissing)
   }
 
+  private def project(fields: Seq[String]): Seq[(String, Seq[ByteArray])] = {
+
+    val groups = fields.groupBy { field =>
+      familyOf(field)
+    }
+
+    // We need to get the whole column family.
+    // If the path is to a nested object, we will miss the children if not read the
+    // whole column family. If BigTable implementations support reading columns
+    // by prefix, we can do it more efficiently.
+    groups.toSeq.map { case (family, _) => (family, Seq.empty) }
+  }
+
+
+  /** Converts a FilterExpression to ScanFilter.Expression. */
+  def scanFilter(filter: FilterExpression): ScanFilter.Expression = filter match {
+
+    case And(left, right) => ScanFilter.And(Seq(scanFilter(left), scanFilter(right)))
+    case Or(left, right) => ScanFilter.Or(Seq(scanFilter(left), scanFilter(right)))
+    case Eq(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.Equal, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case Ne(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.NotEqual, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case Gt(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.Greater, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case Ge(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.GreaterOrEqual, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case Lt(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.Less, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case Le(left, right) => ScanFilter.BasicExpression(ScanFilter.CompareOperator.LessOrEqual, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), serialize(right))
+    case IsNull(left, right) =>
+      val op = if (right) ScanFilter.CompareOperator.NotEqual else ScanFilter.CompareOperator.Equal
+      ScanFilter.BasicExpression(op, familyOf(left), ByteArray(valueSerializer.str2PathBytes(left)), valueSerializer.undefined, right)
+  }
+
+  private def serialize(value: Literal): Array[Byte] = value match {
+    case StringLiteral(x) => serializer.valueSerializer.serialize(JsString(x))
+    case IntLiteral(x) => serializer.valueSerializer.serialize(JsInt(x))
+    case DoubleLiteral(x) => serializer.valueSerializer.serialize(JsDouble(x))
+    case DateLiteral(x) => serializer.valueSerializer.serialize(JsDate(x))
+  }
+
   /** Writes the given scan into a Base64 encoded string.
     *
     * @param scan  The scan to write out.
@@ -362,7 +420,7 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     */
   def rdd(sc: SparkContext, query: JsObject = JsObject(), projection: JsObject = JsObject()): RDD[JsObject] = {
     val families = if (projection.fields.isEmpty) Seq.empty else project(projection)
-    val filter = if (query.fields.isEmpty) None else Some(queryFilter(query))
+    val filter = if (query.fields.isEmpty) None else Some(scanFilter(query))
     val (startRow, stopRow) = if (tenant == JsUndefined) {
       (table.startRowKey, table.endRowKey)
     } else {

@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase
+package unicorn.narwhal
 
 import java.time.Instant
 import java.util.Date
@@ -62,6 +62,10 @@ class FilterExpressionSpec extends Specification {
     "parse 'a <= 0'" in {
       FilterExpression("a <= 0") === Le("a", IntLiteral(0))
       FilterExpression("0 >= a") === Le("a", IntLiteral(0))
+    }
+    "parse 'is null'" in {
+      FilterExpression("a is null") === IsNull("a", false)
+      FilterExpression("a is not null") === IsNull("a", true)
     }
     "parse 'a.b = 0'" in {
       FilterExpression("a.b = 0") === Eq("a.b", IntLiteral(0))

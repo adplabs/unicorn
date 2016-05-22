@@ -14,15 +14,12 @@
  * limitations under the License.
  *******************************************************************************/
 
-package unicorn.unibase
+package unicorn.narwhal
 
 import java.util.Date
 import java.time.Instant
-import unicorn.bigtable.ScanFilter
-import unicorn.json._
-
 import scala.util.parsing.combinator.JavaTokenParsers
-import unicorn.util.{ByteArray, Logging}
+import unicorn.util.Logging
 
 sealed trait Literal
 case class StringLiteral(x: String) extends Literal
@@ -85,8 +82,12 @@ class FilterExpressionParser extends JavaTokenParsers with Logging {
     filterLiteral ~ ">=" ~ jsFieldPath ^^ { case left ~ _ ~ right => Le(right, left) }
 
   def isNullExpression: Parser[FilterExpression] =
-    jsFieldPath ~ "IS NULL" ^^ { case left ~ _ => IsNull(left, true) } |
-    jsFieldPath ~ "IS NOT NULL" ^^ { case left ~ _ => IsNull(left, false) }
+    jsFieldPath ~ isNullOp ^^ { case left ~ _ => IsNull(left, false) } |
+    jsFieldPath ~ isNotNullOp ^^ { case left ~ _ => IsNull(left, true) }
+
+  def isNullOp: Parser[String] = """(?i)(IS\s+NULL)""".r
+
+  def isNotNullOp: Parser[String] = """(?i)(IS\s+NOT\s+NULL)""".r
 
   def andOp: Parser[String] = """(?i)(and)|(&&)""".r
 
