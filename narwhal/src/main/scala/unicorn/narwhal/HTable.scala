@@ -293,6 +293,53 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     }
   }
 
+  /** Returns the number of documents matching the search criteria.
+    * The `query` parameter should not be empty. Otherwise, it scan the whole
+    * table, which is very slow. We remove the default value for this
+    * parameter to discourage pass an empty query object.
+    *
+    * In a multi-tenancy environment, it may not be too slow to count
+    * all documents for a tenant if it is not big.
+    * 
+    * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
+    *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le), and \$exists.
+    *              When the test value is true, \$exists matches the documents that contain the field,
+    *              including documents where the field value is null. If the test value is false, the
+    *              query returns only the documents that do not contain the field.
+    */
+  def count(query: JsObject): Int = {
+    val it = if (query.fields.isEmpty) {
+      tenant match {
+        case JsUndefined => table.scanAll(familyOf($id), idColumnQualifier)
+        case _ => table.scanPrefix(serializer.tenantRowKeyPrefix(tenant), familyOf($id), idColumnQualifier)
+      }
+    } else {
+      val filter = scanFilter(query)
+      tenant match {
+        case JsUndefined => table.filterScanAll(filter, familyOf($id), idColumnQualifier)
+        case _ => table.filterScanPrefix(filter, serializer.tenantRowKeyPrefix(tenant), familyOf($id), idColumnQualifier)
+      }
+    }
+
+    it.size
+  }
+
+  /** Returns the number of documents matching the search criteria.
+    * @param where SQL where clause like expression.
+    */
+  def count(where: String): Int = {
+
+    val query = FilterExpression(where)
+
+    val filter = scanFilter(query)
+    val it = tenant match {
+      case JsUndefined => table.filterScanAll(filter, familyOf($id), idColumnQualifier)
+      case _ => table.filterScanPrefix(filter, serializer.tenantRowKeyPrefix(tenant), familyOf($id), idColumnQualifier)
+    }
+
+    it.size
+  }
+
   /** Returns the scan filter based on the query predicts.
     *
     * @param query query predict object.
