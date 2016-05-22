@@ -104,7 +104,7 @@ class GraphXSpec extends Specification with BeforeAfterAll {
 
       rdd.numVertices === 12
       rdd.numEdges === 17
-      
+
       sc.stop
       // hacking the return value of `in`
       1 === 1

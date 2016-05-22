@@ -79,8 +79,6 @@ lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).depe
 
 //lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
-//lazy val graph = project.in(file("graph")).settings(commonSettings: _*).dependsOn(unibase, accumulo % "test")
-
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
 lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, hbase, cassandra, accumulo)
