@@ -262,6 +262,16 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     }
   }
 
+  /** Returns one document that satisfies the specified query criteria.
+    * If multiple documents satisfy the query, this method returns the
+    * first document according to the document key order.
+    * If no document satisfies the query, the method returns None.
+    */
+  def findOne(where: String, fields: String*): Option[JsObject] = {
+    val it = find(where, fields: _*)
+    if (it.hasNext) Some(it.next) else None
+  }
+
   /** Searches the table with SQL like where clause.
     * @param where SQL where clause like expression.
     * @param fields The list of fields to return.
