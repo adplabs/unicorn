@@ -3,10 +3,10 @@ name := "unicorn"
 import com.typesafe.sbt.pgp.PgpKeys.{useGpg, publishSigned, publishLocalSigned}
 
 lazy val commonSettings = Seq(
-  organization := "com.adp",
-  organizationName := "ADP, LLC",
-  organizationHomepage := Some(url("http://www.adp.com")),
-  version := "2.0.0-SNAPSHOT",
+  organization := "com.github.haifengl",
+  organizationName := "Haifeng Li",
+  organizationHomepage := Some(url("http://haifengl.github.io/")),
+  version := "2.0.0",
   scalaVersion := "2.11.7",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
   scalacOptions in Test ++= Seq("-Yrangepos"),
