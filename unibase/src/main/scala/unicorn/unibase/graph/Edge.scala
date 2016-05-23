@@ -19,13 +19,16 @@ package unicorn.unibase.graph
 import scala.language.dynamics
 import unicorn.json.JsValue
 
-/** Graph edge.
+/** Graph (directed) edge. For an edge 1 - follows -> 3,
+  * "1" and "3" are vertex ids, `follows` is the label of edge.
+  * Vertex 1 is the `out vertex` of edge, and vertex 3 is the `in vertex`.
+  * Besides the label, an edge may have optional data.
   *
   * @author Haifeng Li
   */
 case class Edge(val from: Long, val label: String, val to: Long, val properties: JsValue) extends Dynamic {
 
-  override def toString = s"($from - [:$label] -> $to) = ${properties.prettyPrint}"
+  override def toString = s"($from - [$label] -> $to) = ${properties.prettyPrint}"
 
   def apply(property: String): JsValue = properties.apply(property)
 

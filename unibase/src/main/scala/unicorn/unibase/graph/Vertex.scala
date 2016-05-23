@@ -25,13 +25,23 @@ import unicorn.json._
   */
 case class Vertex(val id: Long, val properties: JsObject, val edges: Seq[Edge]) extends Dynamic {
 
+  /** In vertices of outgoing edges. */
+  @transient lazy val in: Map[String, Seq[Long]] = {
+    edges.filter(_.from == id).groupBy(_.label).mapValues(_.map(_.to))
+  }
+
+  /** Out vertices of incoming vertices. */
+  @transient lazy val out: Map[String, Seq[Long]] = {
+    edges.filter(_.to == id).groupBy(_.label).mapValues(_.map(_.from))
+  }
+
   /** Incoming arcs. */
-  @transient lazy val in: Map[String, Seq[Edge]] = {
+  @transient lazy val inE: Map[String, Seq[Edge]] = {
     edges.filter(_.to == id).groupBy(_.label)
   }
 
   /** Outgoing arcs. */
-  @transient lazy val out: Map[String, Seq[Edge]] = {
+  @transient lazy val outE: Map[String, Seq[Edge]] = {
     edges.filter(_.from == id).groupBy(_.label)
   }
 

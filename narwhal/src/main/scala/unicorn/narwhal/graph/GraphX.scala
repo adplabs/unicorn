@@ -62,10 +62,8 @@ class GraphX(override val table: HBaseTable, documentVertexTable: HBaseTable) ex
     }
 
     val edges = rows.flatMap { vertex =>
-      vertex.out.valuesIterator.flatMap { edges =>
-        edges.map { edge =>
-          org.apache.spark.graphx.Edge(edge.from, edge.to, (edge.label, edge.properties))
-        }
+      vertex.edges.map { edge =>
+        org.apache.spark.graphx.Edge(edge.from, edge.to, (edge.label, edge.properties))
       }
     }
 

@@ -57,3 +57,7 @@ gods(neptune, "lives", jupiter)
 gods(neptune, "brother", jupiter)
 
 gods(hydra).label
+
+// Gremline
+val g = gods.traversal
+g.v(saturn).in("father").in("father").name

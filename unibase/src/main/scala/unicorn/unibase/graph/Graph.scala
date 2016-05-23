@@ -79,8 +79,7 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
   /** The graph name. */
   val name = table.name
 
-  /** Returns the vertex properties and its both outgoing and incoming edges.
-    */
+  /** Returns the vertex properties and its both outgoing and incoming edges. */
   def apply(id: Long): Vertex = {
     apply(id, Both)
   }
@@ -129,6 +128,17 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
     value.map { bytes =>
       serializer.deserializeEdgeProperties(bytes)
     }
+  }
+
+  /** Returns a Gremlin traversal machine. */
+  def traversal: Gremlin = {
+    new Gremlin(new SimpleTraveler(this, direction = Direction.Both))
+  }
+
+  /** Returns a Gremlin traversal machine starting at the given vertex. */
+  def v(id: Long): GremlinVertices = {
+    val g = traversal
+    g.v(id)
   }
 }
 
@@ -247,7 +257,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
       documentVertexTable.delete(serializer.serialize(doc($table), doc($tenant), doc($id)), GraphVertexColumnFamily, name)
     }
 
-    vertex.in.foreach { case (label, edges) =>
+    vertex.inE.foreach { case (label, edges) =>
       edges.foreach { edge =>
         deleteEdge(edge.from, edge.label, edge.to)
       }

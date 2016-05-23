@@ -300,7 +300,7 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
     *
     * In a multi-tenancy environment, it may not be too slow to count
     * all documents for a tenant if it is not big.
-    * 
+    *
     * @param query the query predict object in MongoDB style. Supported operators include \$and, \$or, \$eq, \$ne,
     *              \$gt, \$gte (or \$ge), \$lt, \$lte (or \$le), and \$exists.
     *              When the test value is true, \$exists matches the documents that contain the field,
