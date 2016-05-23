@@ -59,7 +59,7 @@ without overhead. Unicorn also provides a shell for quick access of database.
 The code snippets in this document can be directly run in the Shell.
 A REST API, in the module Rhino, is also provided to non-Scala users.
 
-For analytics, Unicorn data can be exposed as RDDs in Spark.
+For analytics, Unicorn data can be exported as RDDs in Spark.
 These RDDs can also converted to DataFrames or Datasets, which
 support SQL queries. Unicorn graphs can by analyzed by Spark
 GraphX too.
@@ -77,7 +77,7 @@ libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
 ```
 
 With Narwhal, advanced features such as time travel, rollback, counters,
-server side filter, etc. are available. The user can also expose
+server side filter, etc. are available. The user can also export
 the data to Spark as `RDD` for large scale analytics. Graphs can be
 analyzed too with Spark GraphX.
 
@@ -1248,6 +1248,12 @@ bucket.find(json"""
 """)
 ```
 
+If you prefer SQL-like query, just do it as follows:
+
+```scala
+bucket.find("""age > 30 OR stage = "NY"""")
+```
+
 Note that the query operation is based on server side filters.
 Although it minimizes the network transmission, it is still
 a costly full table scan. If the table is multi-tenanted and each tenant
@@ -1264,7 +1270,7 @@ design in the below.
 Spark
 -----
 
-For large scale analytics, Narwhal supports Spark. A table can be exposed
+For large scale analytics, Narwhal supports Spark. A table can be exported
 to Spark as `RDD[JsObject]`.
 
 ```scala
@@ -1281,9 +1287,9 @@ val rdd = table.rdd(sc)
 rdd.count()
 ```
 
-In the above example, we first create a `SparkContext`. To expose a table
+In the above example, we first create a `SparkContext`. To export a table
 to spark, simply pass the `SparkContext` object to the `rdd` method of a
-table object. In this example, we only expose the data of tenant `IBM`.
+table object. In this example, we only export the data of tenant `IBM`.
 
 Although Spark has filter functions on `RDDs`, it is better to use
 HBase's server side filter at beginning to reduce network transmission.
@@ -1377,72 +1383,180 @@ With our design, it is also possible to
 test whether two vertices are adjacent to each other
 for a given relationship in constant time.
 
-```scala
-val tom = json"""
-  {
-    "name": "Tom"
-  }
-"""
-
-workers.upsert(tom)
-
-
-graph(joe)("works with", tom._id) = 1
-
-// Query relationships to Jim
-graph(joe)(tome._id)
-
-// Query neighbors of given relationship(s)
-graph(joe)("works with")
-
-// Gets the value/object associated with the given relationship.
-// If it doesn't exist, undefined will be returned.
-graph(joe)("works with", tom._id)
-```
-
-It is easy to query the neighbors or relationships as shown
-in the example. However, it is more interesting to do
-graph traversal, shortest path and other graph analysis.
-Unicorn supports DFS, BFS, A* search, Dijkstra algorithm,
-topological sort and more with user defined functions.
-The below code snippet shows how to use A* search to find
-the shortest path between two nodes.
+In what follows, we create a graph of gods, an example
+from Titan graph database.
 
 ```scala
-// GraphOps is a companion class providing major graph algorithms.
-val graphOps = new GraphOps[Document, (String, JsonValue)]()
- 
-// A* search for a shortest path between haifeng and mike
-val path = graphOps.astar(haifeng, mike,
-  // user defined function which decides
-  // what kind of relationship to explore
-  (doc: Document) => {
-    val neighbors = doc.neighbors("works with", "reports to")
-    neighbors.foreach { case (doc, _) => doc.loadRelationships }
-    neighbors.iterator
-  },
-  // user defined function which returns the weight of edges explored.
-  (a: Document, b: Document) => (a.rank, b.rank) match {
-    case (ar: JsonIntValue, br: JsonIntValue) => math.abs(ar.value - br.value)
-    case _ => 100
-  },
-  // user defined function which returns the heuristic value of
-  // the path from the current node to the target
-  (a: Document, b: Document, e: (String, JsonValue)) => e._1 match {
-    case "works with" => 1.
-    case "reports to" => 2.
-    case _ => 3.
-  }
-)
+val db = Unibase(Accumulo())
+db.createGraph("gods")
+val gods = db.graph("gods", new Snowflake(0))
 ```
 
-In this example, the graph processing is performed on
-the database directly. This is fine because most nodes
-will be accessed only once in A* search. However, it will
-be costly for many advanced graph algorithms that may access
-nodes or edges multiple times. Unicorn provides DFS and BFS
-to create in-memory sub-graphs stored in DocumentGraph objects
-that is more suitable for things like network flow, assignment, coloring, etc.
+Because each vertex in the graph must have a unique
+64-bit ID. When we go to mutate a graph, we should
+provide a (distributed) ID generator. We currently
+provide the Snowflake ID generator, designed by Twitter.
+Each Snowflake worker should have a unique worker ID
+so that multiple worker won't generate duplicate
+IDs in parallel. In a small system, these worker IDs
+may be hand picked. For a large system, it is better
+coordinated by ZooKeeper. In this demo, we simply
+use `0` as the worker ID in the shell. For production,
+you may do things like
+
+```scala
+db.graph("gods", "zookeeper connection string")
+```
+
+If no ID generator is provided, `db.graph("gods")` returns
+a read only instance for graph traversal or analytics.
+
+In the next, we will add several vertices with properties
+stored in a `JsObject`.
+The function `addVertex` returns the ID of type `Long` of new vertex.
+
+```scala
+val saturn = gods.addVertex(json"""{"label": "titan", "name": "saturn", "age": 10000}""")
+val sky = gods.addVertex(json"""{"label": "location", "name": "sky"}""")
+val sea = gods.addVertex(json"""{"label": "location", "name": "sea"}""")
+val jupiter = gods.addVertex(json"""{"label": "god", "name": "jupiter", "age": 5000}""")
+val neptune = gods.addVertex(json"""{"label": "god", "name": "neptune", "age": 4500}""")
+val hercules = gods.addVertex(json"""{"label": "demigod", "name": "hercules", "age": 30}""")
+val alcmene = gods.addVertex(json"""{"label": "human", "name": "alcmene", "age": 45}""")
+val pluto = gods.addVertex(json"""{"label": "god", "name": "pluto", "age": 4000}""")
+val nemean = gods.addVertex(json"""{"label": "monster", "name": "nemean"}""")
+val hydra = gods.addVertex(json"""{"label": "monster", "name": "hydra"}""")
+val cerberus = gods.addVertex(json"""{"label": "monster", "name": "cerberus"}""")
+val tartarus = gods.addVertex(json"""{"label": "location", "name": "tartarus"}""")
+```
+
+Of course, we will also add edges between vertices.
+It is important that edges have direction. With
+`addEdge(jupiter, "father", saturn)`, we add an edge
+from `jupiter` to `saturn` with label `father`.
+For this edge, `jupiter` is called out vertex while
+`saturn` is in vertex. From the point view of vertex,
+this edge is an outgoing edge of `jupiter` while
+the incoming edge of `saturn`.
+
+Besides, we may also associate any `JsValue` to an edge.
+If no value is provided, the default value is `1`.
+
+```scala
+gods.addEdge(jupiter, "father", saturn)
+gods.addEdge(jupiter, "lives", sky, json"""{"reason": "loves fresh breezes"}""")
+gods.addEdge(jupiter, "brother", neptune)
+gods.addEdge(jupiter, "brother", pluto)
+
+gods.addEdge(neptune, "lives", sea, json"""{"reason": "loves waves"}""")
+gods.addEdge(neptune, "brother", jupiter)
+gods.addEdge(neptune, "brother", pluto)
+
+gods.addEdge(hercules, "father", jupiter)
+gods.addEdge(hercules, "mother", alcmene)
+gods.addEdge(hercules, "battled", nemean, json"""{"time": 1, "place": {"latitude": 38.1, "longitude": 23.7}}""")
+gods.addEdge(hercules, "battled", hydra, json"""{"time": 2, "place": {"latitude": 37.7, "longitude": 23.9}}""")
+gods.addEdge(hercules, "battled", cerberus, json"""{"time": 12, "place": {"latitude": 39.0, "longitude": 22.0}}""")
+
+gods.addEdge(pluto, "brother", jupiter)
+gods.addEdge(pluto, "brother", neptune)
+gods.addEdge(pluto, "lives", tartarus, json"""{"reason": "no fear of death"}""")
+gods.addEdge(pluto, "pet", cerberus)
+
+gods.addEdge(cerberus, "lives", tartarus)
+```
+
+Correspondingly, `deleteEdge` removes an edge and
+`deleteVertex` removes the vertex and all associated edges.
+
+To retrieve a vertex and its edge, `gods(jupiter)` will return
+a `Vertex` object containing its ID, properties, and associated
+edges. One can also directly access the data of an edge by
+`gods(pluto, "brother", jupiter)`. If the edge doesn't exist,
+`None` is returned.
+
+It is also possible to add a document (in another table) as a vertex
+to a graph.
+
+```scala
+// key is the document key in the table "person"
+val id = gods.addVertex("person", key)
+```
+
+If the `person` table is multi-tenanted, remember to use tenant id
+as the third argument. To access the vertex, it is simply as
+`gods("person", key)`.
+
+Gremlin-like API
+----------------
+
+For graph traversal, we support a [Gremlin](http://tinkerpop.apache.org)-like API. To start a
+traversal,
+
+```scala
+val g = gods.traversal
+```
+
+Then we can start with one or more vertex by the method `v`,
+
+```scala
+g.v(saturn)
+```
+
+A Traversal is essentially an Iterator of vertices or edges.
+On a vertex, we can call `outE()` and `inE()` to access its
+outgoing edges or incoming edges, respectively. On an
+edge, `inV()` and `outV()` returns its in vertex and out vertex,
+respectively. For vertex, `out()` is a shortcut to `outE().inV()`
+and similarly `in()` is shortcut to `inE().outV()`. All these
+functions may take a set of labels to filter relationships.
+
+The following example shows how to get saturn's grandchildren's name.
+
+```scala
+g.v(saturn).in("father").in("father").name
+```
+For detailed information on Gremlin, please refer its [website](http://tinkerpop.apache.org).
+
+Graph Search
+------------
+
+Beyond simple graph traversal, Unicorn supports DFS, BFS, A* search,
+Dijkstra algorithm, etc.
+
+The below example searches for the shortest path between jupiter
+and cerberus with Dijkstra algorithm.
+
+```scala
+val path = GraphOps.dijkstra(jupiter, cerberus, new SimpleTraveler(gods)).map { edge =>
+  (edge.from, edge.label, edge.to)
+}
+
+path.foreach(println(_))
+```
+
+Note that this search is performed by a single machine. For very
+large graph, it is better to use some distributed graph computing engine
+such as Spark GraphX.
+
+Spark GraphX
+------------
+
+With HBase/Narwhal, we can export a graph to Spark GraphX
+for advanced analytics such as PageRank, triangle count, SVD++, etc.
+
+```scala
+import org.apache.spark._
+
+val conf = new SparkConf().setAppName("unicorn").setMaster("local[4]")
+val sc = new SparkContext(conf)
+
+val graph = db.graph("gods")
+val graphx = graph.graphx(sc)
+
+// Run PageRank
+val ranks = graphx.pageRank(0.0001).vertices
+```
 
 HTTP API
 ========
