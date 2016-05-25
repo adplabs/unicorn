@@ -27,7 +27,7 @@
 
   Welcome to Unicorn Shell; enter ':help<RETURN>' for the list of commands.
   Type ":quit<RETURN>" to leave the Unicorn Shell
-  Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-04-18 15:02:18.234
+  Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-05-23 04:21:17.922
 ===============================================================================
 
 unicorn>
@@ -57,11 +57,11 @@ free to use key-value pairs for flexibility in some special cases.
 Unicorn is implemented in Scala and can be used as a client-side library
 without overhead. Unicorn also provides a shell for quick access of database.
 The code snippets in this document can be directly run in the Shell.
-A REST API, in the module Rhino, is also provided to non-Scala users.
+A HTTP API, in the module `Rhino`, is also provided to non-Scala users.
 
 For analytics, Unicorn data can be exported as RDDs in Spark.
-These RDDs can also converted to DataFrames or Datasets, which
-support SQL queries. Unicorn graphs can by analyzed by Spark
+These RDDs can also be converted to DataFrames or Datasets, which
+support SQL queries. Unicorn graphs can be analyzed by Spark
 GraphX too.
 
 To use Unicorn as a library, add the following to SBT build file.
@@ -76,12 +76,18 @@ If you need additional HBase-only features, please link to the module `Narwhal`.
 libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
 ```
 
-With Narwhal, advanced features such as time travel, rollback, counters,
-server side filter, etc. are available. The user can also export
-the data to Spark as `RDD` for large scale analytics. Graphs can be
-analyzed too with Spark GraphX.
+With the module `Narwhal` that is specialized for HBase, advanced features such
+as time travel, rollback, counters, server side filter, etc. are available.
+The user can also export the data to Spark as `RDD` for large scale analytics.
+These RDDs can also be converted to DataFrames or Datasets, which
+support SQL queries. Unicorn graphs can be analyzed by Spark
+GraphX too.
 
-To use only JSON library,
+To support the document model, Unicorn has a very rich and advanced JSON library.
+With it, the users can operate JSON data just like in JavaScript. Moreover, it
+supports JSONPath for flexibly analyse, transform and selectively extract data out
+of JSO objects. NMeanwhile, it is type
+safe and may capture many errors during the compile time. To use only the JSON library,
 
 ```scala
 libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.0.0"
@@ -128,7 +134,7 @@ For example,
 ./bin/unicorn -J-Xmx8192M
 ```
 
-You can also modify the configuration file `./conf/application.ini` for
+You can also modify the configuration file `./conf/unicorn.ini` for
 the memory and other JVM settings.
 
 In the shell, type :help to print Scala interpreter help information.
@@ -147,7 +153,7 @@ val db = HBase()
 The user may also pass a Configuration object to `HBase()`
 if HBase configuration files are not in the `CLASSPATH`.
 
-To connect to Cassandra, please enables Thrift by configuring
+To connect to Cassandra, please enables the Thrift API by configuring
 `start_rpc` to `true` in the `cassandra.yaml` file, which is `false` by default
 after Cassandra 2.0.
 
@@ -202,7 +208,7 @@ A column name is made of its column family prefix and a qualifier.
 The column family prefix must be composed of printable characters.
 The column qualifiers can be made of any arbitrary bytes.
 In Cassandra and HBase, column families must be declared up front at schema
-definition time whereas new columns can bed added
+definition time whereas new columns can be added
 to any column family without pre-announcing them.
 In contrast, column family are not static in Accumulo and can be
 created on the fly. The only way to get a complete set of columns
@@ -210,8 +216,8 @@ that exist for a column family is to process all the rows.
 
 A cell’s content is an uninterpreted array of bytes. And table
 cells are versioned. A `(row, column, version)` tuple exactly specifies
-a cell. The version is specified using a long integer. Typically this
-long contains timestamps.
+a cell. The version is specified using a `long` integer. Typically this
+`long` contains timestamps.
 
 The trait `unicorn.bigtable.BigTable` defines basic operations on
 a table such as `Get`, `Put`, and `Delete`. The corresponding
@@ -262,13 +268,13 @@ In this case, timestamp is always set as the current machine time.
 
 `Delete` can happen on a specific version of a cell or all versions.
 Deletes work by creating tombstone markers. Once a tombstone marker
-is set, the “deleted” cells become effectively invisible for `Get`
+is set, the "deleted" cells become effectively invisible for `Get`
 operations but are not immediately removed from store files.
 Note that there is a snag with the tombstone approach, namely
-“deletes mask puts”. Once a tombstone marker is set, even puts
+"deletes mask puts". Once a tombstone marker is set, even puts
 after the delete will be masked by the delete tombstone.
 Performing the put will not fail. However when you do a `Get`,
-the `Put` has no effect but will start working  after the major
+the `Put` has no effect but will start working after the major
 compaction, which will really remove deletes and tombstone markers.
 
 For these APIs, there are also corresponding batch mode operations
@@ -437,7 +443,7 @@ json"""
 ```
 
 If the string is not a JSON object but any other valid JSON expression, one may
-use `parseJson` method to convert the string to `JsValue`.
+use `parseJson` method to convert the string to a `JsValue`.
 
 ```scala
 "1".parseJson
@@ -631,7 +637,7 @@ It is also possible to update fields with JSONPath. Currently,
 we support only child and array slice operators for update.
 
 ```scala
-jspath("$['store']['book'][1:3]['price']") = 30
+jspath("$['store']['book'][1:3]['price']") = 30.0
 ```
 
 Document API
@@ -716,7 +722,7 @@ document already exists and throws an exception
 if so.
 
 To make the code future proof, it is recommended to use
-`$id`, defined in `Unibase` package object, instead of
+the constant value `$id`, defined in `Unibase` package object, instead of
 `_id` in the code.
 
 Besides UUID, one may also `Int`, `Long`, `Date`, `String`,
@@ -843,10 +849,6 @@ across different tenants.
 This option is useful to share the same physical BigTable
 table across many different tenants.
 
-```scala
-db.createTable("worker", multiTenant = true)
-```
-
 To use a multi-tenant table, the user must firstly
 set the tenant id, which cannot be `undefined`, `null`,
 `boolean`, `counter`, `date`, or `double`.
@@ -893,7 +895,7 @@ res9: Option[unicorn.json.JsObject] = None
 ```
 
 As a client-side solution, Unicorn does not enforce security on
-multi-tenant tables. In fact, there is no user or role concepts.
+multi-tenant tables. In fact, there are no concepts of user and/or role.
 It is the application's responsibility to ensure the authorization
 and the authentication
 on the access of multi-tenant tables.
@@ -923,21 +925,18 @@ column families based on business logic and access patterns.
 Such a design is more efficient because the storage engine needs scan only
 the necessary column family. It also limits the network data transmission.
 
-For example, if you do not have
-graph data, you may want to use only one column family
-for both document id and data.
-
 ```scala
 db.createTable("worker",
   families = Seq(
     "id",
+    "person",
     "address",
     "project"),
   locality = Map(
-    Unibase.$id -> "id",
+    $id -> "id",
     "address" -> "address",
     "project" -> "project"
-  ).withDefaultValue(Unibase.DocumentColumnFamily))
+  ).withDefaultValue("person"))
 ```
 
 For simplicity, Unicorn uses only the top level
@@ -982,17 +981,18 @@ res21: Option[unicorn.json.JsObject] = Some({"address":{"city":"Roseland","state
 However, there is a semantic difference from regular projection
 as you may notice in the above. Even though the user asks
 for only `name`, all other fields in the same column family
-are returned. This is due to the design of BigTable.
+are returned. This is due to the design of BigTable and the mapping
+from document fields to columns.
 For example, if a specified
 field is a nested object, there is no easy way to read only the specified object in BigTable.
 Intra-row scan may help but not all BigTable implementations support it. And if there are multiple
-nested objects in request, we have to send multiple Get requests, which is not efficient. Instead,
+nested objects in request, we have to send multiple `Get` requests, which is not efficient. Instead,
 we return the whole object of a column family if some of its fields are in request. This is usually
 good enough for hot-cold data scenario. For instance of a table of events, each event has a
 header in a column family and event body in another column family. In many reads, we only need to
 access the header (the hot data). When only user is interested in the event details, we go to read
 the event body (the cold data). Such a design is simple and efficient. Another difference from MongoDB is
-that we do not support the excluded fields.
+that we do not support the `excluded` fields.
 
 Script
 ------
@@ -1090,7 +1090,7 @@ println(doc.children)
 ```
 
 This example will print out the new value, i.e. 3, of `children`.
-It is also okey to use a negative value in `$inc` operations, which
+It is also possible to use a negative value in `$inc` operations, which
 effectively decreases the counter.
 
 Rollback
@@ -1204,7 +1204,7 @@ bucket.update(update)
 bucket(asOfDate, key)
 ```
 
-Besides the plain `Get`, we can supply an as-of-date in a time travel `Get`,
+Besides the plain `Get`, we can supply an as-of-date parameter in a time travel `Get`,
 which will retrieval document's value at that time point.
 
 Filter
@@ -1347,7 +1347,7 @@ Graph
 
 Graphs are mathematical structures used to model pairwise relations
 between objects. A graph is made up of vertices (nodes) which are
-connected by edges (arcs or lines). A graph may be undirected,
+connected by edges (lines). A graph may be undirected,
 meaning that there is no distinction between the two vertices
 associated with each edge, or its edges may be directed from
 one vertex to another. Directed graphs are also called digraphs
@@ -1373,7 +1373,7 @@ has a label and optional data (any valid JsValue, default value JsInt(1)).
 Unicorn stores graphs in adjacency lists. That is, a graph
 is stored as a BigTable whose rows are vertices with their adjacency list.
 The adjacency list of a vertex contains all of the vertex’s incident edges
-(in and out edges are in different column families).
+(incoming and outgoing edges are in different column families).
 
 Because large graphs are usually very sparse, an adjacency list is
 significantly more space-efficient than an adjacency matrix.
