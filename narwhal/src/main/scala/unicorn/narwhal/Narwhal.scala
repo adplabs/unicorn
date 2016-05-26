@@ -45,3 +45,9 @@ class Narwhal(hbase: HBase) extends Unibase(hbase) {
   }
   */
 }
+
+object Narwhal {
+  def apply(db: HBase): Narwhal = {
+    new Narwhal(db)
+  }
+}
