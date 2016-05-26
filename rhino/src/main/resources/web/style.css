@@ -27,12 +27,6 @@ body {
     text-align:center;
 }
 
-#result-div {
-    text-align:center;
-    width: 30%;
-    margin: 0 auto;
-}
-
 #bottom-right {
     position:absolute;
     bottom:0;

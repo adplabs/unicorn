@@ -5,9 +5,6 @@
     <link rel="stylesheet" href="style.css" type="text/css" media="all"/>
     <title>Unicorn HTTP API</title>
 
-    <!-- prettify js and CSS -->
-    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?lang=scala"></script>
-
     <script src="http://code.jquery.com/jquery.min.js"></script>
 
     <script type="text/javascript">
@@ -39,7 +36,7 @@
             dataType: 'json',
             data: method == "GET" || method == "DELETE" ? undefined : data,
             success: function(response) {
-              $("#result").text(JSON.stringify(response, null, 2));
+              $("#document").val(JSON.stringify(response, null, 2));
             },
             error: function(response) {
               alert(response.statusText);
@@ -73,13 +70,8 @@
 
         <input type="submit" id="submit" name="submit" value="Submit">
 
-        <p><textarea id="document" rows="10" cols="80" placeholder="Document or Key"></textarea></p>
+        <p><textarea id="document" rows="25" cols="80" placeholder="Document or Key"></textarea></p>
       </form>
-
-      <div id="result-div" class="code">
-        <pre class="prettyprint lang-js" style="width: 600px; height: 20pc; overflow-y: scroll; text-align: left;"><code id="result">
-        </code></pre>
-      </div>
     </div>
   </body>
 </html>
