@@ -77,16 +77,12 @@ libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
 ```
 
 With the module `Narwhal` that is specialized for HBase, advanced features such
-as time travel, rollback, counters, server side filter, etc. are available.
-The user can also export the data to Spark as `RDD` for large scale analytics.
-These RDDs can also be converted to DataFrames or Datasets, which
-support SQL queries. Unicorn graphs can be analyzed by Spark
-GraphX too.
+as time travel, rollback, counters, server side filter, Spark integration, etc. are available.
 
 To support the document model, Unicorn has a very rich and advanced JSON library.
 With it, the users can operate JSON data just like in JavaScript. Moreover, it
 supports JSONPath for flexibly analyse, transform and selectively extract data out
-of JSO objects. NMeanwhile, it is type
+of JSON objects. Meanwhile, it is type
 safe and may capture many errors during the compile time. To use only the JSON library,
 
 ```scala
