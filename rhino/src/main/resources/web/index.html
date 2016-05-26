@@ -3,26 +3,83 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" href="style.css" type="text/css" media="all"/>
-    <title>Unicorn Database</title>
-  </head>
+    <title>Unicorn HTTP API</title>
+
+    <!-- prettify js and CSS -->
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?lang=scala"></script>
+
+    <script src="http://code.jquery.com/jquery.min.js"></script>
+
+    <script type="text/javascript">
+      $(document).ready(function() {
+        $.getJSON("/list/tables", function(result) {
+          var tables = $("#table");
+          $.each(result, function(item) {
+            tables.append($("<option />").val(result[item]).text(result[item]));
+          });
+        });
+
+        $('#input').submit(function(event) {
+          // Prevent the form from submitting via the browser
+          event.preventDefault();
+
+          var data = $("#document").val();
+          var uri = "/table/" + $("#table").val();
+          var method = $("#operation").val();
+          if (method == "GET" || method == "DELETE")
+            uri += ("/" + data);
+          var tenant = $("#tenant").val();
+
+          $.ajax({
+            type: method,
+            url: uri,
+            headers: {
+              'tenant': tenant == "" ? undefined : tenant
+            },
+            dataType: 'json',
+            data: method == "GET" || method == "DELETE" ? undefined : data,
+            success: function(response) {
+              $("#result").text(JSON.stringify(response, null, 2));
+            },
+            error: function(response) {
+              alert(response.statusText);
+            }
+          });
+        });
+      });
+    </script>
+   </head>
 
   <body>
-    <div style="height:1cm;">&nbsp;</div>
-    <h1 id="logo">UNICORN</h1>
+    <h1 id="logo">RHINO</h1>
 
-    <div id="center">
-    <form method="get" action="/search">
-      <input type="text" name="q" size="100" style="height:30px;"></input>
-      
-      <div style="height:40px;">&nbsp;</div>
-      
-      <input type="submit" value="Search" style="height:25px; width:150px"></input>
-    </form>
-    </div>
-    
-    <div id="bottom-right">
-    <hr>
-    <a href="mailto:haifeng.li@adp.com" style="margin-right:20px">Contact Us</a>
+    <div id="content">
+      <form id="input">
+        <select id="operation">
+          <option value="GET">Get</option>
+          <option value="PUT">Insert</option>
+          <option value="POST">Upsert</option>
+          <option value="PATCH">Update</option>
+          <option value="DELETE">Delete</option>
+        </select>
+
+        <label for="table">
+          Table
+          <select id="table" width="240px"></select>
+        </label>
+
+
+        <input type="text" id="tenant" name="tenant" placeholder="Tenant ID" size="30">
+
+        <input type="submit" id="submit" name="submit" value="Submit">
+
+        <p><textarea id="document" rows="10" cols="80" placeholder="Document or Key"></textarea></p>
+      </form>
+
+      <div id="result-div" class="code">
+        <pre class="prettyprint lang-js" style="width: 600px; height: 20pc; overflow-y: scroll; text-align: left;"><code id="result">
+        </code></pre>
+      </div>
     </div>
   </body>
 </html>

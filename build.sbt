@@ -55,7 +55,7 @@ lazy val nonPubishSettings = commonSettings ++ Seq(
 )
 
 lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
-  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, shell, rhino)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, sql, shell, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 

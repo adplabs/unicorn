@@ -45,7 +45,7 @@ class SQLContext(db: Narwhal) {
       case Table(name, Some(_)) => throw new UnsupportedOperationException("Table Alias is not supported yet")
       case Subquery(_, _) => throw new UnsupportedOperationException("Sub query is not supported yet")
     }
-    
+
     val it = table.find(where2Json(select.where), projections2Json(select.projections))
 
     val limit = select.limit match {
