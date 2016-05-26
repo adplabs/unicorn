@@ -6,6 +6,7 @@ body {
 }
 
 #logo {
+    margin-top: 50px;
     font-size:6em;
     color:red;
     text-align:center;
