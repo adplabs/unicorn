@@ -21,7 +21,7 @@ import java.util.Date
 import scala.collection.JavaConversions._
 import org.apache.hadoop.hbase.TableName
 import org.apache.hadoop.hbase.client.{Append, Delete, Get, Increment, Put, Result, ResultScanner, Scan}
-import org.apache.hadoop.hbase.filter.{ColumnRangeFilter, CompareFilter, FilterList, KeyOnlyFilter, SingleColumnValueFilter}, CompareFilter.CompareOp
+import org.apache.hadoop.hbase.filter.{ColumnPrefixFilter, MultipleColumnPrefixFilter, ColumnRangeFilter, CompareFilter, FilterList, KeyOnlyFilter, SingleColumnValueFilter}, CompareFilter.CompareOp
 import org.apache.hadoop.hbase.security.visibility.{Authorizations, CellVisibility}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{CellUtil, HConstants}
@@ -218,7 +218,12 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with FilterSc
   }
 
   override def intraRowScan(row: ByteArray, family: String, startColumn: ByteArray, stopColumn: ByteArray): IntraRowScanner = {
-    val scan = newIntraRowScan(row, family, startColumn, stopColumn, 100)
+    val scan = newColumnRangeScan(row, family, startColumn, stopColumn, 100)
+    new HBaseColumnScanner(table.getScanner(scan))
+  }
+
+  def prefixColumnScan(row: ByteArray, family: String, prefix: ByteArray*): IntraRowScanner = {
+    val scan = newColumnPrefixScan(row, family, prefix.map(_.bytes), 100)
     new HBaseColumnScanner(table.getScanner(scan))
   }
 
@@ -377,13 +382,13 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with FilterSc
     get
   }
 
-  /**
-   * @param caching Set the number of rows for caching that will be passed to scanners.
-   *                Higher caching values will enable faster scanners but will use more memory.
-   * @param cacheBlocks When true, default settings of the table and family are used (this will never override
-   *                    caching blocks if the block cache is disabled for that family or entirely).
-   *                    If false, default settings are overridden and blocks will not be cached
-   */
+  /** Creates a HBase Scan object.
+    * @param caching Set the number of rows for caching that will be passed to scanners.
+    *                Higher caching values will enable faster scanners but will use more memory.
+    * @param cacheBlocks When true, default settings of the table and family are used (this will never override
+    *                    caching blocks if the block cache is disabled for that family or entirely).
+    *                    If false, default settings are overridden and blocks will not be cached
+    */
   private def newScan(startRow: Array[Byte], stopRow: Array[Byte], caching: Int = 20, cacheBlocks: Boolean = true): Scan = {
     val scan = new Scan(startRow, stopRow)
     scan.setCacheBlocks(cacheBlocks)
@@ -392,14 +397,35 @@ class HBaseTable(val db: HBase, val name: String) extends BigTable with FilterSc
     scan
   }
 
-  /**
-   * @param batch Set the maximum number of values to return for each call to next() to
-   *              avoid getting all columns for the row.
-   */
-  private def newIntraRowScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte], batch: Int = 100): Scan = {
+  /** Create a intra-row scan object.
+    * @param batch Set the maximum number of values to return for each call to next() to
+    *              avoid getting all columns for the row.
+    */
+  private def newColumnRangeScan(row: Array[Byte], family: Array[Byte], startColumn: Array[Byte], stopColumn: Array[Byte], batch: Int = 100): Scan = {
     val scan = new Scan(row, row)
     scan.addFamily(family)
     val filter = new ColumnRangeFilter(startColumn, true, stopColumn, true)
+    scan.setFilter(filter)
+    scan.setBatch(batch)
+    if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
+    scan
+  }
+
+  /** Create a intra-row scan object for columns that matches particular prefix(s).
+    * @param batch Set the maximum number of values to return for each call to next() to
+    *              avoid getting all columns for the row.
+    */
+  private def newColumnPrefixScan(row: Array[Byte], family: Array[Byte], prefix: Seq[Array[Byte]], batch: Int = 100): Scan = {
+    require(!prefix.isEmpty, "Empty prefix for column prefix filter")
+
+    val scan = new Scan(row, row)
+    scan.addFamily(family)
+
+    val filter = if (prefix.size == 1)
+      new ColumnPrefixFilter(prefix(0))
+    else
+      new MultipleColumnPrefixFilter(prefix.toArray)
+
     scan.setFilter(filter)
     scan.setBatch(batch)
     if (authorizations.isDefined) scan.setAuthorizations(authorizations.get)
