@@ -148,6 +148,11 @@ class Unibase[+T <: BigTable](db: Database[T]) {
   def compactTable(name: String): Unit = {
     db.compactTable(name)
   }
+
+  /** Returns the list of tables. */
+  def tables: Set[String] = {
+    db.tables.filter(_ != GraphDocumentVertexTable)
+  }
 }
 
 object Unibase {

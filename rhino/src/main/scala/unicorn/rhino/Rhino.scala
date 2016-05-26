@@ -90,30 +90,33 @@ trait Rhino extends HttpService with Logging {
       implicit val tenant = tenantId.map(_.parseJson)
       path("table" / Segment / Segment) { (table, id) =>
         get {
-          _get(table, JsString(id))
+          $get(table, s""""$id"""".parseJson)
         } ~
         delete {
-          remove(table, JsString(id))
+          $delete(table, s""""$id"""".parseJson)
         }
       } ~
       path("table" / Segment) { table =>
         rawJson { doc =>
           get {
-            _get(table, doc.parseJson)
+            $get(table, doc.parseJson)
           } ~
           delete {
-            remove(table, doc.parseJson)
+            $delete(table, doc.parseJson)
           } ~
           post {
-            upsert(table, doc)
+            $upsert(table, doc)
           } ~
           put {
-            insert(table, doc)
+            $insert(table, doc)
           } ~
           patch {
-            update(table, doc)
+            $update(table, doc)
           }
         }
+      } ~
+      path("list" / "tables") {
+        $list
       }
     }
   }
@@ -129,8 +132,16 @@ trait Rhino extends HttpService with Logging {
     db
   }
 
+  private def id(s: String): JsValue = {
+    try {
+      s.parseJson
+    } catch {
+      case _: Exception => s""""$s"""".parseJson
+    }
+  }
+
   // name it "get" will conflict with spray routing "get"
-  private def _get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
+  private def $get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db(id)
@@ -144,7 +155,7 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def upsert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+  private def $upsert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db.upsert(json(doc))
@@ -156,7 +167,7 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def insert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+  private def $insert(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db.insert(json(doc))
@@ -165,7 +176,7 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  private def update(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
+  private def $update(table: String, doc: String)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db.update(json(doc))
@@ -174,12 +185,21 @@ trait Rhino extends HttpService with Logging {
     }
   }
 
-  def remove(table: String, id: JsValue)(implicit tenant: Option[JsValue]) = {
+  def $delete(table: String, id: JsValue)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db.delete(id)
     }) { Unit =>
       complete(StatusCodes.OK)
+    }
+  }
+
+  def $list = {
+    onSuccess(Future {
+      val tables: JsArray = unibase.tables.toSeq
+      tables
+    }) { tables =>
+      complete(tables.toString)
     }
   }
 }
