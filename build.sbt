@@ -77,11 +77,11 @@ lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).depe
 
 lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).dependsOn(unibase, hbase)
 
-//lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
+lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, sql, hbase, cassandra, accumulo)
 
 lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, hbase, cassandra, accumulo)
 

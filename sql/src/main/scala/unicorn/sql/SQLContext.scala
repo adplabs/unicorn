@@ -19,13 +19,13 @@ package unicorn.sql
 import unicorn.json._
 import unicorn.narwhal.Narwhal
 
-/** SQL context of a unibase instance.
+/** SQL context of a Narwhal instance.
   *
   * @author Haifeng Li
   */
 class SQLContext(db: Narwhal) {
 
-  def sql(query: String): Iterator[JsObject] = {
+  def sql(query: String): Unit = {
     val sql = SQLParser.parse(query)
     require(sql.isDefined, s"Invalid SQL statement: $query")
 
@@ -37,9 +37,6 @@ class SQLContext(db: Narwhal) {
     if (select.orderBy.isDefined)
       throw new UnsupportedOperationException("Order By is not supported yet")
 
-    if (select.limit.isDefined)
-      throw new UnsupportedOperationException("LIMIT is not supported yet")
-
     if (select.relations.size > 1)
       throw new UnsupportedOperationException("Join is not supported yet")
 
@@ -48,8 +45,17 @@ class SQLContext(db: Narwhal) {
       case Table(name, Some(_)) => throw new UnsupportedOperationException("Table Alias is not supported yet")
       case Subquery(_, _) => throw new UnsupportedOperationException("Sub query is not supported yet")
     }
+    
+    val it = table.find(where2Json(select.where), projections2Json(select.projections))
 
-    table.find(projections2Json(select.projections), where2Json(select.where))
+    val limit = select.limit match {
+      case Some(limit) => limit.rows
+      case None => 10L
+    }
+
+    for (i <- 0L until limit) {
+      if (it.hasNext) println(it.next)
+    }
   }
 
   private def projections2Json(projections: Projections): JsObject = {

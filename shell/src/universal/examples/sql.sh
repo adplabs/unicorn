@@ -7,7 +7,7 @@ import unicorn.bigtable.hbase.HBase
 import unicorn.unibase._
 import unicorn.sql.hunibase2SQL
 
-val hbase = Unibase(HBase())
+val hbase = Narwhal(HBase())
 hbase.createTable("unicorn_sql")
 val table = hbase("unicorn_sql")
 
@@ -60,7 +60,6 @@ table.upsert(stuart)
 table.upsert(don)
 table.upsert(carlos)
 
-val it = hbase.sql("select * from unicorn_sql where name = 'Haifeng'")
-it.foreach(println(_))
+hbase.sql("select * from unicorn_sql where name = 'Haifeng'")
 
 hbase.dropTable("unicorn_sql")
