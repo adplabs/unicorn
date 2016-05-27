@@ -17,6 +17,7 @@
 package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
+import java.util.Properties
 
 import unicorn.bigtable.{BigTable, Column, Row}
 import unicorn.json._
@@ -237,12 +238,24 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     * have vertices with string id. This helper function
     * generates and returns the internal 64 bit vertex id
     * for the new vertex. One may access the vertex by its
-    * string id later.
+    * string id later. The string id will the vertex property
+    * `label`.
     *
     * @return the 64 bit vertex id. */
   def addVertex(id: String): Long = {
     val key = JsString(id)
-    addVertex(name, key, properties = JsObject("label" -> key))
+    addVertex(name, key, JsObject("label" -> key))
+  }
+
+  /** Adds a vertex with a string id. Many existing graphs
+    * have vertices with string id. This helper function
+    * generates and returns the internal 64 bit vertex id
+    * for the new vertex. One may access the vertex by its
+    * string id later.
+    *
+    * @return the 64 bit vertex id. */
+  def addVertex(id: String, properties: JsObject): Long = {
+    addVertex(name, id, properties)
   }
 
   /** Creates a new vertex corresponding to a document in another table with automatic generated ID.
