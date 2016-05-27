@@ -27,7 +27,7 @@ import unicorn.util._
   * @author Haifeng Li
   */
 class GraphSerializer(
-  val buffer: ByteBuffer = ByteBuffer.allocate(265),
+  val buffer: ByteBuffer = ByteBuffer.allocate(1024),
   val vertexSerializer: ColumnarJsonSerializer = new ColumnarJsonSerializer(ByteBuffer.allocate(65536)),
   val edgeSerializer: BsonSerializer = new BsonSerializer(ByteBuffer.allocate(10485760))) extends Logging {
 
