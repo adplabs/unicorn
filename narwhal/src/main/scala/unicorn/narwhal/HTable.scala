@@ -509,6 +509,22 @@ class HTable(override val table: HBaseTable, meta: JsObject) extends Table(table
       }
     }
   }
+
+  /** Inserts a RDD of objects. */
+  def insert(rdd: RDD[JsObject]): Unit = {
+    rdd.mapPartitions { it =>
+      val hbase = new HTable(table, meta)
+      it.map(hbase.insert(_))
+    }
+  }
+
+  /** Inserts a RDD of objects. */
+  def upsert(rdd: RDD[JsObject]): Unit = {
+    rdd.mapPartitions { it =>
+      val hbase = new HTable(table, meta)
+      it.map(hbase.upsert(_))
+    }
+  }
 }
 /*
 class HTableWithIndex(table: HBaseTable with Indexing, meta: JsObject) extends HTable(table, meta) {
