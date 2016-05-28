@@ -61,8 +61,14 @@ import VertexColor._
   * @author Haifeng Li
   */
 trait Traveler {
+  /** Translates a vertex string key to 64 bit id. */
+  def id(key: String): Long
+
   /** Returns the vertex of given ID. */
   def vertex(id: Long): Vertex
+
+  /** Returns the vertex of given string key. */
+  def vertex(key: String): Vertex
 
   /** The color mark if a vertex was already visited. */
   def color(id: Long): VertexColor

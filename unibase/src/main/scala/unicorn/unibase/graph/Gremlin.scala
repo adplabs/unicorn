@@ -24,7 +24,9 @@ import unicorn.json.{JsArray, JsObject, JsValue}
   * @author Haifeng Li
   */
 class Gremlin(val traveler: Traveler) {
-  def v(id: Long*): GremlinVertices = new GremlinVertices(traveler, id)
+  def v(id: Long): GremlinVertices = new GremlinVertices(traveler, Seq(id))
+  def v(id: Array[Long]): GremlinVertices = new GremlinVertices(traveler, id)
+  def v(id: String*): GremlinVertices = new GremlinVertices(traveler, id.map(traveler.id(_)))
 }
 
 class GremlinVertices(val traveler: Traveler, val vertices: Iterable[Long]) extends Dynamic {

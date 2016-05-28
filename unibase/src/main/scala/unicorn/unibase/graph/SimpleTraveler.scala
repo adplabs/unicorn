@@ -66,6 +66,13 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
     }
   }
 
+  override def vertex(key: String): Vertex = {
+    vertex(graph.id(key))
+  }
+
+  /** Translates a vertex string key to 64 bit id. */
+  override def id(key: String): Long = graph.id(key)
+
   override def color(id: Long): VertexColor = mark(id)
 
   override def visit(vertex: Vertex, edge: Option[Edge], hops: Int): Unit = {

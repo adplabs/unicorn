@@ -89,11 +89,8 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
     *
     * @param id vertex id
     * @param direction what edges to load
-    * @param label load edges with specified label(s). If not provided, load all edges.
-    *              Only HBase supports this feature. Graph on Cassandra and Accumulo will
-    *              ignore this parameter.
     */
-  def apply(id: Long, direction: Direction, label: String*): Vertex = {
+  def apply(id: Long, direction: Direction): Vertex = {
     val key = serializer.serialize(id)
     val families = direction match {
       case Outgoing => table.get(key, Seq((GraphVertexColumnFamily, Seq.empty), (GraphOutEdgeColumnFamily, Seq.empty)))
@@ -105,23 +102,28 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
     serializer.deserializeVertex(Row(key, families))
   }
 
-  /** Returns a vertex by its string id. */
-  def apply(id: String): Vertex = {
-    apply(name, id)
+  /** Returns a vertex by its string key. */
+  def apply(key: String, direction: Direction): Vertex = {
+    apply(id(key), direction)
   }
 
   /** Returns the vertex id of a document vertex.
     * Throws exception if the vertex doesn't exist.
     */
-  private[unicorn] def vid(table: String, key: JsValue, tenant: JsValue = JsUndefined): Long = {
+  def id(table: String, key: JsValue, tenant: JsValue = JsUndefined): Long = {
     val id = documentVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
     require(id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
     ByteBuffer.wrap(id.get).getLong
   }
 
+  /** Translates a vertex string key to 64 bit id. */
+  def id(key: String): Long = {
+    id(name, key)
+  }
+
   /** Returns the vertex of a document. */
   def apply(table: String, key: JsValue, tenant: JsValue = JsUndefined, direction: Direction = Both): Vertex = {
-    apply(vid(table, key, tenant))
+    apply(id(table, key, tenant))
   }
 
   /** Returns the edge between `from` and `to` with given label. */
@@ -234,31 +236,34 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     id
   }
 
-  /** Adds a vertex with a string id. Many existing graphs
-    * have vertices with string id. This helper function
+  /** Adds a vertex with a string key. Many existing graphs
+    * have vertices with string key. This helper function
     * generates and returns the internal 64 bit vertex id
     * for the new vertex. One may access the vertex by its
-    * string id later. The string id will the vertex property
-    * `label`.
+    * string key later. The string key will also be the
+    * vertex property `label`.
     *
     * @return the 64 bit vertex id. */
-  def addVertex(id: String): Long = {
-    val key = JsString(id)
-    addVertex(name, key, JsObject("label" -> key))
+  def addVertex(key: String): Long = {
+    val label = JsString(key)
+    addVertex(name, label, JsObject("label" -> label))
   }
 
-  /** Adds a vertex with a string id. Many existing graphs
-    * have vertices with string id. This helper function
+  /** Adds a vertex with a string key. Many existing graphs
+    * have vertices with string key. This helper function
     * generates and returns the internal 64 bit vertex id
     * for the new vertex. One may access the vertex by its
-    * string id later.
+    * string key later. String key won't be added to vertex
+    * properties as `label` in case that properties object
+    * already includes such a property.
     *
     * @return the 64 bit vertex id. */
-  def addVertex(id: String, properties: JsObject): Long = {
-    addVertex(name, id, properties)
+  def addVertex(key: String, properties: JsObject): Long = {
+    addVertex(name, key, properties)
   }
 
-  /** Creates a new vertex corresponding to a document in another table with automatic generated ID.
+  /** Creates a new vertex corresponding to a document in
+    * another table with automatic generated ID.
     * ID generator must be set up.
     *
     * @param table The table of name of document.
@@ -303,7 +308,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
   }
 
   def deleteVertex(table: String, key: JsValue, tenant: JsValue = JsUndefined): Unit = {
-    deleteVertex(vid(table, key, tenant))
+    deleteVertex(id(table, key, tenant))
     documentVertexTable.delete(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
   }
 
@@ -328,9 +333,9 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     table.put(toKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, from), value))
   }
 
-  /** Adds an edge with the string id of vertices. */
+  /** Adds an edge with the string key of vertices. */
   def addEdge(from: String, label: String, to: String, properties: JsValue): Unit = {
-    addEdge(vid(name, from), label, vid(name, to), properties)
+    addEdge(id(from), label, id(to), properties)
   }
 
   /** Deletes a directed edge.
@@ -352,8 +357,8 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     table.delete(toKey, GraphInEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, from))
   }
 
-  /** Deletes an edge with the string id of vertices. */
+  /** Deletes an edge with the string key of vertices. */
   def deleteEdge(from: String, label: String, to: String): Unit = {
-    deleteEdge(vid(name, from), label, vid(name, to))
+    deleteEdge(id(from), label, id(to))
   }
 }
