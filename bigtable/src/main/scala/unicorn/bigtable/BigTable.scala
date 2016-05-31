@@ -63,7 +63,6 @@ trait BigTable extends AutoCloseable {
   /** Get all columns in one or more column families. If families is empty, get all column families. */
   def get(row: ByteArray, families: Seq[(String, Seq[ByteArray])] = Seq.empty): Seq[ColumnFamily]
 
-
   /** Get multiple rows for given columns. If columns is empty, get all columns of the column family.
     * The implementation may or may not optimize the batch operations.
     * In particular, Accumulo does optimize it.

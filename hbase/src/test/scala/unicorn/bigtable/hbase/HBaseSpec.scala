@@ -141,12 +141,12 @@ class HBaseSpec extends Specification with BeforeAfterAll {
 
       val scanner = table.scan("row1", "row3")
       val r1 = scanner.next
-      new String(r1.row, utf8) === "row1"
+      new String(r1.key, utf8) === "row1"
       r1.families(0).family === "cf1"
       r1.families(1).family === "cf2"
 
       val r2 = scanner.next
-      new String(r2.row, utf8) === "row2"
+      new String(r2.key, utf8) === "row2"
       scanner.hasNext === false
       scanner.close
 
@@ -171,11 +171,11 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       val prefix = "row"
       val scanner = table.scanPrefix(prefix)
       val r1 = scanner.next
-      new String(r1.row, utf8) === "row1"
+      new String(r1.key, utf8) === "row1"
       val r2 = scanner.next
-      new String(r2.row, utf8) === "row2"
+      new String(r2.key, utf8) === "row2"
       val r3 = scanner.next
-      new String(r3.row, utf8) === "row3"
+      new String(r3.key, utf8) === "row3"
       scanner.hasNext === false
       scanner.close
 
@@ -202,7 +202,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       val filter = ScanFilter.BasicExpression(Equal, "cf1", "c1", "21")
       val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
-      new String(r1.row, utf8) === "row2"
+      new String(r1.key, utf8) === "row2"
       scanner.hasNext === false
       scanner.close
 
@@ -232,7 +232,7 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       )
       val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
-      new String(r1.row, utf8) === "row3"
+      new String(r1.key, utf8) === "row3"
       scanner.hasNext === false
       scanner.close
 
@@ -262,9 +262,9 @@ class HBaseSpec extends Specification with BeforeAfterAll {
       )
       val scanner = table.filterScanPrefix(filter, prefix)
       val r1 = scanner.next
-      new String(r1.row, utf8) === "row1"
+      new String(r1.key, utf8) === "row1"
       val r3 = scanner.next
-      new String(r3.row, utf8) === "row3"
+      new String(r3.key, utf8) === "row3"
       scanner.hasNext === false
       scanner.close
 
