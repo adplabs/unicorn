@@ -55,7 +55,7 @@ lazy val nonPubishSettings = commonSettings ++ Seq(
 )
 
 lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
-  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, unibase, narwhal, sql, shell, rhino)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, rocksdb, unibase, narwhal, sql, shell, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -71,6 +71,8 @@ lazy val accumulo = project.in(file("accumulo")).settings(commonSettings: _*).de
 
 lazy val cassandra = project.in(file("cassandra")).settings(commonSettings: _*).dependsOn(bigtable, util)
 
+lazy val rocksdb = project.in(file("rocksdb")).settings(commonSettings: _*).dependsOn(bigtable, util)
+
 //lazy val index = project.in(file("index")).settings(nonPubishSettings: _*).dependsOn(bigtable, json, hbase % "test")
 
 lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).dependsOn(json, oid, bigtable, accumulo % "test")
@@ -81,7 +83,7 @@ lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(ut
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
-lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, sql, hbase, cassandra, accumulo)
+lazy val shell = project.in(file("shell")).settings(nonPubishSettings: _*).dependsOn(unibase, narwhal, sql, hbase, cassandra, accumulo, rocksdb)
 
-lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, hbase, cassandra, accumulo)
+lazy val rhino = project.in(file("rhino")).enablePlugins(SbtTwirl).settings(nonPubishSettings: _*).dependsOn(unibase, hbase, cassandra, accumulo, rocksdb)
 
