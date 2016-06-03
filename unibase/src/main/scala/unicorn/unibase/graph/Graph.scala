@@ -121,6 +121,17 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
     id(name, key)
   }
 
+  /** Returns true if the vertex exists. */
+  def contains(id: Long): Boolean = {
+    val key = serializer.serialize(id)
+    table.apply(key, GraphVertexColumnFamily, idColumnQualifier).isDefined
+  }
+
+  /** Returns true if the vertex exists. */
+  def contains(key: String): Boolean = {
+    documentVertexTable(serializer.serialize(name, JsUndefined, key), GraphVertexColumnFamily, name).isDefined
+  }
+
   /** Returns the vertex of a document. */
   def apply(table: String, key: JsValue, tenant: JsValue = JsUndefined, direction: Direction = Both): Vertex = {
     apply(id(table, key, tenant))
@@ -246,7 +257,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     * @return the 64 bit vertex id. */
   def addVertex(key: String): Long = {
     val label = JsString(key)
-    addVertex(name, label, JsObject("label" -> label))
+    addVertex(name, label, properties = JsObject("label" -> label))
   }
 
   /** Adds a vertex with a string key. Many existing graphs
@@ -259,7 +270,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     *
     * @return the 64 bit vertex id. */
   def addVertex(key: String, properties: JsObject): Long = {
-    addVertex(name, key, properties)
+    addVertex(name, key, properties = properties)
   }
 
   /** Creates a new vertex corresponding to a document in
