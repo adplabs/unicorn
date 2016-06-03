@@ -150,6 +150,13 @@ class Table(val table: BigTable, meta: JsObject) extends UpdateOps {
     id
   }
 
+  /** Retruns true if the document exists. */
+  def exists(id: JsValue): Boolean = {
+    val checkFamily = locality($id)
+    val $key = key(id)
+    table.apply($key, checkFamily, idColumnQualifier).isDefined
+  }
+
   /** A query may include a projection that specifies the fields of the document to return.
     * The projection limits the disk access and the network data transmission.
     * Note that the semantics is different from MongoDB due to the design of BigTable. For example, if a specified
