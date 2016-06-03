@@ -151,7 +151,7 @@ class Table(val table: BigTable, meta: JsObject) extends UpdateOps {
   }
 
   /** Retruns true if the document exists. */
-  def exists(id: JsValue): Boolean = {
+  def contains(id: JsValue): Boolean = {
     val checkFamily = locality($id)
     val $key = key(id)
     table.apply($key, checkFamily, idColumnQualifier).isDefined
