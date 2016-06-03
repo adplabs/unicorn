@@ -6,13 +6,13 @@ exec unicorn -nc "$0" "$@"
 
 import scala.io.Source
 import unicorn.json._
-import unicorn.bigtable.hbase._
+import unicorn.bigtable.rocksdb._
 import unicorn.unibase._
 import unicorn.unibase.graph._
 
-val hbase = Unibase(HBase())
-hbase.createGraph("dbpedia")
-val dbpedia = hbase.graph("dbpedia", new Snowflake(0))
+val db = Unibase(RocksDB.create("/tmp/unicorn-dbpedia"))
+db.createGraph("dbpedia")
+val dbpedia = db.graph("dbpedia", new Snowflake(0))
 
 def triple(line: String): (String, String, String) = {
   val tokens = line.split(" ", 3)
@@ -45,11 +45,10 @@ labels(dbpedia, "../../data/dbpedia/labels_en.nt")
 
 def links(graph: Graph, files: String*): Unit = {
   files.foreach { file =>
-    var doc: Document = null
     Source.fromFile(file).getLines.foreach { line =>
       if (!line.startsWith("#")) {
         val nt = triple(line)
-        graph.addEdge(nt._1, "link", nt._3)
+        graph.addEdge(nt._1, "e", nt._3, JsNull)
       }
     }
   }
