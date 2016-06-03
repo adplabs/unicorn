@@ -108,13 +108,16 @@ class Unibase[+T <: BigTable](db: Database[T]) {
     * @param name the name of graph table.
     */
   def createGraph(name: String): Unit = {
-    db.createTable(name,
+    val table = db.createTable(name,
       GraphVertexColumnFamily,
       GraphInEdgeColumnFamily,
       GraphOutEdgeColumnFamily)
+    table.close
 
-    if (!db.tableExists(GraphDocumentVertexTable))
-      db.createTable(GraphDocumentVertexTable, GraphVertexColumnFamily)
+    if (!db.tableExists(GraphDocumentVertexTable)) {
+      val table = db.createTable(GraphDocumentVertexTable, GraphVertexColumnFamily)
+      table.close
+    }
   }
 
   /** Drops a document table. All column families in the table will be dropped. */
