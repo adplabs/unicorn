@@ -326,11 +326,30 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
   /** Adds a directed edge. If the edge exists, the associated data will be overwritten.
     *
     * @param from vertex id.
+    * @param to vertex id.
+    */
+  def addEdge(from: Long, to: Long): Unit = {
+    addEdge(from, "", to, JsNull)
+  }
+
+  /** Adds a directed edge. If the edge exists, the associated data will be overwritten.
+    *
+    * @param from vertex id.
+    * @param label relationship label.
+    * @param to vertex id.
+    */
+  def addEdge(from: Long, label: String, to: Long): Unit = {
+    addEdge(from, label, to, JsNull)
+  }
+
+  /** Adds a directed edge. If the edge exists, the associated data will be overwritten.
+    *
+    * @param from vertex id.
     * @param label relationship label.
     * @param to vertex id.
     * @param properties optional data associated with the edge.
     */
-  def addEdge(from: Long, label: String, to: Long, properties: JsValue = JsInt(1)): Unit = {
+  def addEdge(from: Long, label: String, to: Long, properties: JsValue): Unit = {
     val fromKey = serializer.serialize(from)
     require(table.apply(fromKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $from doesn't exist in graph ${table.name}")
 
@@ -342,6 +361,16 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
 
     table.put(fromKey, GraphOutEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, to), value))
     table.put(toKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, from), value))
+  }
+
+  /** Adds an edge with the string key of vertices. */
+  def addEdge(from: String, to: String): Unit = {
+    addEdge(id(from), "", id(to), JsNull)
+  }
+
+  /** Adds an edge with the string key of vertices. */
+  def addEdge(from: String, label: String, to: String): Unit = {
+    addEdge(id(from), label, id(to), JsNull)
   }
 
   /** Adds an edge with the string key of vertices. */
