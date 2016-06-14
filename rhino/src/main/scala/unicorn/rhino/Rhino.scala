@@ -17,7 +17,6 @@
 package unicorn.rhino
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext, ExecutionContext.Implicits.global
 
 import spray.routing._
 import spray.http._
@@ -33,7 +32,9 @@ import unicorn.util.Logging
 /**
  * @author Haifeng Li
  */
-class RhinoActor extends HttpServiceActor with Rhino {
+class RhinoActor extends HttpServiceActor with HttpService with Logging {
+  import context.dispatcher
+
   implicit def exceptionHandler(implicit log: LoggingContext) =
     ExceptionHandler {
       case e @ (_: IllegalArgumentException | _: UnsupportedOperationException) =>
@@ -51,10 +52,7 @@ class RhinoActor extends HttpServiceActor with Rhino {
   // other things here, like request stream processing
   // or timeout handling
   def receive = runRoute(staticRoute ~ apiRoute)
-}
 
-// this trait defines our service behavior independently from the service actor
-trait Rhino extends HttpService with Logging {
   val config = ConfigFactory.load().getConfig("unicorn.rhino")
 
   val unibase = config.getString("bigtable") match {
@@ -86,17 +84,20 @@ trait Rhino extends HttpService with Logging {
   def ohv(name: String) = optionalHeaderValueByName(name)
 
   val apiRoute = {
-    ohv("tenant") { tenantId =>
-      implicit val tenant = tenantId.map(_.parseJson)
-      path("table" / Segment / Segment) { (table, id) =>
+    path("table" / Segment / Segment) { (table, id) =>
+      ohv("tenant") { tenantId =>
+        implicit val tenant = tenantId.map(_.parseJson)
         get {
           $get(table, s""""$id"""".parseJson)
         } ~
         delete {
           $delete(table, s""""$id"""".parseJson)
         }
-      } ~
-      path("table" / Segment) { table =>
+      }
+    } ~
+    path("table" / Segment) { table =>
+      ohv("tenant") { tenantId =>
+        implicit val tenant = tenantId.map(_.parseJson)
         rawJson { doc =>
           get {
             $get(table, doc.parseJson)
@@ -114,10 +115,10 @@ trait Rhino extends HttpService with Logging {
             $update(table, doc)
           }
         }
-      } ~
-      path("list" / "tables") {
-        $list
       }
+    } ~
+    path("list" / "tables") {
+      $list
     }
   }
 
@@ -132,16 +133,8 @@ trait Rhino extends HttpService with Logging {
     db
   }
 
-  private def id(s: String): JsValue = {
-    try {
-      s.parseJson
-    } catch {
-      case _: Exception => s""""$s"""".parseJson
-    }
-  }
-
   // name it "get" will conflict with spray routing "get"
-  private def $get(table: String, id: JsValue)(implicit tenant: Option[JsValue], ec: ExecutionContext) = {
+  private def $get(table: String, id: JsValue)(implicit tenant: Option[JsValue]) = {
     onSuccess(Future {
       val db = bucket(table, tenant)
       db(id)

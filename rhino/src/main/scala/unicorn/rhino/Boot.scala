@@ -33,14 +33,12 @@ object Boot extends App {
   // we need an ActorSystem to host our application in
   implicit val actorSystem = ActorSystem("unicorn-rhino")
 
-  // create and start our service actor
-  val service = actorSystem.actorOf(Props[RhinoActor].withRouter(FromConfig()).withDispatcher("rhino-actor-dispatcher"), "rhino-actor-router")
-
-  implicit val timeout = Timeout(5.seconds)
+  // create a pool of RhinoActors
+  val service = actorSystem.actorOf(FromConfig.props(Props[RhinoActor]), "rhino-router")
 
   val conf = ConfigFactory.load()
   val serverPort = conf.getInt("spray.can.server.port")
 
   val ip = if (System.getProperty("loopback.only") != null) "127.0.0.1" else "0.0.0.0"
-  IO(Http) ? Http.Bind(service, interface = ip, port = serverPort)
+  IO(Http) ! Http.Bind(service, interface = ip, port = serverPort)
 }
