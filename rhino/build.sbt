@@ -30,12 +30,6 @@ bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/rhino.co
 
 bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j.properties""""
 
-// G1 garbage collector
-bashScriptExtraDefines += """addJava "-XX:+UseG1GC""""
-
-// Optimize string duplication, which happens a lot when parsing a data file
-bashScriptExtraDefines += """addJava "-XX:+UseStringDeduplication""""
-
 libraryDependencies ++= {
   val akkaV = "2.4.4"
   val sprayV = "1.3.3"
