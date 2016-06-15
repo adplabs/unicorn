@@ -17,6 +17,7 @@
 package unicorn
 
 import java.util.{Date, UUID}
+import unicorn.oid.BsonObjectId
 
 /**
  * @author Haifeng Li
@@ -44,6 +45,7 @@ package object json {
   implicit def string2JsValue(x: String) = JsString(x)
   implicit def date2JsValue(x: Date) = JsDate(x)
   implicit def uuid2JsValue(x: UUID) = JsUUID(x)
+  implicit def objectId2JsValue(x: BsonObjectId) = JsObjectId(x)
   implicit def byteArray2JsValue(x: Array[Byte]) = JsBinary(x)
 
   implicit def array2JsValue(x: Array[JsValue]) = JsArray(x: _*)
@@ -80,6 +82,57 @@ package object json {
   implicit def json2Date(x: JsDate) = x.value
   implicit def json2UUID(x: JsUUID) = x.value
   implicit def json2Binary(x: JsBinary) = x.value
+
+  /* For JsValue.map calls, this will confuse compiler with JsArray.map
+  implicit def json2OptionInt(json: JsValue): Option[Int] = json match {
+    case JsInt(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[Int]")
+  }
+
+  implicit def json2OptionLong(json: JsValue): Option[Long] = json match {
+    case JsLong(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[Long]")
+  }
+
+  implicit def json2OptionDouble(json: JsValue): Option[Double] = json match {
+    case JsDouble(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[Double]")
+  }
+
+  implicit def json2OptionString(json: JsValue): Option[String] = json match {
+    case JsString(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[String]")
+  }
+
+  implicit def json2OptionDate(json: JsValue): Option[Date] = json match {
+    case JsDate(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[Date]")
+  }
+
+  implicit def json2OptionUUID(json: JsValue): Option[UUID] = json match {
+    case JsUUID(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[UUID]")
+  }
+
+  implicit def json2OptionBsonObjectId(json: JsValue): Option[BsonObjectId] = json match {
+    case JsObjectId(x) => Some(x)
+    case JsNull => None
+    case JsUndefined => None
+    case _ => throw new UnsupportedOperationException("convert JsValue to Option[UUID]")
+  }
+  */
 
   implicit def json2Boolean(json: JsValue): Boolean = json match {
     case JsBoolean(x) => x
