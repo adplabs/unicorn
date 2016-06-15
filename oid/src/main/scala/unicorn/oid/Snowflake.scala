@@ -57,7 +57,7 @@ class Snowflake(val worker: Long, var sequence: Long = 0L) extends LongIdGenerat
     var timestamp = System.currentTimeMillis
 
     if (timestamp < lastTimestamp) {
-      log.error(s"clock is moving backwards.  Rejecting requests until $lastTimestamp.")
+      log.error("clock is moving backwards. Rejecting requests until {}.", lastTimestamp)
       throw new IllegalStateException(s"Clock moved backwards. Refusing to generate id for ${lastTimestamp - timestamp} milliseconds")
     }
 
@@ -104,7 +104,7 @@ object Snowflake extends Logging {
     import java.util.concurrent.CountDownLatch
     import org.apache.zookeeper._, KeeperException.NodeExistsException
 
-    log.debug(s"Create Snowflake worker with ZooKeeper $zookeeper")
+    log.debug("Create Snowflake worker with ZooKeeper {}", zookeeper)
 
     val connectedSignal = new CountDownLatch(1)
     val zk = new ZooKeeper(zookeeper, 5000, new Watcher {
@@ -120,7 +120,7 @@ object Snowflake extends Logging {
     for (i <- 2 to path.length) {
       val parent = path.slice(1, i).mkString("/", "/", "")
       if (zk.exists(parent, false) == null) {
-        log.info(s"ZooKeeper group $parent doesn't exist. Create it.")
+        log.info("ZooKeeper group {} doesn't exist. Create it.", parent)
         zk.create(parent, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
       }
     }
@@ -131,7 +131,7 @@ object Snowflake extends Logging {
         return new Snowflake(worker, sequence)
       } catch {
         case e: NodeExistsException =>
-          log.debug(s"ZooKeeper node $group/$worker already exists.")
+          log.debug("ZooKeeper node {}/{} already exists.", group, worker)
       }
     }
 

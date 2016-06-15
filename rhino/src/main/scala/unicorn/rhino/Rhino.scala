@@ -64,7 +64,7 @@ class RhinoActor extends HttpServiceActor with HttpService with Logging {
     case "cassandra" =>
       Unibase(Cassandra(config.getString("cassandra.host"), config.getInt("cassandra.port")))
     case bigtable =>
-      log.error(s"Unknown BigTable setting: $bigtable, try HBase")
+      log.error("Unknown BigTable setting: {}, try HBase", bigtable)
       Unibase(HBase())
   }
 

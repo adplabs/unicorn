@@ -84,7 +84,7 @@ class Cassandra(transport: TFramedTransport) extends Database[CassandraTable] wi
     }
     
     val schemaVersion = client.system_add_keyspace(keyspace)
-    log.info(s"create table $name", schemaVersion)
+    log.info(s"create table $name: $schemaVersion")
     apply(name)
   }
   

@@ -63,7 +63,7 @@ class GraphSerializer(
     }
 
     if (properties.isEmpty) {
-      log.error(s"Vertex $vertex missing vertex property columns")
+      log.error("Vertex {} missing vertex property columns", vertex)
     }
 
     val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
