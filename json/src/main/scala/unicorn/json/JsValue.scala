@@ -101,6 +101,12 @@ sealed trait JsValue extends Dynamic {
   def updateDynamic(index: Int)(value: JsValue): JsValue = {
     throw new UnsupportedOperationException
   }
+
+  def get(key: String): Option[JsValue] = {
+    throw new UnsupportedOperationException
+  }
+
+  def get(key: Symbol): Option[JsValue] = get(key.name)
 }
 
 case object JsNull extends JsValue {
@@ -232,6 +238,13 @@ case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsV
   }
 
   override def updateDynamic(key: String)(value: JsValue): JsValue = update(key, value)
+
+  override def get(key: String): Option[JsValue] = {
+    if (fields.contains(key))
+      Some(fields(key))
+    else
+      None
+  }
 }
 
 object JsObject {
