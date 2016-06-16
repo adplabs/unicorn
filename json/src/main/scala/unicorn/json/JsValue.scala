@@ -119,6 +119,11 @@ case object JsUndefined extends JsValue {
 
 case class JsBoolean(value: Boolean) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: Boolean => value == that
+    case JsBoolean(that) => value == that
+    case _ => false
+  }
 }
 
 object JsBoolean {
@@ -128,6 +133,16 @@ object JsBoolean {
 
 case class JsInt(value: Int) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: Int => value == that
+    case that: Short => value == that
+    case that: Long => value == that
+    case that: Byte => value == that
+    case JsInt(that) => value == that
+    case JsLong(that) => value == that
+    case JsCounter(that) => value == that
+    case _ => false
+  }
 }
 
 object JsInt {
@@ -136,6 +151,16 @@ object JsInt {
 
 case class JsLong(value: Long) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: Int => value == that
+    case that: Short => value == that
+    case that: Long => value == that
+    case that: Byte => value == that
+    case JsInt(that) => value == that
+    case JsLong(that) => value == that
+    case JsCounter(that) => value == that
+    case _ => false
+  }
 }
 
 object JsLong {
@@ -149,6 +174,16 @@ object JsLong {
   */
 case class JsCounter(value: Long) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: Int => value == that
+    case that: Short => value == that
+    case that: Long => value == that
+    case that: Byte => value == that
+    case JsInt(that) => value == that
+    case JsLong(that) => value == that
+    case JsCounter(that) => value == that
+    case _ => false
+  }
 }
 
 object JsCounter {
@@ -157,6 +192,11 @@ object JsCounter {
 
 case class JsDouble(value: Double) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: Double => value == that
+    case JsDouble(that) => value == that
+    case _ => false
+  }
 }
 
 object JsDouble {
@@ -165,6 +205,11 @@ object JsDouble {
 
 case class JsString(value: String) extends JsValue {
   override def toString = value
+  override def equals(o: Any) = o match {
+    case that: String => value == that
+    case JsString(that) => value == that
+    case _ => false
+  }
 }
 
 object JsString {
@@ -173,6 +218,11 @@ object JsString {
 
 case class JsDate(value: Date) extends JsValue {
   override def toString = JsDate.format.format(value)
+  override def equals(o: Any) = o match {
+    case that: Date => value == that
+    case JsDate(that) => value == that
+    case _ => false
+  }
 }
 
 object JsDate {
@@ -184,6 +234,11 @@ object JsDate {
 
 case class JsUUID(value: UUID) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: UUID => value == that
+    case JsUUID(that) => value == that
+    case _ => false
+  }
 }
 
 object JsUUID {
@@ -197,6 +252,11 @@ object JsUUID {
 
 case class JsObjectId(value: BsonObjectId) extends JsValue {
   override def toString = value.toString
+  override def equals(o: Any) = o match {
+    case that: BsonObjectId => value == that
+    case JsObjectId(that) => value == that
+    case _ => false
+  }
 }
 
 object JsObjectId {
@@ -209,6 +269,11 @@ object JsObjectId {
 
 case class JsBinary(value: Array[Byte]) extends JsValue {
   override def toString = value.map("%02X" format _).mkString
+  override def equals(o: Any) = o match {
+    case that: Array[Byte] => value.sameElements(that)
+    case JsBinary(that) => value.sameElements(that)
+    case _ => false
+  }
 }
 
 case class JsObject(fields: collection.mutable.Map[String, JsValue]) extends JsValue {
@@ -267,6 +332,12 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
   override def toTraversable: Traversable[JsValue] = elements.toTraversable
 
   override def size: Int = elements.size
+
+  override def equals(o: Any) = o match {
+    case that: Array[JsValue] => elements.sameElements(that)
+    case JsArray(that) => elements.sameElements(that)
+    case _ => false
+  }
 
   override def \(key: String): JsArray = {
     JsArray(elements.map(_ \ key): _*)
