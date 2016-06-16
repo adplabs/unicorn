@@ -30,6 +30,8 @@
   Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-05-23 04:21:17.922
 ===============================================================================
 
+[![Join the chat at https://gitter.im/haifengl/unicorn](https://badges.gitter.im/haifengl/unicorn.svg)](https://gitter.im/haifengl/unicorn?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 unicorn>
 ```
 
