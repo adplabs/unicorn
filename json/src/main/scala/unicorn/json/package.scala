@@ -83,53 +83,11 @@ package object json {
   implicit def json2UUID(x: JsUUID) = x.value
   implicit def json2Binary(x: JsBinary) = x.value
 
-  implicit def json2Boolean(json: JsValue): Boolean = json match {
-    case JsBoolean(x) => x
-    case JsInt(x) => x != 0
-    case JsLong(x) => x != 0
-    case JsDouble(x) => x != 0
-    case JsString(x) => !x.isEmpty
-    case JsNull => false
-    case JsUndefined => false
-    case _ => throw new UnsupportedOperationException("convert JsValue to boolean")
-  }
-
-  implicit def json2Int(json: JsValue): Int = json match {
-    case JsBoolean(x) => if (x) 1 else 0
-    case JsInt(x) => x
-    case JsLong(x) => x.toInt
-    case JsDouble(x) => x.toInt
-    case JsString(x) => x.toInt
-    case JsNull => 0
-    case JsUndefined => 0
-    case _ => throw new UnsupportedOperationException("convert JsValue to int")
-  }
-
-  implicit def json2Long(json: JsValue): Long = json match {
-    case JsBoolean(x) => if (x) 1L else 0L
-    case JsInt(x) => x
-    case JsLong(x) => x
-    case JsDate(x) => x.getTime
-    case JsDouble(x) => x.toLong
-    case JsString(x) => x.toLong
-    case JsNull => 0L
-    case JsUndefined => 0L
-    case _ => throw new UnsupportedOperationException("convert JsValue to long")
-  }
-
-  implicit def json2Double(json: JsValue): Double = json match {
-    case JsBoolean(x) => if (x) 1.0 else 0.0
-    case JsInt(x) => x
-    case JsLong(x) => x
-    case JsDouble(x) => x
-    case JsString(x) => x.toDouble
-    case JsNull => 0.0
-    case JsUndefined => 0.0
-    case _ => throw new UnsupportedOperationException("convert JsValue to double")
-  }
-
+  implicit def json2Boolean(json: JsValue): Boolean = json.asBoolean
+  implicit def json2Int(json: JsValue): Int = json.asInt
+  implicit def json2Long(json: JsValue): Long = json.asLong
+  implicit def json2Double(json: JsValue): Double = json.asDouble
   implicit def json2String(json: JsValue): String = json.toString
-
   implicit def json2ByteArray(json: JsValue): Array[Byte] = json match {
     case JsBinary(x) => x
     case _ => throw new UnsupportedOperationException("convert JsValue to Array[Byte]")

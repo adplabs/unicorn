@@ -107,14 +107,42 @@ sealed trait JsValue extends Dynamic {
   }
 
   def get(key: Symbol): Option[JsValue] = get(key.name)
+
+  def asBoolean: Boolean = {
+    throw new UnsupportedOperationException
+  }
+
+  def asInt: Int = {
+    throw new UnsupportedOperationException
+  }
+
+  def asLong: Long = {
+    throw new UnsupportedOperationException
+  }
+
+  def asDouble: Double = {
+    throw new UnsupportedOperationException
+  }
+
+  def asDate: Date = {
+    throw new UnsupportedOperationException
+  }
 }
 
 case object JsNull extends JsValue {
   override def toString = "null"
+  override def asBoolean: Boolean = false
+  override def asInt: Int = 0
+  override def asLong: Long = 0L
+  override def asDouble: Double = 0.0
 }
 
 case object JsUndefined extends JsValue {
   override def toString = "undefined"
+  override def asBoolean: Boolean = false
+  override def asInt: Int = 0
+  override def asLong: Long = 0L
+  override def asDouble: Double = 0.0
 }
 
 case class JsBoolean(value: Boolean) extends JsValue {
@@ -124,6 +152,10 @@ case class JsBoolean(value: Boolean) extends JsValue {
     case JsBoolean(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = value
+  override def asInt: Int = if (value) 1 else 0
+  override def asLong: Long = if (value) 1L else 0L
+  override def asDouble: Double = if (value) 1.0 else 0.0
 }
 
 object JsBoolean {
@@ -143,6 +175,10 @@ case class JsInt(value: Int) extends JsValue {
     case JsCounter(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = value != 0
+  override def asInt: Int = value
+  override def asLong: Long = value
+  override def asDouble: Double = value
 }
 
 object JsInt {
@@ -161,6 +197,10 @@ case class JsLong(value: Long) extends JsValue {
     case JsCounter(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = value != 0
+  override def asInt: Int = value.toInt
+  override def asLong: Long = value
+  override def asDouble: Double = value
 }
 
 object JsLong {
@@ -184,6 +224,10 @@ case class JsCounter(value: Long) extends JsValue {
     case JsCounter(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = value != 0
+  override def asInt: Int = value.toInt
+  override def asLong: Long = value
+  override def asDouble: Double = value
 }
 
 object JsCounter {
@@ -197,6 +241,10 @@ case class JsDouble(value: Double) extends JsValue {
     case JsDouble(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = Math.abs(value) > 2*Double.MinValue
+  override def asInt: Int = value.toInt
+  override def asLong: Long = value.toLong
+  override def asDouble: Double = value
 }
 
 object JsDouble {
@@ -210,6 +258,11 @@ case class JsString(value: String) extends JsValue {
     case JsString(that) => value == that
     case _ => false
   }
+  override def asBoolean: Boolean = !value.isEmpty
+  override def asInt: Int = Integer.parseInt(value)
+  override def asLong: Long = java.lang.Long.parseLong(value)
+  override def asDouble: Double = java.lang.Double.parseDouble(value)
+  override def asDate: Date = JsDate.format.parse(value)
 }
 
 object JsString {
@@ -223,6 +276,8 @@ case class JsDate(value: Date) extends JsValue {
     case JsDate(that) => value == that
     case _ => false
   }
+  override def asDate: Date = value
+  override def asLong: Long = value.getTime
 }
 
 object JsDate {
