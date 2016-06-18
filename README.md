@@ -110,6 +110,11 @@ Unicorn runs on both Windows and UNIX-like systems (e.g. Linux, Mac OS).
 All you need is to have Java installed on your system `PATH`,
 or the `JAVA_HOME` environment variable pointing to a Java installation.
 
+If you want to work on the Unicorn code with IntelliJ, please first
+[install SBT plugin](https://www.jetbrains.com/help/idea/2016.1/getting-started-with-sbt.html).
+To import the project, on the main menu select
+File | New | Project from Existing Sources.
+
 Shell
 =====
 
