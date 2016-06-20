@@ -62,10 +62,6 @@ class GraphSerializer(
       deserializeVertexProperties(family.columns)
     }
 
-    if (properties.isEmpty) {
-      log.error("Vertex {} missing vertex property columns", vertex)
-    }
-
     val in = families.find(_.family == GraphInEdgeColumnFamily).map { family =>
       family.columns.map { column =>
         val (label, source) = deserializeEdgeColumnQualifier(column.qualifier)
@@ -87,7 +83,8 @@ class GraphSerializer(
       case (_, 0) => in
       case _ => out ++ in
     }
-    Vertex(vertex, properties.get, edges)
+
+    Vertex(vertex, properties.getOrElse(JsObject("id" -> JsLong(vertex))), edges)
   }
 
   /** Deserializes vertex property data. */

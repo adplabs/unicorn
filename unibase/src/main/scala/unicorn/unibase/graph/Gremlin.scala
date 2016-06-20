@@ -26,7 +26,14 @@ import unicorn.json.{JsArray, JsObject, JsValue}
 class Gremlin(val traveler: Traveler) {
   def v(id: Long): GremlinVertices = new GremlinVertices(traveler, Seq(id))
   def v(id: Array[Long]): GremlinVertices = new GremlinVertices(traveler, id)
-  def v(id: String*): GremlinVertices = new GremlinVertices(traveler, id.map(traveler.id(_)))
+  def v(key: String*): GremlinVertices = {
+    val id = key.map { key =>
+      val v = traveler.id(key)
+      require(v.isDefined, s"Vertex $key doesn't exist")
+      v.get
+    }
+    new GremlinVertices(traveler, id)
+  }
 }
 
 class GremlinVertices(val traveler: Traveler, val vertices: Iterable[Long]) extends Dynamic {

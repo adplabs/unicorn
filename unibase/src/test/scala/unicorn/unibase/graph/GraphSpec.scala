@@ -98,7 +98,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
       val vertex = gods(alcmene)
       vertex.id === alcmene
       vertex.properties === json"""{"_id": $alcmene, "label": "human", "name": "alcmene", "age": 45}"""
-      vertex.inE("mother") === Seq(Edge(hercules, "mother", alcmene, JsInt(1)))
+      vertex.inE("mother") === Seq(Edge(hercules, "mother", alcmene, JsNull))
       vertex.inE.size === 1
       vertex.outE.isEmpty === true
     }
@@ -155,7 +155,7 @@ class GraphSpec extends Specification with BeforeAfterAll {
       val gods = db.graph(graphName)
       gods(neptune, "lives", sea) === Some(json"""{"reason": "loves waves"}""")
       gods(neptune, "lives", jupiter) === None
-      gods(neptune, "brother", jupiter) === Some(JsInt(1))
+      gods(neptune, "brother", jupiter) === Some(JsNull)
     }
     "delete edge" in {
       val gods = db.graph(graphName, new Snowflake(0))

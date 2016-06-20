@@ -67,11 +67,15 @@ class SimpleTraveler(val graph: ReadOnlyGraph, val relationships: Set[String] = 
   }
 
   override def vertex(key: String): Vertex = {
-    vertex(graph.id(key))
+    val _id = id(key)
+    require(_id.isDefined, s"Vertex $key doesn't exist")
+    vertex(_id.get)
   }
 
   /** Translates a vertex string key to 64 bit id. */
-  override def id(key: String): Long = graph.id(key)
+  override def id(key: String): Option[Long] = {
+    graph.id(key)
+  }
 
   override def color(id: Long): VertexColor = mark(id)
 

@@ -17,7 +17,7 @@
 package unicorn.unibase.graph
 
 import java.nio.ByteBuffer
-import java.util.Properties
+import scala.io.Source
 
 import unicorn.bigtable.{BigTable, Column, Row}
 import unicorn.json._
@@ -104,20 +104,21 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
 
   /** Returns a vertex by its string key. */
   def apply(key: String, direction: Direction): Vertex = {
-    apply(id(key), direction)
+    val _id = id(key)
+    require(_id.isDefined, s"Vertex $key doesn't exist")
+    apply(_id.get, direction)
   }
 
   /** Returns the vertex id of a document vertex.
     * Throws exception if the vertex doesn't exist.
     */
-  def id(table: String, key: JsValue, tenant: JsValue = JsUndefined): Long = {
-    val id = documentVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
-    require(id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
-    ByteBuffer.wrap(id.get).getLong
+  def id(table: String, key: JsValue, tenant: JsValue = JsUndefined): Option[Long] = {
+    val _id = documentVertexTable(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
+    _id.map(ByteBuffer.wrap(_).getLong)
   }
 
   /** Translates a vertex string key to 64 bit id. */
-  def id(key: String): Long = {
+  def id(key: String): Option[Long] = {
     id(name, key)
   }
 
@@ -134,18 +135,16 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
 
   /** Returns the vertex of a document. */
   def apply(table: String, key: JsValue, tenant: JsValue = JsUndefined, direction: Direction = Both): Vertex = {
-    apply(id(table, key, tenant))
+    val _id = id(table, key, tenant)
+    require(_id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
+    apply(_id.get)
   }
 
   /** Returns the edge between `from` and `to` with given label. */
   def apply(from: Long, label: String, to: Long): Option[JsValue] = {
     val fromKey = serializer.serialize(from)
-    require(table.apply(fromKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $from doesn't exist in graph ${table.name}")
-
-    val toKey = serializer.serialize(to)
-    require(table.apply(toKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $to doesn't exist in graph ${table.name}")
-
     val columnPrefix = serializer.edgeSerializer.str2Bytes(label)
+
     val value = table(fromKey, GraphOutEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, to))
 
     value.map { bytes =>
@@ -222,6 +221,23 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
   /** Adds a vertex with predefined ID, which must be unique.
     *
     * @param id The unique vertex id. Throws exception if the vertex id exists.
+    */
+  def addVertex(id: Long): Unit = {
+    addVertex(id, JsObject())
+  }
+
+  /** Adds a vertex with predefined ID, which must be unique.
+    *
+    * @param id The unique vertex id. Throws exception if the vertex id exists.
+    * @param label Vertex label.
+    */
+  def addVertex(id: Long, label: String): Unit = {
+    addVertex(id, JsObject("label" -> JsString(label)))
+  }
+
+  /** Adds a vertex with predefined ID, which must be unique.
+    *
+    * @param id The unique vertex id. Throws exception if the vertex id exists.
     * @param properties Any vertex property data.
     */
   def addVertex(id: Long, properties: JsObject): Unit = {
@@ -256,8 +272,19 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     *
     * @return the 64 bit vertex id. */
   def addVertex(key: String): Long = {
-    val label = JsString(key)
-    addVertex(name, label, properties = JsObject("label" -> label))
+    addVertex(name, key, properties = JsObject("key" -> JsString(key)))
+  }
+
+  /** Adds a vertex with a string key. Many existing graphs
+    * have vertices with string key. This helper function
+    * generates and returns the internal 64 bit vertex id
+    * for the new vertex. One may access the vertex by its
+    * string key later. The string key will also be the
+    * vertex property `label`.
+    *
+    * @return the 64 bit vertex id. */
+  def addVertex(key: String, label: String): Long = {
+    addVertex(name, key, properties = JsObject("key" -> key, "label" -> label))
   }
 
   /** Adds a vertex with a string key. Many existing graphs
@@ -319,7 +346,10 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
   }
 
   def deleteVertex(table: String, key: JsValue, tenant: JsValue = JsUndefined): Unit = {
-    deleteVertex(id(table, key, tenant))
+    val _id = id(table, key, tenant)
+    require(_id.isDefined, s"document vertex ($table, $key, $tenant) doesn't exist")
+
+    deleteVertex(_id.get)
     documentVertexTable.delete(serializer.serialize(table, tenant, key), GraphVertexColumnFamily, name)
   }
 
@@ -351,10 +381,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     */
   def addEdge(from: Long, label: String, to: Long, properties: JsValue): Unit = {
     val fromKey = serializer.serialize(from)
-    require(table.apply(fromKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $from doesn't exist in graph ${table.name}")
-
     val toKey = serializer.serialize(to)
-    require(table.apply(toKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $to doesn't exist in graph ${table.name}")
 
     val columnPrefix = serializer.edgeSerializer.str2Bytes(label)
     val value = serializer.serializeEdge(properties)
@@ -363,19 +390,22 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     table.put(toKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, from), value))
   }
 
-  /** Adds an edge with the string key of vertices. */
+  /** Adds an edge with the string key of vertices.
+    * Automatically add the vertex if it doesn't exist. */
   def addEdge(from: String, to: String): Unit = {
-    addEdge(id(from), "", id(to), JsNull)
+    addEdge(from, "", to, JsNull)
   }
 
   /** Adds an edge with the string key of vertices. */
   def addEdge(from: String, label: String, to: String): Unit = {
-    addEdge(id(from), label, id(to), JsNull)
+    addEdge(from, label, to, JsNull)
   }
 
   /** Adds an edge with the string key of vertices. */
   def addEdge(from: String, label: String, to: String, properties: JsValue): Unit = {
-    addEdge(id(from), label, id(to), properties)
+    val fromId = id(from).getOrElse(addVertex(from))
+    val toId = id(to).getOrElse(addVertex(to))
+    addEdge(fromId, label, toId, properties)
   }
 
   /** Deletes a directed edge.
@@ -386,11 +416,7 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     */
   def deleteEdge(from: Long, label: String, to: Long): Unit = {
     val fromKey = serializer.serialize(from)
-    require(table.apply(fromKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $from doesn't exist in graph ${table.name}")
-
     val toKey = serializer.serialize(to)
-    require(table.apply(toKey, GraphVertexColumnFamily, idColumnQualifier).isDefined, s"Vertex $to doesn't exist in graph ${table.name}")
-
     val columnPrefix = serializer.edgeSerializer.str2Bytes(label)
 
     table.delete(fromKey, GraphOutEdgeColumnFamily, serializer.serializeEdgeColumnQualifier(columnPrefix, to))
@@ -399,6 +425,86 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
 
   /** Deletes an edge with the string key of vertices. */
   def deleteEdge(from: String, label: String, to: String): Unit = {
-    deleteEdge(id(from), label, id(to))
+    val fromId = id(from)
+    require(fromId.isDefined, s"Vertex $from doesn't exist.")
+    val toId = id(to)
+    require(toId.isDefined, s"Vertex $to doesn't exist.")
+    deleteEdge(fromId.get, label, toId.get)
+  }
+
+  /** Imports a CSV file of edges into this graph.
+    *
+    * @param file input file of which each line is an edge.
+    *             Each line must contains at least two elements,
+    *             separated by a separator. The first element is
+    *             source vertex id/key, the second element is the
+    *             destination vertex id/key, and the third optional
+    *             element is the edge label or weight.
+    * @param separator separator between elements (coma, semicolon, pipe, whitespace, etc.)
+    * @param comment comment line start character/string.
+    * @param longVertexId if true, the vertex id is an integer/long. Otherwise, it is
+    *                     a string key.
+    * @param weight if true, the third optional element is the edge weight.
+    *              Otherwise, it is the edge label.
+    */
+  def csv(file: String, separator: String = "\\s+", comment: String = "#", longVertexId: Boolean = false, weight: Boolean = false): Unit = {
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith(comment)) {
+        val tokens = line.split("\\s+", 3)
+
+        if (tokens.length < 2)
+          log.warn(s"Invalid edge line: $line")
+
+        val (label, data) = if (tokens.length == 2) {
+          ("", JsNull)
+        } else {
+          if (weight) ("", JsDouble(tokens(2).toDouble)) else (tokens(2), JsNull)
+        }
+
+        if (longVertexId) {
+          addEdge(tokens(0).toLong, label, tokens(1).toLong, data)
+        } else {
+          addEdge(tokens(0), label, tokens(1), data)
+        }
+      }
+    }
+  }
+
+  /** Imports a TGF (Trivial Graph Format) file into this graph.
+    *
+    * @param file input file.
+    */
+  def tgf(file: String): Unit = {
+    var edgeMode = false
+
+    // Don't check if vertex exists to speedup.
+    Source.fromFile(file).getLines.foreach { line =>
+      if (!line.startsWith("#")) {
+        edgeMode = true
+      } else if (edgeMode) {
+        val tokens = line.split("\\s+", 3)
+
+        if (tokens.length < 2)
+          log.warn(s"Invalid edge line: $line")
+
+        val from = tokens(0).toLong
+        val to = tokens(1).toLong
+        val fromKey = serializer.serialize(from)
+        val toKey = serializer.serialize(to)
+        val label = if (tokens.size == 3) tokens(2) else ""
+
+        val columnPrefix = serializer.edgeSerializer.str2Bytes(label)
+        val value = serializer.serializeEdge(JsNull)
+
+        table.put(fromKey, GraphOutEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, to), value))
+        table.put(toKey, GraphInEdgeColumnFamily, Column(serializer.serializeEdgeColumnQualifier(columnPrefix, from), value))
+      } else {
+        val tokens = line.split("\\s+", 2)
+        if (tokens.length == 1)
+          addVertex(tokens(0).toLong)
+        else
+          addVertex(tokens(0).toLong, tokens(1))
+      }
+    }
   }
 }
