@@ -507,4 +507,48 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
       }
     }
   }
+
+  /** Imports a RDF file into this graph.
+    *
+    * @param uri URI to read from (includes file: and a plain file name).
+    * @param lang Hint for the content type (Turtle, RDF/XML, N-Triples,
+    *             JSON-LD, RDF/JSON, TriG, N-Quads, TriX, RDF Thrift).
+    *             If not provided, the system will guess the format based
+    *             on file extensions. See details at [[https://jena.apache.org/documentation/io/ Jena]]
+    */
+  def rdf(uri: String, lang: Option[String] = None): Unit = {
+    import java.util.concurrent.Executors
+    import scala.collection.JavaConversions._
+    import org.apache.jena.graph.Triple
+    import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
+    import org.apache.jena.riot.lang.{PipedRDFIterator, PipedTriplesStream}
+
+    val iter = new PipedRDFIterator[Triple]()
+    val input = new PipedTriplesStream(iter)
+
+    // PipedRDFStream and PipedRDFIterator need to be on different threads
+    val executor = Executors.newSingleThreadExecutor()
+
+    // Create a runnable for our parser thread
+    val parser = new Runnable() {
+      override def run(): Unit = {
+        // Call the parsing process.
+        if (lang.isDefined)
+          RDFDataMgr.parse(input, uri, RDFLanguages.contentTypeToLang(lang.get))
+        else
+          RDFDataMgr.parse(input, uri)
+      }
+    }
+
+    // Start the parser on another thread
+    executor.submit(parser)
+
+    // Consume the input on the main thread here
+
+    // Iterate over data as it is parsed, parsing only runs as
+    // far ahead of our consumption as the buffer size allows
+    iter.foreach { triple =>
+      addEdge(triple.getSubject.toString, triple.getPredicate.toString, triple.getObject.toString)
+    }
+  }
 }
