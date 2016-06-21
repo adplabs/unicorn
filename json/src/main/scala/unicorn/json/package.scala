@@ -53,7 +53,7 @@ package object json {
   implicit def map2JsValue(x: Seq[(String, JsValue)]) = JsObject(x: _*)
   implicit def map2JsValue(x: collection.mutable.Map[String, JsValue]) = JsObject(x)
   implicit def map2JsValue(x: collection.immutable.Map[String, JsValue]) = JsObject(x)
-
+/*
   implicit def booleanArray2JsValue(x: Array[Boolean]): JsArray = JsArray(x.map {e => JsBoolean(e)}: _*)
   implicit def intArray2JsValue(x: Array[Int]): JsArray = JsArray(x.map {e => JsInt(e)}: _*)
   implicit def longArray2JsValue(x: Array[Long]): JsArray = JsArray(x.map {e => JsLong(e)}: _*)
@@ -73,7 +73,7 @@ package object json {
   implicit def dateSeq2JsValue(x: Seq[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
   implicit def uuidSeq2JsValue(x: Seq[UUID]): JsArray = JsArray(x.map {e => JsUUID(e)}: _*)
   implicit def binarySeq2JsValue(x: Seq[Array[Byte]]): JsArray = JsArray(x.map {e => JsBinary(e)}: _*)
-
+*/
   implicit def json2Boolean(x: JsBoolean) = x.value
   implicit def json2Int(x: JsInt) = x.value
   implicit def json2Long(x: JsLong) = x.value
@@ -87,6 +87,7 @@ package object json {
   implicit def json2Int(json: JsValue): Int = json.asInt
   implicit def json2Long(json: JsValue): Long = json.asLong
   implicit def json2Double(json: JsValue): Double = json.asDouble
+  implicit def json2Date(json: JsValue): Date = json.asDate
   implicit def json2String(json: JsValue): String = json.toString
   implicit def json2ByteArray(json: JsValue): Array[Byte] = json match {
     case JsBinary(x) => x

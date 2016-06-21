@@ -89,22 +89,22 @@ class JsValueSpec extends Specification {
     }
 
     "JsArray +=" in {
-      val a: JsArray = Array(1, 2, 3, 4)
+      val a = JsArray(1, 2, 3, 4)
       a += 5
       a === JsArray(1, 2, 3, 4, 5)
     }
     "JsArray ++=" in {
-      val a: JsArray = Array(1, 2, 3, 4)
+      val a = JsArray(1, 2, 3, 4)
       a ++= JsArray(5, 6)
       a === JsArray(1, 2, 3, 4, 5, 6)
     }
     "JsArray +=:" in {
-      val a: JsArray = Array(1, 2, 3, 4)
+      val a = JsArray(1, 2, 3, 4)
       5 +=: a
       a === JsArray(5, 1, 2, 3, 4)
     }
     "JsArray ++=:" in {
-      val a: JsArray = Array(1, 2, 3, 4)
+      val a = JsArray(1, 2, 3, 4)
       JsArray(5, 6) ++=: a
       a === JsArray(5, 6, 1, 2, 3, 4)
     }
