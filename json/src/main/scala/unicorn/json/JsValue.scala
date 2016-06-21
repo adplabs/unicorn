@@ -372,7 +372,7 @@ object JsObject {
   def apply(map: Map[String, JsValue]) = new JsObject(collection.mutable.Map() ++ map)
 }
 
-case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends JsValue with TraversableOnce[JsValue] {
+case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends JsValue with Traversable[JsValue] {
   override def copyToArray[B >: JsValue](xs: Array[B], start: Int, len: Int): Unit = elements.copyToArray(xs, start, len)
   override def find(p: (JsValue) => Boolean): Option[JsValue] = elements.find(p)
   override def exists(p: (JsValue) => Boolean): Boolean = elements.exists(p)
@@ -380,11 +380,9 @@ case class JsArray(elements: collection.mutable.ArrayBuffer[JsValue]) extends Js
   override def foreach[U](p: (JsValue) => U): Unit = elements.foreach(p)
   override def hasDefiniteSize: Boolean = elements.hasDefiniteSize
   override def isEmpty: Boolean = elements.isEmpty
-  override def isTraversableAgain: Boolean = elements.isTraversableAgain
   override def seq: Traversable[JsValue] = elements.seq
   override def toIterator: Iterator[JsValue] = elements.toIterator
   override def toStream: Stream[JsValue] = elements.toStream
-  override def toTraversable: Traversable[JsValue] = elements.toTraversable
 
   override def size: Int = elements.size
 
