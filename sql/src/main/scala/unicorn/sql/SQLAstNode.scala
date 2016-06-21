@@ -78,6 +78,12 @@ case class Exists(select: SelectStatement) extends Expression {
 
 case class FieldIdent(qualifier: Option[String], name: String) extends Expression {
   def gatherFields = Seq((this, false))
+  override def toString = {
+    qualifier match {
+      case Some(qualifier) => s"$qualifier.$name"
+      case None => name
+    }
+  }
 }
 
 trait Aggregation extends Expression
@@ -86,18 +92,23 @@ case class CountAll() extends Aggregation {
 }
 case class CountExpr(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
+  override def toString = s"COUNT($expr)"
 }
 case class Sum(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
+  override def toString = s"SUM($expr)"
 }
 case class Avg(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
+  override def toString = s"AVG($expr)"
 }
 case class Min(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
+  override def toString = s"MIN($expr)"
 }
 case class Max(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
+  override def toString = s"MAX($expr)"
 }
 
 trait LiteralExpression extends Expression {
