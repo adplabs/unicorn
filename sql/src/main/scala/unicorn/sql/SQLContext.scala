@@ -25,37 +25,64 @@ import unicorn.narwhal.Narwhal
   */
 class SQLContext(db: Narwhal) {
 
-  def sql(query: String): Unit = {
+  def sql(query: String): DataFrame = {
     val sql = SQLParser.parse(query)
     require(sql.isDefined, s"Invalid SQL statement: $query")
 
     val select = sql.get
 
-    if (select.groupBy.isDefined)
-      throw new UnsupportedOperationException("Group By is not supported yet")
-
-    if (select.orderBy.isDefined)
-      throw new UnsupportedOperationException("Order By is not supported yet")
-
     if (select.relations.size > 1)
       throw new UnsupportedOperationException("Join is not supported yet")
 
     val table = select.relations(0) match {
-      case Table(name, None) => db(name)
-      case Table(name, Some(_)) => throw new UnsupportedOperationException("Table Alias is not supported yet")
+      case Table(name, _) => db(name)
       case Subquery(_, _) => throw new UnsupportedOperationException("Sub query is not supported yet")
     }
 
-    val it = table.find(where2Json(select.where), projections2Json(select.projections))
+    val it = table.find(where2Json(select.where))
 
-    val limit = select.limit match {
-      case Some(limit) => limit.rows
-      case None => 10L
+    val columnNames = projections2ColumnNames(select.projections)
+    val rows = it.map { doc =>
+      project(doc, select.projections)
     }
 
-    for (i <- 0L until limit) {
-      if (it.hasNext) println(it.next)
+    new DataFrame(columnNames, rows.toIndexedSeq, Some(query))
+  }
+
+  private def projections2ColumnNames(projections: Projections): Seq[String] = {
+    projections match {
+      case _: AllColumns => Seq("*")
+      case ExpressionProjections(lst) =>
+        lst.map { case (expr, as) =>
+          as match {
+            case Some (as) => as
+            case None => expr.toString
+          }
+        }
     }
+  }
+
+  private def project(doc: JsObject, projections: Projections): Row = {
+    projections match {
+      case _: AllColumns => Row(doc)
+      case ExpressionProjections(lst) =>
+        val jspath = JsonPath(doc)
+        val elements = lst.map {
+          case (FieldIdent(_, field), _) => jspath(dotpath2JsonPath(field))
+          case (CountExpr(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case (CountExpr(_: AllColumns), _) => JsNull
+          case (Sum(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case (Avg(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case (Min(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case (Max(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case projection => throw new UnsupportedOperationException(s"Unsupported project: $projection")
+        }
+        Row(elements: _*)
+    }
+  }
+
+  private def dotpath2JsonPath(path: String): String = {
+    "$." + path.replaceAll("\\.(\\d+)", "[$1]")
   }
 
   private def projections2Json(projections: Projections): JsObject = {
