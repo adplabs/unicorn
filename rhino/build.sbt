@@ -24,11 +24,16 @@ mappings in Universal += {
   conf -> "conf/log4j.properties"
 }
 
+mappings in Universal += {
+  val conf = (resourceDirectory in Compile).value / "logback.xml"
+  conf -> "conf/logback.xml"
+}
+
 bashScriptConfigLocation := Some("${app_home}/../conf/rhino.ini")
 
 bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/rhino.conf""""
 
-bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j.properties""""
+bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml""""
 
 libraryDependencies ++= {
   val akkaV = "2.4.4"
@@ -43,3 +48,4 @@ libraryDependencies ++= {
   )
 }
 
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.7"
