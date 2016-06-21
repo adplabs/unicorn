@@ -14,4 +14,6 @@ val db = Unibase(RocksDB.create("/tmp/unicorn-dbpedia"))
 db.createGraph("dbpedia")
 val dbpedia = db.graph("dbpedia", new Snowflake(0))
 
-dbpedia.rdf("../../data/dbpedia/page_links_en.nt")
+// Although we can parse .gz file directly, we don't support bz2 compressed files.
+// Please download and unzip first.
+dbpedia.rdf("http://downloads.dbpedia.org/2015-10/core-i18n/en/page_links_en.ttl.bz2")
