@@ -533,10 +533,10 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     val parser = new Runnable() {
       override def run(): Unit = {
         // Call the parsing process.
-        if (lang.isDefined)
-          RDFDataMgr.parse(input, uri, RDFLanguages.contentTypeToLang(lang.get))
-        else
-          RDFDataMgr.parse(input, uri)
+          if (lang.isDefined)
+            RDFDataMgr.parse(input, uri, RDFLanguages.contentTypeToLang(lang.get))
+          else
+            RDFDataMgr.parse(input, uri)
       }
     }
 
@@ -547,8 +547,14 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
 
     // Iterate over data as it is parsed, parsing only runs as
     // far ahead of our consumption as the buffer size allows
-    iter.foreach { triple =>
-      addEdge(triple.getSubject.toString, triple.getPredicate.toString, triple.getObject.toString)
+    try {
+      iter.foreach { triple =>
+        addEdge(triple.getSubject.toString, triple.getPredicate.toString, triple.getObject.toString)
+      }
+    } catch {
+      case e: Exception =>
+        log.error(s"Failed to parse RDF $uri:", e)
     }
+    executor.shutdown
   }
 }
