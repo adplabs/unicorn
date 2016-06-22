@@ -89,6 +89,7 @@ case class FieldIdent(qualifier: Option[String], name: String) extends Expressio
 trait Aggregation extends Expression
 case class CountAll() extends Aggregation {
   def gatherFields = Seq.empty
+  override val toString = "COUNT(*)"
 }
 case class CountExpr(expr: Expression) extends Aggregation {
   def gatherFields = expr.gatherFields.map(_.copy(_2 = true))
