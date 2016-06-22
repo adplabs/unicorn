@@ -47,31 +47,19 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
   override def filter(f: Row => Boolean): Seq[Row] = rows.filter(f)
 
   def map(f: Row => Row): Seq[Row] = rows.map(f)
+
+  def groupBy(cols: String*): Map[Seq[JsValue], Seq[Row]] = {
+    val index = cols.map { col =>
+      val i = columnNames.indexOf(col)
+      require(i >= 0, s"Column $col doesn't exist")
+      i
+    }
+
+    rows.groupBy { row =>
+      index.map(row(_))
+    }
+  }
 /*
-  def groupBy(col: String): Map[JsValue, Seq[Row]] = {
-    val i = columnNames.indexOf(col)
-    require(i >= 0, s"Column $col doesn't exist")
-    rows.groupBy(_(i))
-  }
-
-  def groupBy(col1: String, col2: String): Map[(JsValue, JsValue), Seq[Row]] = {
-    val i = columnNames.indexOf(col1)
-    require(i >= 0, s"Column $col1 doesn't exist")
-    val j = columnNames.indexOf(col2)
-    require(j >= 0, s"Column $col2 doesn't exist")
-    rows.groupBy { row => (row(i), row(j)) }
-  }
-
-  def groupBy(col1: String, col2: String, col3: String): Map[(JsValue, JsValue, JsValue), Seq[Row]] = {
-    val i = columnNames.indexOf(col1)
-    require(i >= 0, s"Column $col1 doesn't exist")
-    val j = columnNames.indexOf(col2)
-    require(j >= 0, s"Column $col2 doesn't exist")
-    val k = columnNames.indexOf(col3)
-    require(k >= 0, s"Column $col3 doesn't exist")
-    rows.groupBy { row => (row(i), row(j), row(k)) }
-  }
-
   def orderBy(col: String, asc: Boolean = true): Seq[Row] = {
     val i = columnNames.indexOf(col)
     require(i >= 0, s"Column $col doesn't exist")
@@ -79,7 +67,7 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
     if (asc) sorted else sorted.reverse
   }
 
-  def groupBy(col1: String, col2: String, asc: Boolean = true): Seq[Row] = {
+  def orderBy(col1: String, col2: String, asc: Boolean = true): Seq[Row] = {
     val i = columnNames.indexOf(col1)
     require(i >= 0, s"Column $col1 doesn't exist")
     val j = columnNames.indexOf(col2)
@@ -89,7 +77,7 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
     if (asc) sorted else sorted.reverse
   }
 
-  def groupBy(col1: String, col2: String, col3: String, asc: Boolean = true): Seq[Row] = {
+  def orderBy(col1: String, col2: String, col3: String, asc: Boolean = true): Seq[Row] = {
     val i = columnNames.indexOf(col1)
     require(i >= 0, s"Column $col1 doesn't exist")
     val j = columnNames.indexOf(col2)
@@ -111,13 +99,18 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
     val hasMoreData = size > numRows
     val data = take(numRows)
     val numCols = columnNames.length
+    val maxColumnWidth = numCols match {
+      case 1 => 78
+      case 2 => 38
+      case _ => 20
+    }
 
     // For array values, replace Seq and Array with square brackets
-    // For cells that are beyond 20 characters, replace it with the first 17 and "..."
+    // For cells that are beyond maxColumnWidth characters, truncate it with "..."
     val rows: Seq[Seq[String]] = columnNames +: data.map { row =>
       row.elements.map { cell =>
         val str = cell.toString
-        if (truncate && str.length > 20) str.substring(0, 17) + "..." else str
+        if (truncate && str.length > maxColumnWidth) str.substring(0, maxColumnWidth - 3) + "..." else str
       }
     }
 
@@ -177,7 +170,16 @@ object DataFrame {
 /** A row in data frame. */
 case class Row(elements: IndexedSeq[JsValue]) extends Traversable[JsValue] {
   override def toString(): String = elements.mkString("[", ",", "]")
-
+/*
+  override def compare(that: Row): Int = {
+    require(size == that.size, s"Compare two Rows of different sizes: $size, ${that.size}")
+    for (i <- 0 until size) {
+      val c = elements(i).compareTo(that(i))
+      if (c != 0) return c
+    }
+    0
+  }
+*/
   override def copyToArray[B >: JsValue](xs: Array[B], start: Int, len: Int): Unit = elements.copyToArray(xs, start, len)
   override def find(p: (JsValue) => Boolean): Option[JsValue] = elements.find(p)
   override def exists(p: (JsValue) => Boolean): Boolean = elements.exists(p)
