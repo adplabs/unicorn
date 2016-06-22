@@ -127,6 +127,16 @@ sealed trait JsValue extends Dynamic {
   }
 }
 
+object JsValueOrdering extends Ordering[JsValue] {
+  def compare(a: JsValue, b: JsValue) = {
+    try {
+      a.asDouble.compare(b.asDouble)
+    } catch {
+      case e: UnsupportedOperationException => a.toString.compare(b.toString)
+    }
+  }
+}
+
 case object JsNull extends JsValue {
   override def toString = "null"
   override def asBoolean: Boolean = false
@@ -143,7 +153,7 @@ case object JsUndefined extends JsValue {
   override def asDouble: Double = 0.0
 }
 
-case class JsBoolean(value: Boolean) extends JsValue {
+case class JsBoolean(value: Boolean) extends JsValue with Ordered[JsBoolean] {
   override def toString = value.toString
   override def equals(o: Any) = o match {
     case that: Boolean => value == that
@@ -154,6 +164,15 @@ case class JsBoolean(value: Boolean) extends JsValue {
   override def asInt: Int = if (value) 1 else 0
   override def asLong: Long = if (value) 1L else 0L
   override def asDouble: Double = if (value) 1.0 else 0.0
+
+  override def compare(that: JsBoolean): Int = {
+    (value, that.value) match {
+      case (true, true) => 0
+      case (false, false) => 0
+      case (true, false) => 1
+      case (false, true) => -1
+    }
+  }
 }
 
 object JsBoolean {
@@ -161,7 +180,7 @@ object JsBoolean {
   def apply(b: Int)  = if (b != 0) JsTrue else JsFalse
 }
 
-case class JsInt(value: Int) extends JsValue {
+case class JsInt(value: Int) extends JsValue with Ordered[JsInt] {
   override def toString = value.toString
   override def equals(o: Any) = o match {
     case that: Int => value == that
@@ -177,13 +196,17 @@ case class JsInt(value: Int) extends JsValue {
   override def asInt: Int = value
   override def asLong: Long = value
   override def asDouble: Double = value
+
+  override def compare(that: JsInt): Int = {
+    value - that.value
+  }
 }
 
 object JsInt {
   val zero = JsInt(0)
 }
 
-case class JsLong(value: Long) extends JsValue {
+case class JsLong(value: Long) extends JsValue with Ordered[JsLong] {
   override def toString = value.toString
   override def equals(o: Any) = o match {
     case that: Int => value == that
@@ -199,6 +222,10 @@ case class JsLong(value: Long) extends JsValue {
   override def asInt: Int = value.toInt
   override def asLong: Long = value
   override def asDouble: Double = value
+
+  override def compare(that: JsLong): Int = {
+    value.compare(that.value)
+  }
 }
 
 object JsLong {
@@ -210,7 +237,7 @@ object JsLong {
   * reason, the effective number of bits are 56, which should be
   * big enough in practice.
   */
-case class JsCounter(value: Long) extends JsValue {
+case class JsCounter(value: Long) extends JsValue with Ordered[JsCounter] {
   override def toString = value.toString
   override def equals(o: Any) = o match {
     case that: Int => value == that
@@ -226,13 +253,17 @@ case class JsCounter(value: Long) extends JsValue {
   override def asInt: Int = value.toInt
   override def asLong: Long = value
   override def asDouble: Double = value
+
+  override def compare(that: JsCounter): Int = {
+    value.compare(that.value)
+  }
 }
 
 object JsCounter {
   val zero = JsCounter(0L)
 }
 
-case class JsDouble(value: Double) extends JsValue {
+case class JsDouble(value: Double) extends JsValue with Ordered[JsDouble] {
   override def toString = value.toString
   override def equals(o: Any) = o match {
     case that: Double => value == that
@@ -243,13 +274,17 @@ case class JsDouble(value: Double) extends JsValue {
   override def asInt: Int = value.toInt
   override def asLong: Long = value.toLong
   override def asDouble: Double = value
+
+  override def compare(that: JsDouble): Int = {
+    value.compare(that.value)
+  }
 }
 
 object JsDouble {
   val zero = JsDouble(0.0)
 }
 
-case class JsString(value: String) extends JsValue {
+case class JsString(value: String) extends JsValue with Ordered[JsString] {
   override def toString = value
   override def equals(o: Any) = o match {
     case that: String => value == that
@@ -261,13 +296,17 @@ case class JsString(value: String) extends JsValue {
   override def asLong: Long = java.lang.Long.parseLong(value)
   override def asDouble: Double = java.lang.Double.parseDouble(value)
   override def asDate: Date = JsDate.format.parse(value)
+
+  override def compare(that: JsString): Int = {
+    value.compare(that.value)
+  }
 }
 
 object JsString {
   val empty = JsString("")
 }
 
-case class JsDate(value: Date) extends JsValue {
+case class JsDate(value: Date) extends JsValue with Ordered[JsDate] {
   override def toString = JsDate.format.format(value)
   override def equals(o: Any) = o match {
     case that: Date => value == that
@@ -276,6 +315,11 @@ case class JsDate(value: Date) extends JsValue {
   }
   override def asDate: Date = value
   override def asLong: Long = value.getTime
+  override def asDouble: Double = value.getTime
+
+  override def compare(that: JsDate): Int = {
+    value.compare(that.value)
+  }
 }
 
 object JsDate {
