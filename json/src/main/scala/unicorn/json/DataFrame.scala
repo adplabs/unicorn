@@ -48,6 +48,7 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
 
   def map(f: Row => Row): Seq[Row] = rows.map(f)
 
+  /** Groups rows by given columns. */
   def groupBy(cols: String*): Map[Seq[JsValue], Seq[Row]] = {
     val index = cols.map { col =>
       val i = columnNames.indexOf(col)
@@ -59,35 +60,39 @@ class DataFrame(val columnNames: Seq[String], val rows: Seq[Row], val explain: O
       index.map(row(_))
     }
   }
-/*
-  def orderBy(col: String, asc: Boolean = true): Seq[Row] = {
-    val i = columnNames.indexOf(col)
-    require(i >= 0, s"Column $col doesn't exist")
-    val sorted = rows.sortBy(_(i))
-    if (asc) sorted else sorted.reverse
+
+  /** Sorts the rows in ascending by given columns. */
+  def sortBy(cols: String*): DataFrame = {
+    orderBy(cols.map((_, true)): _*)
   }
 
-  def orderBy(col1: String, col2: String, asc: Boolean = true): Seq[Row] = {
-    val i = columnNames.indexOf(col1)
-    require(i >= 0, s"Column $col1 doesn't exist")
-    val j = columnNames.indexOf(col2)
-    require(j >= 0, s"Column $col2 doesn't exist")
-    rows.groupBy { row => (row(i), row(j)) }
-    val sorted = rows.sortBy { row => (row(i), row(j)) }
-    if (asc) sorted else sorted.reverse
+  /** Sorts the rows by given columns.
+    *
+    * @param cols a tuple of column name and ordering (true for ascending and false for descending).
+    */
+  def orderBy(cols: (String, Boolean)*): DataFrame = {
+    val index = cols.map { case (col, asc) =>
+      val i = columnNames.indexOf(col)
+      require(i >= 0, s"Column $col doesn't exist")
+      (i, asc)
+    }
+
+    val sorted = rows.sortWith { case (a, b) =>
+      index.foldLeft(true) {
+        case (false, _) => false
+        case (true, (i, asc)) =>
+          val x = a(i)
+          val y = b(i)
+          if (asc)
+            JsValueOrdering.compare(x, y) < 0
+          else
+            JsValueOrdering.compare(x, y) > 0
+      }
+    }
+
+    new DataFrame(columnNames, sorted, explain)
   }
 
-  def orderBy(col1: String, col2: String, col3: String, asc: Boolean = true): Seq[Row] = {
-    val i = columnNames.indexOf(col1)
-    require(i >= 0, s"Column $col1 doesn't exist")
-    val j = columnNames.indexOf(col2)
-    require(j >= 0, s"Column $col2 doesn't exist")
-    val k = columnNames.indexOf(col3)
-    require(k >= 0, s"Column $col3 doesn't exist")
-    val sorted = rows.sortBy { row => (row(i), row(j), row(k)) }
-    if (asc) sorted else sorted.reverse
-  }
-*/
   /** Compose the string representing rows for output
     * @param numRows Number of rows to show
     * @param truncate Whether truncate long strings and align cells right
@@ -170,16 +175,7 @@ object DataFrame {
 /** A row in data frame. */
 case class Row(elements: IndexedSeq[JsValue]) extends Traversable[JsValue] {
   override def toString(): String = elements.mkString("[", ",", "]")
-/*
-  override def compare(that: Row): Int = {
-    require(size == that.size, s"Compare two Rows of different sizes: $size, ${that.size}")
-    for (i <- 0 until size) {
-      val c = elements(i).compareTo(that(i))
-      if (c != 0) return c
-    }
-    0
-  }
-*/
+
   override def copyToArray[B >: JsValue](xs: Array[B], start: Int, len: Int): Unit = elements.copyToArray(xs, start, len)
   override def find(p: (JsValue) => Boolean): Option[JsValue] = elements.find(p)
   override def exists(p: (JsValue) => Boolean): Boolean = elements.exists(p)
