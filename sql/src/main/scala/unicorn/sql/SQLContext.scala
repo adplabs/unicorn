@@ -66,7 +66,10 @@ class SQLContext(db: Narwhal) {
 
     val orderBy = select.orderBy match {
       case None => groupBy
-      case Some(orderBy) => groupBy
+      case Some(orderBy) => groupBy.orderBy(orderBy.keys.map {
+        case (expr, ASC) => (expr.toString, true)
+        case (expr, DESC) => (expr.toString, false)
+      }: _*)
     }
 
     val limit = select.limit match {
@@ -153,34 +156,40 @@ class SQLContext(db: Narwhal) {
       case _: AllColumns => throw new IllegalArgumentException("select * with group by")
       case ExpressionProjections(lst) =>
         lst.map {
-          case (ident @ FieldIdent(_, field), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ FieldIdent(_, field), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             data(0)(index)
 
-          case (ident @ CountExpr(FieldIdent(_, field)), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ CountExpr(FieldIdent(_, field)), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             val count = data.filter { row => !isNull(row(index)) }.size
             JsInt(count)
 
           case (_: CountAll, _) => JsInt(data.size)
 
-          case (ident @ Sum(FieldIdent(_, field)), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ Sum(FieldIdent(_, field)), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             val value = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble).sum
             JsDouble(value)
 
-          case (ident @ Avg(FieldIdent(_, field)), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ Avg(FieldIdent(_, field)), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
             if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.sum / values.size)
 
-          case (ident @ Min(FieldIdent(_, field)), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ Min(FieldIdent(_, field)), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
             if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.min)
 
-          case (ident @ Max(FieldIdent(_, field)), _) =>
-            val index = columnIndex(ident.toString)
+          case (ident @ Max(FieldIdent(_, field)), as) =>
+            val column = as.getOrElse(ident.toString)
+            val index = columnIndex(column)
             val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
             if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.max)
 
