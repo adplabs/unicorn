@@ -189,8 +189,7 @@ class RhinoActor extends HttpServiceActor with HttpService with Logging {
 
   def $list = {
     onSuccess(Future {
-      val tables: JsArray = unibase.tables.toSeq
-      tables
+      unibase.tables.toSeq.toJsArray
     }) { tables =>
       complete(tables.toString)
     }

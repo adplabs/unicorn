@@ -175,8 +175,8 @@ private[unicorn] object TableMeta {
     */
   def apply(families: Seq[String], locality: Map[String, String], appendOnly: Boolean): JsObject = {
     JsObject(
-      "families" -> families.map(JsString(_)),
-      "locality" -> locality.mapValues(JsString(_)),
+      "families" -> families.toJsArray,
+      "locality" -> locality.toJsObject,
       DefaultLocalityField -> locality(""), // hacking the default value of a map
       "appendOnly" -> appendOnly
     )

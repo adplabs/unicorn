@@ -32,19 +32,17 @@ sealed trait JsValue extends Dynamic {
   def compactPrint = CompactPrinter(this)
   def prettyPrint = PrettyPrinter(this)
 
-  /**
-   * Look up field in the current object.
-   *
-   * @return the field or JsUndefined
-   */
+  /** Look up field in the current object.
+    *
+    * @return the field or JsUndefined
+    */
   def \(key: String): JsValue = apply(key)
   def \(key: Symbol): JsValue = \(key.name)
 
-  /**
-   * Look up field in the current object and all descendants.
-   *
-   * @return the JsArray of matching nodes
-   */
+  /** Look up field in the current object and all descendants.
+    *
+    * @return the JsArray of matching nodes
+    */
   def \\(key: String): JsArray = JsArray()
   def \\(key: Symbol): JsArray = \\(key.name)
 

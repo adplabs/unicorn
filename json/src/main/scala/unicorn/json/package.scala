@@ -53,27 +53,35 @@ package object json {
   implicit def map2JsValue(x: Seq[(String, JsValue)]) = JsObject(x: _*)
   implicit def map2JsValue(x: collection.mutable.Map[String, JsValue]) = JsObject(x)
   implicit def map2JsValue(x: collection.immutable.Map[String, JsValue]) = JsObject(x)
-/*
-  implicit def booleanArray2JsValue(x: Array[Boolean]): JsArray = JsArray(x.map {e => JsBoolean(e)}: _*)
-  implicit def intArray2JsValue(x: Array[Int]): JsArray = JsArray(x.map {e => JsInt(e)}: _*)
-  implicit def longArray2JsValue(x: Array[Long]): JsArray = JsArray(x.map {e => JsLong(e)}: _*)
-  implicit def doubleArray2JsValue(x: Array[Double]): JsArray = JsArray(x.map {e => JsDouble(e)}: _*)
-  implicit def stringArray2JsValue(x: Array[String]): JsArray = JsArray(x.map {e => JsString(e)}: _*)
-  implicit def dateArray2JsValue(x: Array[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
-  implicit def uuidArray2JsValue(x: Array[UUID]): JsArray = JsArray(x.map {e => JsUUID(e)}: _*)
-  implicit def binaryArray2JsValue(x: Array[Array[Byte]]): JsArray = JsArray(x.map {e => JsBinary(e)}: _*)
 
-  // Implicit conversion applies only once. Since Array has an implicit conversion to Seq, we duplicate
-  // the definition for Seq again.
-  implicit def booleanSeq2JsValue(x: Seq[Boolean]): JsArray = JsArray(x.map {e => JsBoolean(e)}: _*)
-  implicit def intSeq2JsValue(x: Seq[Int]): JsArray = JsArray(x.map {e => JsInt(e)}: _*)
-  implicit def longSeq2JsValue(x: Seq[Long]): JsArray = JsArray(x.map {e => JsLong(e)}: _*)
-  implicit def doubleSeq2JsValue(x: Seq[Double]): JsArray = JsArray(x.map {e => JsDouble(e)}: _*)
-  implicit def stringSeq2JsValue(x: Seq[String]): JsArray = JsArray(x.map {e => JsString(e)}: _*)
-  implicit def dateSeq2JsValue(x: Seq[Date]): JsArray = JsArray(x.map {e => JsDate(e)}: _*)
-  implicit def uuidSeq2JsValue(x: Seq[UUID]): JsArray = JsArray(x.map {e => JsUUID(e)}: _*)
-  implicit def binarySeq2JsValue(x: Seq[Array[Byte]]): JsArray = JsArray(x.map {e => JsBinary(e)}: _*)
-*/
+  implicit def pimpBooleanSeq(x: Seq[Boolean]) = new PimpedBooleanSeq(x)
+  implicit def pimpIntSeq(x: Seq[Int]) = new PimpedIntSeq(x)
+  implicit def pimpLongSeq(x: Seq[Long]) = new PimpedLongSeq(x)
+  implicit def pimpDoubleSeq(x: Seq[Double]) = new PimpedDoubleSeq(x)
+  implicit def pimpStringSeq(x: Seq[String]) = new PimpedStringSeq(x)
+  implicit def pimpDateSeq(x: Seq[Date]) = new PimpedDateSeq(x)
+
+  implicit def pimpBooleanArray(x: Array[Boolean]) = new PimpedBooleanSeq(x)
+  implicit def pimpIntArray(x: Array[Int]) = new PimpedIntSeq(x)
+  implicit def pimpLongArray(x: Array[Long]) = new PimpedLongSeq(x)
+  implicit def pimpDoubleArray(x: Array[Double]) = new PimpedDoubleSeq(x)
+  implicit def pimpStringArray(x: Array[String]) = new PimpedStringSeq(x)
+  implicit def pimpDateArray(x: Array[Date]) = new PimpedDateSeq(x)
+
+  implicit def pimpBooleanMap(x: Map[String, Boolean]) = new PimpedBooleanMap(x)
+  implicit def pimpIntMap(x: Map[String, Int]) = new PimpedIntMap(x)
+  implicit def pimpLongMap(x: Map[String, Long]) = new PimpedLongMap(x)
+  implicit def pimpDoubleMap(x: Map[String, Double]) = new PimpedDoubleMap(x)
+  implicit def pimpStringMap(x: Map[String, String]) = new PimpedStringMap(x)
+  implicit def pimpDateMap(x: Map[String, Date]) = new PimpedDateMap(x)
+
+  implicit def pimpBooleanMutableMap(x: collection.mutable.Map[String, Boolean]) = new PimpedBooleanMutableMap(x)
+  implicit def pimpIntMutableMap(x: collection.mutable.Map[String, Int]) = new PimpedIntMutableMap(x)
+  implicit def pimpLongMutableMap(x: collection.mutable.Map[String, Long]) = new PimpedLongMutableMap(x)
+  implicit def pimpDoubleMutableMap(x: collection.mutable.Map[String, Double]) = new PimpedDoubleMutableMap(x)
+  implicit def pimpStringMutableMap(x: collection.mutable.Map[String, String]) = new PimpedStringMutableMap(x)
+  implicit def pimpDateMutableMap(x: collection.mutable.Map[String, Date]) = new PimpedDateMutableMap(x)
+
   implicit def json2Boolean(x: JsBoolean) = x.value
   implicit def json2Int(x: JsInt) = x.value
   implicit def json2Long(x: JsLong) = x.value
@@ -96,8 +104,99 @@ package object json {
 }
 
 package json {
+
   private[json] class PimpedString(string: String) {
     def parseJson: JsValue = JsonParser(string)
     def parseJsObject: JsObject = parseJson.asInstanceOf[JsObject]
+  }
+
+  private[json] class PimpedBooleanSeq(seq: Seq[Boolean]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsBoolean(e)}: _*)
+  }
+
+  private[json] class PimpedIntSeq(seq: Seq[Int]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsInt(e)}: _*)
+  }
+
+  private[json] class PimpedLongSeq(seq: Seq[Long]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsLong(e)}: _*)
+  }
+
+  private[json] class PimpedDoubleSeq(seq: Seq[Double]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsDouble(e)}: _*)
+  }
+
+  private[json] class PimpedStringSeq(seq: Seq[String]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsString(e)}: _*)
+  }
+
+  private[json] class PimpedDateSeq(seq: Seq[Date]) {
+    def toJsArray: JsArray = JsArray(seq.map {e => JsDate(e)}: _*)
+  }
+
+  private[json] class PimpedBooleanMap(map: Map[String, Boolean]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsBoolean(v)) })
+  }
+
+  private[json] class PimpedIntMap(map: Map[String, Int]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsInt(v)) })
+  }
+
+  private[json] class PimpedLongMap(map: Map[String, Long]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsLong(v)) })
+  }
+
+  private[json] class PimpedDoubleMap(map: Map[String, Double]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsDouble(v)) })
+  }
+
+  private[json] class PimpedStringMap(map: Map[String, String]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsString(v)) })
+  }
+
+  private[json] class PimpedDateMap(map: Map[String, Date]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) => (k, JsDate(v)) })
+  }
+
+  private[json] class PimpedBooleanMutableMap(map: collection.mutable.Map[String, Boolean]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsBoolean(v)
+      (k, js)
+    })
+  }
+
+  private[json] class PimpedIntMutableMap(map: collection.mutable.Map[String, Int]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsInt(v)
+      (k, js)
+    })
+  }
+
+  private[json] class PimpedLongMutableMap(map: collection.mutable.Map[String, Long]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsLong(v)
+      (k, js)
+    })
+  }
+
+  private[json] class PimpedDoubleMutableMap(map: collection.mutable.Map[String, Double]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsDouble(v)
+      (k, js)
+    })
+  }
+
+  private[json] class PimpedStringMutableMap(map: collection.mutable.Map[String, String]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsString(v)
+      (k, js)
+    })
+  }
+
+  private[json] class PimpedDateMutableMap(map: collection.mutable.Map[String, Date]) {
+    def toJsObject: JsObject = JsObject(map.map { case (k, v) =>
+      val js: JsValue = JsDate(v)
+      (k, js)
+    })
   }
 }
