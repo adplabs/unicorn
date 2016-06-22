@@ -17,6 +17,7 @@
 package unicorn.sql
 
 import unicorn.json._
+import unicorn.unibase.$id
 import unicorn.narwhal.Narwhal
 
 /** SQL context of a Narwhal instance.
@@ -39,19 +40,47 @@ class SQLContext(db: Narwhal) {
       case Subquery(_, _) => throw new UnsupportedOperationException("Sub query is not supported yet")
     }
 
-    val it = table.find(where2Json(select.where))
+    val it = table.find(where2Json(select.where), projections2Json(select.projections))
 
-    val columnNames = projections2ColumnNames(select.projections)
+    val columns = projections2ColumnNames(table.name, select.projections)
+    val columnIndex = columns.zipWithIndex.toMap
+
     val rows = it.map { doc =>
       project(doc, select.projections)
     }
 
-    new DataFrame(columnNames, rows.toIndexedSeq, Some(query))
+    val data = new DataFrame(columns, rows.toIndexedSeq, Some(query))
+
+    val groupBy = select.groupBy match {
+      case None =>
+        if (isAggregation(select.projections)) {
+          val row = Row(aggregate(columnIndex, data.rows, select.projections): _*)
+          new DataFrame(columns, Seq(row), data.explain)
+        } else data
+
+      case Some(groupBy) =>
+        val groups = data.groupBy(groupBy.keys.map(_.toString): _*)
+        val rows = groups.map { case (key, group) => Row(aggregate(columnIndex, group, select.projections): _*) }.toSeq
+        new DataFrame(data.columnNames, rows, data.explain)
+    }
+
+    val orderBy = select.orderBy match {
+      case None => groupBy
+      case Some(orderBy) => groupBy
+    }
+
+    val limit = select.limit match {
+      case None => orderBy
+      case Some(limit) =>
+        new DataFrame(orderBy.columnNames, orderBy.take(limit.rows.toInt), orderBy.explain)
+    }
+
+    limit
   }
 
-  private def projections2ColumnNames(projections: Projections): Seq[String] = {
+  private def projections2ColumnNames(table: String, projections: Projections): Seq[String] = {
     projections match {
-      case _: AllColumns => Seq("*")
+      case _: AllColumns => Seq(table)
       case ExpressionProjections(lst) =>
         lst.map { case (expr, as) =>
           as match {
@@ -66,15 +95,15 @@ class SQLContext(db: Narwhal) {
     projections match {
       case _: AllColumns => Row(doc)
       case ExpressionProjections(lst) =>
-        val jspath = JsonPath(doc)
+        val jsonPath = JsonPath(doc)
         val elements = lst.map {
-          case (FieldIdent(_, field), _) => jspath(dotpath2JsonPath(field))
-          case (CountExpr(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
-          case (CountExpr(_: AllColumns), _) => JsNull
-          case (Sum(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
-          case (Avg(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
-          case (Min(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
-          case (Max(FieldIdent(_, field)), _) => jspath(dotpath2JsonPath(field))
+          case (FieldIdent(_, field), _) => jsonPath(dotpath2JsonPath(field))
+          case (CountExpr(FieldIdent(_, field)), _) => jsonPath(dotpath2JsonPath(field))
+          case (_: CountAll, _) => JsNull
+          case (Sum(FieldIdent(_, field)), _) => jsonPath(dotpath2JsonPath(field))
+          case (Avg(FieldIdent(_, field)), _) => jsonPath(dotpath2JsonPath(field))
+          case (Min(FieldIdent(_, field)), _) => jsonPath(dotpath2JsonPath(field))
+          case (Max(FieldIdent(_, field)), _) => jsonPath(dotpath2JsonPath(field))
           case projection => throw new UnsupportedOperationException(s"Unsupported project: $projection")
         }
         Row(elements: _*)
@@ -87,16 +116,80 @@ class SQLContext(db: Narwhal) {
 
   private def projections2Json(projections: Projections): JsObject = {
     projections match {
-      case AllColumns() => JsObject()
+      case _: AllColumns => JsObject()
       case ExpressionProjections(lst) =>
-        val js = JsObject()
-        lst.foreach {
-          case (FieldIdent(None, field), None) => js(field) = 1
-          case _ => throw new UnsupportedOperationException("Only plain field projection is supported")
+        val elements = lst.map {
+          case (FieldIdent(_, field), _) => field
+          case (CountExpr(FieldIdent(_, field)), _) => field
+          case (_: CountAll, _) => $id
+          case (Sum(FieldIdent(_, field)), _) => field
+          case (Avg(FieldIdent(_, field)), _) => field
+          case (Min(FieldIdent(_, field)), _) => field
+          case (Max(FieldIdent(_, field)), _) => field
+          case projection => throw new UnsupportedOperationException(s"Unsupported project: $projection")
         }
-        js
+        JsObject(elements.map(_ -> JsInt(1)): _*)
     }
   }
+
+  private def isAggregation(projections: Projections): Boolean = {
+    projections match {
+      case _: AllColumns => false
+      case ExpressionProjections(lst) =>
+        lst.exists {
+          case (CountExpr(FieldIdent(_, field)), _) => true
+          case (_: CountAll, _) => true
+          case (Sum(FieldIdent(_, field)), _) => true
+          case (Avg(FieldIdent(_, field)), _) => true
+          case (Min(FieldIdent(_, field)), _) => true
+          case (Max(FieldIdent(_, field)), _) => true
+          case projection => false
+        }
+    }
+  }
+
+  private def aggregate(columnIndex: Map[String, Int], data: Seq[Row], projections: Projections): Seq[JsValue] = {
+    projections match {
+      case _: AllColumns => throw new IllegalArgumentException("select * with group by")
+      case ExpressionProjections(lst) =>
+        lst.map {
+          case (ident @ FieldIdent(_, field), _) =>
+            val index = columnIndex(ident.toString)
+            data(0)(index)
+
+          case (ident @ CountExpr(FieldIdent(_, field)), _) =>
+            val index = columnIndex(ident.toString)
+            val count = data.filter { row => !isNull(row(index)) }.size
+            JsInt(count)
+
+          case (_: CountAll, _) => JsInt(data.size)
+
+          case (ident @ Sum(FieldIdent(_, field)), _) =>
+            val index = columnIndex(ident.toString)
+            val value = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble).sum
+            JsDouble(value)
+
+          case (ident @ Avg(FieldIdent(_, field)), _) =>
+            val index = columnIndex(ident.toString)
+            val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
+            if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.sum / values.size)
+
+          case (ident @ Min(FieldIdent(_, field)), _) =>
+            val index = columnIndex(ident.toString)
+            val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
+            if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.min)
+
+          case (ident @ Max(FieldIdent(_, field)), _) =>
+            val index = columnIndex(ident.toString)
+            val values = data.filter { row => !isNull(row(index)) }.map(_(index).asDouble)
+            if (values.isEmpty) JsDouble(Double.NaN) else JsDouble(values.max)
+
+          case projection => throw new UnsupportedOperationException(s"Unsupported project: $projection")
+        }
+    }
+  }
+
+  private def isNull(x: JsValue): Boolean = x == JsUndefined || x == JsNull
 
   private def where2Json(where: Option[Expression]): JsObject = {
     where match {
