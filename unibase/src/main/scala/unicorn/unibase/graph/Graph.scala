@@ -80,6 +80,9 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
   /** The graph name. */
   val name = table.name
 
+  /** Cache of vertex string key to long id. */
+  private[unicorn] val keyMap = collection.mutable.Map[String, Long]()
+
   /** Returns the vertex properties and its both outgoing and incoming edges. */
   def apply(id: Long): Vertex = {
     apply(id, Both)
@@ -119,7 +122,13 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
 
   /** Translates a vertex string key to 64 bit id. */
   def id(key: String): Option[Long] = {
-    id(name, key)
+    val _id = keyMap.get(key)
+    if (_id.isDefined) _id
+    else {
+      val _id = id(name, key)
+      if (_id.isDefined) keyMap(key) = _id.get
+      _id
+    }
   }
 
   /** Returns true if the vertex exists. */
@@ -297,7 +306,9 @@ class Graph(override val table: BigTable, documentVertexTable: BigTable, idgen: 
     *
     * @return the 64 bit vertex id. */
   def addVertex(key: String, properties: JsObject): Long = {
-    addVertex(name, key, properties = properties)
+    val id = addVertex(name, key, properties = properties)
+    keyMap(key) = id
+    id
   }
 
   /** Creates a new vertex corresponding to a document in
