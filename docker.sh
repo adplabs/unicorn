@@ -9,7 +9,6 @@
 
 echo "Starting Unicorn container"
 data_dir=$PWD/data
-rm -rf $data_dir
 mkdir -p $data_dir
 id=$(docker run --name=unicorn-docker -h unicorn-docker -d -v $data_dir:/data unicorn)
 
