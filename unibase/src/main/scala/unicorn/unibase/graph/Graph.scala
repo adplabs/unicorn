@@ -106,6 +106,11 @@ class ReadOnlyGraph(val table: BigTable, documentVertexTable: BigTable) {
   }
 
   /** Returns a vertex by its string key. */
+  def apply(key: String): Vertex = {
+    apply(key, Both)
+  }
+
+  /** Returns a vertex by its string key. */
   def apply(key: String, direction: Direction): Vertex = {
     val _id = id(key)
     require(_id.isDefined, s"Vertex $key doesn't exist")
