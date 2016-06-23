@@ -2,10 +2,10 @@ name := "unicorn-shell"
 
 mainClass in Compile := Some("unicorn.shell.Main")
 
-// SBT native packager
+// native packager
 enablePlugins(JavaAppPackaging)
 
-maintainer := "Haifeng Li <Haifeng.Li@ADP.COM>"
+maintainer := "Haifeng Li <haifeng.hli@gmail.com>"
 
 packageName := "unicorn"
 
@@ -23,7 +23,12 @@ bashScriptExtraDefines += """addJava "-Dscala.repl.autoruncode=${app_home}/init.
 
 bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/unicorn.conf""""
 
-// SBT BuildInfo
+// native packager Docker plugin
+enablePlugins(DockerPlugin)
+
+dockerBaseImage := "dajobe/hbase"
+
+// BuildInfo
 enablePlugins(BuildInfoPlugin)
 
 buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
