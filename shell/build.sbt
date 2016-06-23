@@ -28,6 +28,10 @@ enablePlugins(DockerPlugin)
 
 dockerBaseImage := "dajobe/hbase"
 
+packageName in Docker := "haifengl/unicorn"
+
+dockerUpdateLatest := true
+
 // BuildInfo
 enablePlugins(BuildInfoPlugin)
 
