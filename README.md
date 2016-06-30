@@ -39,7 +39,7 @@ UNICORN
 [![Join the chat at https://gitter.im/haifengl/unicorn](https://badges.gitter.im/haifengl/unicorn.svg)](https://gitter.im/haifengl/unicorn?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Unicorn is a simple and flexible abstraction of BigTable-like database such as Cassandra,
-HBase, and Accumulo. Beyond a unified interface to various database systems,
+HBase, Accumulo, and RocksDB. Beyond a unified interface to various database systems,
 Unicorn provides easy-to-use document data model and MongoDB-like API.
 Moreover, Unicorn supports directed property multigraphs and
 documents can just be vertices in a graph.
@@ -182,6 +182,34 @@ a mock instance, simply do
 
 ```scala
 val db = Accumulo()
+```
+
+RocksDB is an embeddable persistent key-value store for fast storage.
+RocksDB builds on LevelDB to be scalable to run on servers with
+many CPU cores, to efficiently use fast storage, to support IO-bound,
+in-memory and write-once workloads.
+
+If your data can be fit in one machine and low latency (in microseconds)
+is important to your applications, RocksDB is a great choice. Especially
+for graph database use cases, a graph traversal may touch thousands or
+event millions vertices, the cost of IPC to a distributed database
+will be too high. In this case, RocksDB will easily outperformance
+other distributed storage engine.
+
+There is no concept of tables in RocksDB. In fact, a RocksDB is like
+a table in HBase. Therefore, we create a higher level concept of
+database that contains multiple RocksDB databases in a directory.
+Each RocksDB is actually a subdirectory, which is encapsulated
+in RocksTable. To create RocksDB, simply provides a directory path.
+
+```scala
+val db = Unibase(RocksDB.create("/tmp/unicorn-twitter"))
+```
+
+To use an existing database,
+
+```scala
+val db = Unibase(RocksDB("/tmp/unicorn-twitter"))
 ```
 
 With a database instance, we can create, drop, truncate, and compact
@@ -1269,6 +1297,28 @@ still provides fairly good performance on queries in such a situation.
 For general purpose queries, secondary index should be built
 to accelerate frequent queries. We will discuss our secondary index
 design in the below.
+
+SQL
+---
+
+In fact, you can do a SQL-like query in the code or shell, which
+returns a `DataFrame`.
+
+```scala
+db.sql("""SELECT address.state,
+            COUNT(address.state),
+            MAX(age),
+            AVG(salary) as avg_salary
+          FROM worker
+          GROUP BY address.state
+          ORDER By avg_salary""")
+```
+
+Although filtering is done on the server side, all other heavy
+computation such as `SUM`, `GROUP BY`, `ORDER BY`, etc. are done
+on the client side. So this is only useful for small operational
+queries that involves a handful rows. For large scale analytics
+queries, we should use Spark as discussed below.
 
 Spark
 -----
