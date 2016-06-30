@@ -24,8 +24,8 @@ import unicorn.bigtable.Database
 /** RocksDB abstraction. RocksDB is an embeddable persistent key-value store
   * for fast storage. There is no concept of tables in RocksDB. In fact, a
   * RocksDB is like a table in HBase. In this class, we create a higher level
-  * concept of database that contains multiple RocksDB in a directory. Each
-  * RocksDB is actually a subdirectory, which is encapulated in RocksTable.
+  * concept of database that contains multiple RocksDB databases in a directory.
+  * Each RocksDB is actually a subdirectory, which is encapsulated in RocksTable.
   *
   * @author Haifeng Li
   */
