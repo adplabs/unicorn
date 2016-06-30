@@ -1446,8 +1446,8 @@ val gods = db.graph("gods", new Snowflake(0))
 ```
 
 Because each vertex in the graph must have a unique
-64-bit ID. When we go to mutate a graph, we should
-provide a (distributed) ID generator. We currently
+64-bit ID, we should provide a (distributed) ID generator
+when we go to mutate a graph. We currently
 provide the Snowflake ID generator, designed by Twitter.
 Each Snowflake worker should have a unique worker ID
 so that multiple worker won't generate duplicate
@@ -1527,6 +1527,14 @@ a `Vertex` object containing its ID, properties, and associated
 edges. One can also directly access the data of an edge by
 `gods(pluto, "brother", jupiter)`. If the edge doesn't exist,
 `None` is returned.
+
+Although some graphs (e.g. Twitter graph) natively use `Long` integer as
+vertex IDS, many graphs use Strings as vertex IDs. In RDF
+(Resource Description Framework), for example, vertices are encoded
+as URI. In Unicorn, we can use strings as vertex keys too.
+Internally, Unicorn translates them to the corresponding `Long` vertex
+IDs. However, it is recommended to use `Long` vertex ID directly if
+possible because it provides better performance.
 
 It is also possible to add a document (in another table) as a vertex
 to a graph.
