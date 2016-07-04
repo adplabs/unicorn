@@ -27,7 +27,7 @@
 
   Welcome to Unicorn Shell; enter ':help<RETURN>' for the list of commands.
   Type ":quit<RETURN>" to leave the Unicorn Shell
-  Version 2.0.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-05-23 04:21:17.922
+  Version 2.1.0, Scala 2.11.7, SBT 0.13.8, Built at 2016-07-04 03:42:14.238
 ===============================================================================
 
 unicorn>
