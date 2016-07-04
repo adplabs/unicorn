@@ -69,13 +69,13 @@ GraphX too.
 To use Unicorn as a library, add the following to SBT build file.
 
 ```scala
-libraryDependencies += "com.github.haifengl" % "unicorn-unibase_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-unibase_2.11" % "2.1.0"
 ```
 
 If you need additional HBase-only features, please link to the module `Narwhal`.
 
 ```scala
-libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-narwhal_2.11" % "2.1.0"
 ```
 
 With the module `Narwhal` that is specialized for HBase, advanced features such
@@ -88,7 +88,7 @@ of JSON objects. Meanwhile, it is type
 safe and may capture many errors during the compile time. To use only the JSON library,
 
 ```scala
-libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.0.0"
+libraryDependencies += "com.github.haifengl" % "unicorn-json_2.11" % "2.1.0"
 ```
 
 Download
