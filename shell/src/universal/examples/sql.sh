@@ -63,3 +63,5 @@ table.upsert(carlos)
 hbase.sql("select * from unicorn_sql where name = 'Haifeng'")
 
 hbase.dropTable("unicorn_sql")
+
+hbase.sql("select address.state, count(address.state), max(age), avg(salary) as avg_salary from worker group by address.state order by avg_salary")
