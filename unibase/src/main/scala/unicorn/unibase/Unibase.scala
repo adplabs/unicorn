@@ -88,11 +88,15 @@ class Unibase[+T <: BigTable](db: Database[T]) {
                   families: Seq[String] = Seq(DocumentColumnFamily),
                   locality: Map[String, String] = Map().withDefaultValue(DocumentColumnFamily),
                   appendOnly: Boolean = false): Unit = {
-    db.createTable(name, families: _*)
+    val table = db.createTable(name, families: _*)
+    // RocksDB will hold the lock if we don't close it
+    table.close
 
     // If the meta data table doesn't exist, create it.
-    if (!db.tableExists(MetaTableName))
-      db.createTable(MetaTableName, MetaTableColumnFamily)
+    if (!db.tableExists(MetaTableName)) {
+      val metaTable = db.createTable(MetaTableName, MetaTableColumnFamily)
+      metaTable.close
+    }
 
     // meta data table
     val metaTable = db(MetaTableName)
@@ -102,6 +106,7 @@ class Unibase[+T <: BigTable](db: Database[T]) {
       case (path, value) => Column(path.getBytes(utf8), value)
     }.toSeq
     metaTable.put(name, MetaTableColumnFamily, columns: _*)
+    metaTable.close
   }
 
   /** Creates a graph table.
@@ -193,6 +198,7 @@ private[unicorn] object TableMeta {
     val meta = metaTable.get(name, MetaTableColumnFamily).map {
       case Column(qualifier, value, _) => (new String(qualifier, utf8), value.bytes)
     }.toMap
+    metaTable.close
     serializer.deserialize(meta).asInstanceOf[JsObject]
   }
 }
