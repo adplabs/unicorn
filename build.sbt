@@ -6,7 +6,7 @@ lazy val commonSettings = Seq(
   organization := "com.github.haifengl",
   organizationName := "Haifeng Li",
   organizationHomepage := Some(url("http://haifengl.github.io/")),
-  version := "2.1.0",
+  version := "2.1.1",
   scalaVersion := "2.11.8",
   scalacOptions := Seq("-feature", "-language:_", "-unchecked", "-deprecation", "-encoding", "utf8"),
   scalacOptions in Test ++= Seq("-Yrangepos"),
@@ -55,7 +55,7 @@ lazy val nonPubishSettings = commonSettings ++ Seq(
 )
 
 lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
-  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, rocksdb, unibase, narwhal, sql, shell, rhino)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, rocksdb, unibase, narwhal, sql, transaction, shell, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -80,6 +80,8 @@ lazy val unibase = project.in(file("unibase")).settings(commonSettings: _*).depe
 lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).dependsOn(unibase, hbase)
 
 lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
+
+lazy val transaction = project.in(file("transaction")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
