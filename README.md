@@ -36,7 +36,7 @@ unicorn>
 UNICORN
 =======
 
-[![Join the chat at https://gitter.im/haifengl/unicorn](https://badges.gitter.im/haifengl/unicorn.svg)](https://gitter.im/haifengl/unicorn?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.haifengl/unicorn-unibase/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.haifengl/unicorn-unibase)
+[![Join the chat at https://gitter.im/haifengl/unicorn](https://badges.gitter.im/haifengl/unicorn.svg)](https://gitter.im/haifengl/unicorn?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.haifengl/unicorn-unibase_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.haifengl/unicorn-unibase_2.11)
 
 Unicorn is a simple and flexible abstraction of BigTable-like database such as Cassandra,
 HBase, Accumulo, and RocksDB. Beyond a unified interface to various database systems,
