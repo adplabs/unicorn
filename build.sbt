@@ -55,7 +55,7 @@ lazy val nonPubishSettings = commonSettings ++ Seq(
 )
 
 lazy val root = project.in(file(".")).settings(nonPubishSettings: _*)
-  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, rocksdb, unibase, narwhal, sql, transaction, shell, rhino)
+  .aggregate(util, oid, json, bigtable, hbase, cassandra, accumulo, rocksdb, unibase, narwhal, sql, shell, rhino)
 
 lazy val util = project.in(file("util")).settings(commonSettings: _*)
 
@@ -81,7 +81,7 @@ lazy val narwhal = project.in(file("narwhal")).settings(commonSettings: _*).depe
 
 lazy val sql = project.in(file("sql")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
-lazy val transaction = project.in(file("transaction")).settings(commonSettings: _*).dependsOn(util, narwhal)
+//lazy val transaction = project.in(file("transaction")).settings(commonSettings: _*).dependsOn(util, narwhal)
 
 //lazy val search = project.in(file("search")).settings(nonPubishSettings: _*).dependsOn(unibase)
 
