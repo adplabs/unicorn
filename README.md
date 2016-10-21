@@ -156,7 +156,7 @@ val db = HBase()
 The user may also pass a Configuration object to `HBase()`
 if HBase configuration files are not in the `CLASSPATH`.
 
-To connect to Cassandra, please enables the Thrift API by configuring
+To connect to Cassandra, please enable the Thrift API by configuring
 `start_rpc` to `true` in the `cassandra.yaml` file, which is `false` by default
 after Cassandra 2.0.
 
